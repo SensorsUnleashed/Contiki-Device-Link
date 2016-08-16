@@ -1,0 +1,8 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Overview.qml</file>
+        <file>UartSetup.qml</file>
+        <file>DLT645Tester.qml</file>
+        <file>SensActTest.qml</file>
+    </qresource>
+</RCC>
