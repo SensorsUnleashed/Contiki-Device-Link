@@ -1,5 +1,5 @@
 CONTIKI_PROJECT = er-uart-server
-PROJECT_SOURCEFILES += proto1.c 
+PROJECT_SOURCEFILES += coap_proxy.c 
 
 all: $(CONTIKI_PROJECT)
 

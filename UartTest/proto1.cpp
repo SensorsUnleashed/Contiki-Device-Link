@@ -40,14 +40,14 @@ void proto1::handleIncomming(){
 
 }
 
-/* Returns -1 if CRC failed */
+/*
+ * Returns:
+ *  -1 if CRC failed
+ *  -2 if resource_url index is out of bounds
+*/
 int proto1::parseMessage(QByteArray& msg){
 
     int crc = crc16_data((const unsigned char*)msg.data(), msg.length() - 2, 0);
-    int crct = (unsigned short&) *(msg.data() + msg.length() - 2);
-    qDebug() << "RX CRC calculated: " << crc;
-    qDebug() << "RX CRC received  : " << crct;
-
     if(crc != (unsigned short&) *(msg.data() + msg.length() - 2)) return -1;
 
     QByteArray reply;
@@ -56,7 +56,7 @@ int proto1::parseMessage(QByteArray& msg){
 
     reply.append(*data++);  //We reply with the same seq no
     enum commands cmd = (enum commands)*data++;
-    reply.append(cmd);      //We replay with the same cmd
+    reply.append(cmd);      //We reply with the same cmd
 
     //Integrety of the message seems to be fine. Continue parsing
     switch(cmd){
@@ -64,7 +64,17 @@ int proto1::parseMessage(QByteArray& msg){
         reply.append(resources.count());
         break;
     case resource_url:
-        reply.append(resources.at(*data));
+        if(*data > (resources.count()-1)){
+            qDebug() << "resource_url: Requested index " << *data << " but max is " << resources.count()-1;
+            return - 2;
+        }
+        else{
+            reply.append(resources.at(*data));
+            qDebug() << resources.at(*data);
+        }
+        break;
+    case debugstring:
+            qDebug() << "Debug: " << (char*)data;
         break;
     }
 
@@ -73,8 +83,6 @@ int proto1::parseMessage(QByteArray& msg){
 
     reply.append(crc & 0xff);  //And the CRC16
     reply.append(crc >> 8);  //And the CRC16
-
-    qDebug() << "TX CRC calculated: " << crc;
 
     comm->transmit(reply);  //Only thing left is to ship it
 

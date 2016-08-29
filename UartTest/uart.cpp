@@ -86,16 +86,8 @@ void uart::readData(){
 
     recbytes->append(uartport->readAll());
 
-
-
-
     if(recbytes->contains(END)){
         byteunStuff(recbytes);
-        if(recbytes->length() < 6){ //Bad message
-            recbytes->clear();
-            return;
-        }
-
         messages.append(recbytes);
         //Create a new recbytes buffer for the next message arriving
         recbytes = new QByteArray();

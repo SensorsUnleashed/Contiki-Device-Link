@@ -18,6 +18,7 @@ private:
     enum commands {
         resource_count = 1,  //Get the total no of resources
         resource_url,      //Get a specific resource
+        debugstring,
     };
 
     uart* comm;

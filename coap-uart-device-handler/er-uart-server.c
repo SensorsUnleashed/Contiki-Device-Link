@@ -43,8 +43,8 @@
 #include "contiki-net.h"
 #include "rest-engine.h"
 
-#include "protocol.h"
 #include "dev/button-sensor.h"
+#include "coap_proxy.h"
 
 /*
  * Resources to be activated need to be imported through the extern keyword.
@@ -64,7 +64,7 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	/* Initialize the REST engine. */
 	rest_init_engine();
 
-	protocol_init();
+	proxy_init();
 	/*
 	 * Bind the resources to their Uri-Path.
 	 * WARNING: Activating twice only means alternate path, not two instances!
@@ -73,11 +73,24 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	rest_activate_resource(&res_toggle, "actuators/toggle");
 
 
-	/* Request list of resources from the device attached to the uart */
-	req_resource(resource_count);
-	PROCESS_WAIT_EVENT_UNTIL(req_received(resource_count));
 
-	req_resource(resource_count);
+
+//	char count;
+//	if(req_received(resource_count, &count) == 0){
+//		for(int i=0; i<count; i++){
+//			req_resource(resource_url, (void*)i, 1);
+//			PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
+//		}
+//	}
+
+
+
+//	req_resource(resource_count);
+//	PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
+//	req_resource(resource_count);
+//	PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
+
+	//req_resource(resource_count);
 
 	/* Define application-specific events here. */
 	while(1) {
