@@ -72,26 +72,6 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	 */
 	rest_activate_resource(&res_toggle, "actuators/toggle");
 
-
-
-
-//	char count;
-//	if(req_received(resource_count, &count) == 0){
-//		for(int i=0; i<count; i++){
-//			req_resource(resource_url, (void*)i, 1);
-//			PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
-//		}
-//	}
-
-
-
-//	req_resource(resource_count);
-//	PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
-//	req_resource(resource_count);
-//	PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
-
-	//req_resource(resource_count);
-
 	/* Define application-specific events here. */
 	while(1) {
 		PROCESS_WAIT_EVENT();
