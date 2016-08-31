@@ -7,7 +7,7 @@
 
 #include "dev/uart.h"
 #include "coap_proxy.h"
-#include "lib/mmem.h"
+
 #include "lib/memb.h"
 #include "process.h"
 #include "lib/crc16.h"
@@ -23,14 +23,7 @@ PROCESS(coap_proxy_server, "Coap uart proxy");
 //event_data_ready event is posted when ever a message has been fully decoded.
 process_event_t event_data_ready;
 
-#define END     0xC0
-#define ESC     0xDB
-#define ESC_END 0xDC
-#define ESC_ESC 0xDD
-
-#define ACK     0x06
-#define NAK     0x15
-
+//Upcounter, for all messages sent from here
 static unsigned char msgcount = 0;
 
 //The rx_buf is the raw uart buffer - implemented as a circular buffer.
@@ -41,18 +34,19 @@ static char* rd_ptr = &rx_buf[0];
 static char* rx_end = &rx_buf[RX_BUFLEN-1];
 static char* rx_start = &rx_buf[0];
 
-typedef struct  {
-	unsigned char seqno;
-	enum req_cmd cmd;
-	struct mmem payloadbuf;
-}rx_msg;
-rx_msg rx_reply;
+//This is an array that is used for the resource info from the uart
+static char payloadbuffer[1024];
+static char* plbuf_wrt = &payloadbuffer[0];
+
+//When a message has been decoded, this is where it goes
+static rx_msg rx_reply;
+
+static char j;
+static char resources_availble = 0;
 
 #define MAX_RESOURCES	20
 LIST(proxy_resource_list);
 MEMB(proxy_resource_mem, rx_msg, MAX_RESOURCES);
-
-unsigned int frameandsend(const unsigned char *s, unsigned int len);
 
 int decodemsg(){
 
@@ -79,16 +73,10 @@ int decodemsg(){
 	//Resource strings will be stored in a seperate
 	rx_reply.seqno = *tempptr++;
 	rx_reply.cmd = *tempptr++;
-	len = msglen - 2;
-
-	//Store the payload in dynamic memory
-	if(mmem_alloc(&rx_reply.payloadbuf, len) == 0){
-		return -1;	//unable to allocate memory
-	}
-	char* rs_wrtptr = (char*)MMEM_PTR(&rx_reply.payloadbuf);
-	//rx_reply.payload = (int)rs_wrtptr;	//Store the location in memory where we're going to put the payload
-	for(int i=0; i<len; i++){
-		*rs_wrtptr++ = *tempptr++;
+	rx_reply.len = msglen - 2;
+	rx_reply.payload = (char*)plbuf_wrt;
+	for(int i=0; i<rx_reply.len; i++){
+		*plbuf_wrt++ = *tempptr++;
 	}
 
 	return 0;
@@ -98,13 +86,7 @@ int proxy_rx_callback(unsigned char c) {
 	static char last_c = 0;
 	if(c == END){	//Is it the last byte in a frame
 		if(decodemsg() == 0){
-			//ACK the message
-			//frameandsend(ACK, 1);
 			process_post(&coap_proxy_server, event_data_ready, 0);
-		}
-		else{
-			//NAK the message
-			// frameandsend(NAK, 1);
 		}
 	}
 	else if(c == ESC_ESC && last_c == ESC){
@@ -170,17 +152,10 @@ void proxy_init(void){
 	process_start(&coap_proxy_server, 0);
 }
 
-static char j;
-static char resources_availble = 0;
-
 PROCESS_THREAD(coap_proxy_server, ev, data)
 {
 	PROCESS_BEGIN();
-
-	mmem_init();	//Initialized by contiki
 	memb_init(&proxy_resource_mem);
-
-	char* payload;
 
 	/* List container all the resources received through the uart */
 	list_init(proxy_resource_list);
@@ -191,10 +166,7 @@ PROCESS_THREAD(coap_proxy_server, ev, data)
 	/* Request list of resources from the device attached to the uart */
 	req_resource(resource_count, 0, 0);
 	PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
-
-	payload = (char*) MMEM_PTR(&rx_reply.payloadbuf);
-
-	resources_availble = *((char*)payload);
+	resources_availble = *((char*) rx_reply.payload);
 
 	char msg[50];
 	int n = sprintf(msg, "resource_count=%d", resources_availble);
@@ -218,11 +190,8 @@ PROCESS_THREAD(coap_proxy_server, ev, data)
 	for(s = list_head(proxy_resource_list);
 			s != NULL;
 			s = list_item_next(s)) {
-		payload = (char*) MMEM_PTR(&s->payloadbuf);
-		req_resource(debugstring, payload, s->payloadbuf.size);
+		req_resource(debugstring, s->payload, s->len);
 	}
-
-//	req_resource(debugstring, &resources[1].url, sizeof(resources[1].url));
 
 	while(1) {
 		PROCESS_WAIT_EVENT();
@@ -233,5 +202,4 @@ PROCESS_THREAD(coap_proxy_server, ev, data)
 
 	PROCESS_END();
 }
-
 
