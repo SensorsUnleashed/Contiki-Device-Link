@@ -39,9 +39,10 @@
  * */
 
 enum req_cmd {
-	resource_count = 1,
-	resource_url,
-
+	resource_count = 1,		//Get the total no of resources
+	resource_url,			//Get a specific resource uri
+    resource_attributes,    //Get a specific resource attribute
+	resource_flags,			//Get the flags for a specific resource
 	debugstring,
 };
 

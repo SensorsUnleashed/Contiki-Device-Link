@@ -6,6 +6,7 @@
  */
 
 #include "dev/uart.h"
+#include "board.h"
 #include "coap_proxy.h"
 
 #include "lib/memb.h"
@@ -15,6 +16,7 @@
 #include "contiki.h"
 #include <stdio.h>
 #include <string.h>
+#include "rest-engine.h"
 
 /* Messages are always initiated from the us (the host).
 */
@@ -47,6 +49,21 @@ static char resources_availble = 0;
 #define MAX_RESOURCES	20
 LIST(proxy_resource_list);
 MEMB(proxy_resource_mem, rx_msg, MAX_RESOURCES);
+MEMB(proxy_resources, resource_t, MAX_RESOURCES);
+
+#include "dev/leds.h"
+static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
+	leds_toggle(LEDS_GREEN);
+}
+static void res_proxy_post_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
+	leds_toggle(LEDS_ORANGE);
+}
+static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
+	leds_toggle(LEDS_YELLOW);
+}
+static void res_proxy_delete_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
+	leds_toggle(LEDS_RED);
+}
 
 int decodemsg(){
 
@@ -125,6 +142,13 @@ unsigned int frameandsend(const unsigned char *s, unsigned int len){
 	return i;
 }
 
+/*
+ * Paramters:
+ * 	cmd: The command, used by the client to identify the message type
+ * 	payload: What to send
+ * 	len: The length of the payload.
+ * 		0 = No payload
+ * */
 void req_resource(enum req_cmd cmd, void* payload, int len){
 
 	char* tmp = payload;
@@ -152,10 +176,14 @@ void proxy_init(void){
 	process_start(&coap_proxy_server, 0);
 }
 
+//This is only for intermidiate storage - to avoid warnings about non initialized variables
+static resource_t temp_resource;
+
 PROCESS_THREAD(coap_proxy_server, ev, data)
 {
 	PROCESS_BEGIN();
 	memb_init(&proxy_resource_mem);
+	memb_init(&proxy_resources);
 
 	/* List container all the resources received through the uart */
 	list_init(proxy_resource_list);
@@ -169,19 +197,39 @@ PROCESS_THREAD(coap_proxy_server, ev, data)
 	resources_availble = *((char*) rx_reply.payload);
 
 	char msg[50];
-	int n = sprintf(msg, "resource_count=%d", resources_availble);
-	req_resource(debugstring, &msg, n+1);
+	sprintf(msg, "resource_count=%d", resources_availble);
+	req_resource(debugstring, &msg, strlen((char*)&msg[0]));
 	PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
 
 	for(j=0; j< resources_availble; j++){
 
 		req_resource(resource_url, &j, 1);
 		PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
+		temp_resource.url = (char*)rx_reply.payload;
 
-		rx_msg* newmsg = memb_alloc(&proxy_resource_mem);
-		if(newmsg != NULL){
-			memcpy(newmsg, &rx_reply, sizeof(rx_msg));
-			list_add(proxy_resource_list, newmsg);
+		req_resource(resource_attributes, &j, 1);
+		PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
+		temp_resource.attributes = (char*)rx_reply.payload;
+
+		req_resource(resource_flags, &j, 1);
+		PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
+		temp_resource.flags = (rest_resource_flags_t)(char*)rx_reply.payload;
+
+		//Create the resource
+		resource_t* r = (resource_t*)memb_alloc(&proxy_resources);
+		if(r != 0){
+			memcpy(r, &temp_resource, sizeof(resource_t));
+
+			r->get_handler = res_proxy_get_handler;
+			r->post_handler = res_proxy_post_handler;
+			r->put_handler = res_proxy_put_handler;
+			r->delete_handler = res_proxy_delete_handler;
+			rest_activate_resource(r, (char*)r->url);
+
+			req_resource(debugstring, (char*)temp_resource.url, strlen((char*)temp_resource.url) + 1);	//Remember the \0
+			PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
+			req_resource(debugstring, (char*)temp_resource.attributes, strlen((char*)temp_resource.attributes) + 1);	//Remember the \0
+			PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
 		}
 	}
 
