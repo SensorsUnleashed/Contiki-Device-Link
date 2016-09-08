@@ -50,7 +50,7 @@
  * Resources to be activated need to be imported through the extern keyword.
  * The build system automatically compiles the resources in the corresponding sub-directory.
  */
-extern resource_t res_toggle;
+extern resource_t res_toggle, res_mirror;
 
 PROCESS(er_uart_server, "Erbium Uart Server");
 AUTOSTART_PROCESSES(&er_uart_server);
@@ -64,13 +64,11 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	/* Initialize the REST engine. */
 	rest_init_engine();
 
+	rest_activate_resource(&res_mirror, "debug/mirror");
+
 	proxy_init();
-	/*
-	 * Bind the resources to their Uri-Path.
-	 * WARNING: Activating twice only means alternate path, not two instances!
-	 * All static variables are the same for each URI path.
-	 */
-	rest_activate_resource(&res_toggle, "actuators/toggle");
+
+
 
 	/* Define application-specific events here. */
 	while(1) {

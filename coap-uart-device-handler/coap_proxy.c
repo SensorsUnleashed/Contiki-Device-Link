@@ -18,8 +18,17 @@
 #include <string.h>
 #include "rest-engine.h"
 
+//This is the type we use, so that we can find the resource on the sensor
+struct proxy_resource{
+	struct proxy_resource *next;	/* for LIST, points to next resource defined */
+	uint8_t id;
+	resource_t* resourceptr;		/* Pointer to the resource COAP knows about */
+};
+
+typedef struct proxy_resource proxy_resource_t;
+
 /* Messages are always initiated from the us (the host).
-*/
+ */
 PROCESS(coap_proxy_server, "Coap uart proxy");
 
 //event_data_ready event is posted when ever a message has been fully decoded.
@@ -49,27 +58,87 @@ static char resources_availble = 0;
 #define MAX_RESOURCES	20
 LIST(proxy_resource_list);
 MEMB(proxy_resource_mem, rx_msg, MAX_RESOURCES);
-MEMB(proxy_resources, resource_t, MAX_RESOURCES);
+MEMB(coap_resources, resource_t, MAX_RESOURCES);
+MEMB(proxy_resources, proxy_resource_t, MAX_RESOURCES);
 
 #include "dev/leds.h"
 static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	leds_toggle(LEDS_GREEN);
+	int len = 0;
+
+	proxy_resource_t *resource = NULL;
+	const char *url = NULL;
+	int url_len, res_url_len;
+
+	url_len = REST.get_url(request, &url);
+	for(resource = (proxy_resource_t *)list_head(proxy_resource_list);
+			resource; resource = resource->next) {
+
+		/* if the web service handles that kind of requests and urls matches */
+		res_url_len = strlen(resource->resourceptr->url);
+		if((url_len == res_url_len
+				|| (url_len > res_url_len
+						&& (resource->resourceptr->flags & HAS_SUB_RESOURCES)
+						&& url[res_url_len] == '/'))
+				&& strncmp(resource->resourceptr->url, url, res_url_len) == 0) {
+
+			len = sprintf((char*)buffer, "You requested id: %d, has flags %d\n", resource->id, resource->resourceptr->flags);
+			REST.set_response_payload(response, buffer, len);
+		}
+	}
 }
+
+
+
 static void res_proxy_post_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	leds_toggle(LEDS_ORANGE);
+
+	//	const char *query = NULL;
+	//	const char *payload = NULL;
+	//	REST.get_query(request, &query);
+	//	REST.get_request_payload(request, &payload);
+	////	req_resource(debugstring, (char*)query, len+1);
+	//
+	//	snprintf((char *)buffer, REST_MAX_CHUNK_SIZE, "Post query: %s\n Post payload", query, payload);
+	//	REST.set_response_payload(response, (uint8_t *)buffer, strlen((char *)buffer));
+
+
+
+	//	const char *url = NULL;
+	//	const char *id = NULL;
+	//	const char *query = NULL;
+	//	int len = 0;
+	//
+	//	len = REST.get_url(request, &url);
+	////	req_resource(debugstring, (char*)url, len+1);
+	//
+	//
+	//	len = REST.get_query_variable(request, "id", &id);
+	//	//req_resource(debugstring, id, len);
+	//
+	//	len = REST.get_query(request, &query);
+	//	req_resource(debugstring, (char*)query, len+1);
+
+	//req_resource(debugstring, (char*)temp_resource.url, strlen((char*)temp_resource.url) + 1);	//Remember the \0
 }
 static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	leds_toggle(LEDS_YELLOW);
+
+	snprintf((char *)buffer, REST_MAX_CHUNK_SIZE, "Du har kaldt res_proxy_put_handler");
+	REST.set_response_payload(response, (uint8_t *)buffer, strlen((char *)buffer));
 }
 static void res_proxy_delete_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	leds_toggle(LEDS_RED);
+
+	snprintf((char *)buffer, REST_MAX_CHUNK_SIZE, "Du har kaldt res_proxy_delete_handler");
+	REST.set_response_payload(response, (uint8_t *)buffer, strlen((char *)buffer));
 }
 
 int decodemsg(){
 
-	char temp[50];
+	char temp[100];
 	char* tempptr = &temp[0];
-	char* tempend = &temp[49];
+	char* tempend = &temp[99];
 	char len = 0;
 
 	//Lets start by copying the bytes into a straight temp buffer (This simplifies decoding)
@@ -170,19 +239,28 @@ void req_resource(enum req_cmd cmd, void* payload, int len){
 	frameandsend((unsigned char*)&msg,index);
 }
 
+//This is only for intermidiate storage - to avoid warnings about non initialized variables
+static resource_t temp_resource;
+static proxy_resource_t temp_proxy_resource;
+
 void proxy_init(void){
 
 	uart_set_input(0, proxy_rx_callback);
 	process_start(&coap_proxy_server, 0);
-}
 
-//This is only for intermidiate storage - to avoid warnings about non initialized variables
-static resource_t temp_resource;
+	temp_resource.get_handler = NULL;
+	temp_resource.put_handler = NULL;
+	temp_resource.post_handler = NULL;
+	temp_resource.delete_handler = NULL;
+
+	temp_proxy_resource.id = 0;
+}
 
 PROCESS_THREAD(coap_proxy_server, ev, data)
 {
 	PROCESS_BEGIN();
 	memb_init(&proxy_resource_mem);
+	memb_init(&coap_resources);
 	memb_init(&proxy_resources);
 
 	/* List container all the resources received through the uart */
@@ -196,11 +274,6 @@ PROCESS_THREAD(coap_proxy_server, ev, data)
 	PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
 	resources_availble = *((char*) rx_reply.payload);
 
-	char msg[50];
-	sprintf(msg, "resource_count=%d", resources_availble);
-	req_resource(debugstring, &msg, strlen((char*)&msg[0]));
-	PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
-
 	for(j=0; j< resources_availble; j++){
 
 		req_resource(resource_url, &j, 1);
@@ -213,32 +286,37 @@ PROCESS_THREAD(coap_proxy_server, ev, data)
 
 		req_resource(resource_flags, &j, 1);
 		PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
-		temp_resource.flags = (rest_resource_flags_t)(char*)rx_reply.payload;
+		temp_resource.flags = *((char*)rx_reply.payload);
 
-		//Create the resource
-		resource_t* r = (resource_t*)memb_alloc(&proxy_resources);
+		//create the proxy resource
+		proxy_resource_t* p = (proxy_resource_t*)memb_alloc(&proxy_resources);
+
+		//Create the resource for the coap engine
+		resource_t* r = (resource_t*)memb_alloc(&coap_resources);
 		if(r != 0){
 			memcpy(r, &temp_resource, sizeof(resource_t));
 
-			r->get_handler = res_proxy_get_handler;
-			r->post_handler = res_proxy_post_handler;
-			r->put_handler = res_proxy_put_handler;
-			r->delete_handler = res_proxy_delete_handler;
+			if(r->flags & METHOD_GET){
+				r->get_handler = res_proxy_get_handler;
+			}
+			if(r->flags & METHOD_POST){
+				r->post_handler = res_proxy_post_handler;
+			}
+			if(r->flags & METHOD_PUT){
+				r->put_handler = res_proxy_put_handler;
+			}
+			if(r->flags & METHOD_DELETE){
+				r->delete_handler = res_proxy_delete_handler;
+			}
+
+			//This is a way to easier to find the id of the sensor/actuator later on
+			p->id = j;
+			p->resourceptr = r;
+			list_add(proxy_resource_list, p);
+
+			//Finally activate the resource with the rest coap
 			rest_activate_resource(r, (char*)r->url);
-
-			req_resource(debugstring, (char*)temp_resource.url, strlen((char*)temp_resource.url) + 1);	//Remember the \0
-			PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
-			req_resource(debugstring, (char*)temp_resource.attributes, strlen((char*)temp_resource.attributes) + 1);	//Remember the \0
-			PROCESS_WAIT_EVENT_UNTIL(ev == event_data_ready);
 		}
-	}
-
-	//Send back debug about what has been stored
-	rx_msg* s;
-	for(s = list_head(proxy_resource_list);
-			s != NULL;
-			s = list_item_next(s)) {
-		req_resource(debugstring, s->payload, s->len);
 	}
 
 	while(1) {

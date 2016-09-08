@@ -15,6 +15,8 @@ public:
     int messageQueEmpty();
     QByteArray* getFirstMessage();
 
+    void test();
+
 private:
     QSerialPort* uartport;
     bool portfound;

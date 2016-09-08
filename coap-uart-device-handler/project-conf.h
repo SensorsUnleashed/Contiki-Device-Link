@@ -39,6 +39,9 @@
 #ifndef __PROJECT_ERBIUM_CONF_H__
 #define __PROJECT_ERBIUM_CONF_H__
 
+
+//#define UART_CONF_ENABLE	0
+
 //Enable uart receive
 #define UART0_CONF_WITH_INPUT	1
 

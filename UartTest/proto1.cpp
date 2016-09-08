@@ -8,10 +8,27 @@ extern "C" {
 proto1::proto1(uart* comm)
 {
     this->comm = comm;
-    resources.append("/button/actuator");
-    resources.append("/timer/counter");
+
+    QVariantMap map;
+    map["resource_url"] = "button/actuator";
+    map["resource_attributes"] = "title=\"Green LED\" ;rt=\"Control\"";
+    map["flags"] = METHOD_GET | METHOD_POST;
+    resources.append(map);
+
+    map["resource_url"] = "timer/counter";
+    map["resource_attributes"] = "title=\"Orange LED\";rt=\"Control\"";
+    map["flags"] = METHOD_GET | METHOD_PUT;;
+    resources.append(map);
+
+    map["resource_url"] = "sensor/temp";
+    map["resource_attributes"] = "title=\"Temperature\";rt=\"Temperature\";obs;";
+    map["flags"] = METHOD_GET;
+    resources.append(map);
 
     connect(comm, SIGNAL(messageReceived()), this, SLOT(handleIncomming()));
+
+    //Used for testing RX
+    //comm->test();
 }
 
 void proto1::handleIncomming(){
@@ -69,8 +86,31 @@ int proto1::parseMessage(QByteArray& msg){
             return - 2;
         }
         else{
-            reply.append(resources.at(*data));
-            qDebug() << resources.at(*data);
+            reply.append(resources.at(*data)["resource_url"].toString());
+            reply.append('\0'); //Unlinke c++, a string in c is ended with the \0
+            qDebug() << "ID: " << *data << " = " << resources.at(*data)["resource_url"].toString();
+        }
+        break;
+    case resource_attributes:
+        if(*data > (resources.count()-1)){
+            qDebug() << "resource_attributes: Requested index " << *data << " but max is " << resources.count()-1;
+            return - 3;
+        }
+        else{
+            reply.append(resources.at(*data)["resource_attributes"].toString());
+            reply.append('\0'); //Unlinke c++, a string in c is ended with the \0
+            //qDebug() << resources.at(*data)["resource_attributes"].toString();
+        }
+        break;
+    case resource_flags:
+        if(*data > (resources.count()-1)){
+            qDebug() << "resource_flags: Requested index " << *data << " but max is " << resources.count()-1;
+            return - 4;
+        }
+        else{
+            reply.append(resources.at(*data)["flags"].toInt());
+            reply.append('\0'); //Unlinke c++, a string in c is ended with the \0
+            qDebug() << "id " << *data << resources.at(*data)["flags"].toInt();
         }
         break;
     case debugstring:

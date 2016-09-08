@@ -42,7 +42,28 @@ uart::uart()
 
     //Recive every message that the uart class finds valid
     connect(uartport, SIGNAL(readyRead()), this, SLOT(readData()));
+
+
 }
+char debug_str[] = {0x4, 0x3, 0x2f, 0x62, 0x75, 0x74, 0x74, 0x6f, 0x6e, 0x2f, 0x61, 0x63, 0x74, 0x75, 0x61, 0x74, 0x6f, 0x72, 0x12, (char)0xca, 0x3d, (char)0xc0, 0x5, 0x3, 0x2f, 0x74, (char)0x69, 0x6d, 0x65, 0x72, 0x2f, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x65, 0x72, 0x10, (char)0xe2, (char)0xed, (char)0xc0 };
+
+void uart::test(){
+
+    recbytes->append(&debug_str[0]);
+
+    while(recbytes->contains(END)){
+        QByteArray* array = new QByteArray;
+        int index = recbytes->indexOf(END, 0);
+        for(int i=0; i<=index; i++){
+            array->append(recbytes->at(i));
+        }
+        recbytes->remove(0, index+1);
+        byteunStuff(array);
+        messages.append(array);
+        emit messageReceived();
+    }
+}
+
 
 void uart::setup(QString command){
     if(command.compare("DTR Toggle") == 0){
@@ -73,24 +94,24 @@ void uart::setup(QString command){
 void uart::readData(){
 
     QByteArray peek = uartport->peek(500);
-    QString valueInHex;
-    for(int i=0; i<peek.length(); i++){
+//    QString valueInHex;
+//    for(int i=0; i<peek.length(); i++){
 
-        valueInHex += QString("0x%1 ").arg((quint8)peek[i] , 0, 16);
-    }
-    qDebug() << "RX: " << valueInHex;
-
-    //Handle thos later on
-    if(peek.contains(ACK)) qDebug() << "ACK";
-    else if(peek.contains(NAK)) qDebug() << "NAK";
-
+//        valueInHex += QString("0x%1 ").arg((quint8)peek[i] , 0, 16);
+//    }
+//    qDebug() << "RX: " << valueInHex;
+    //qDebug() << peek;
     recbytes->append(uartport->readAll());
 
-    if(recbytes->contains(END)){
-        byteunStuff(recbytes);
-        messages.append(recbytes);
-        //Create a new recbytes buffer for the next message arriving
-        recbytes = new QByteArray();
+    while(recbytes->contains(END)){
+        QByteArray* array = new QByteArray;
+        int index = recbytes->indexOf(END, 0);  //TODO: consider just checking for the char
+        for(int i=0; i<=index; i++){
+            array->append(recbytes->at(i));
+        }
+        recbytes->remove(0, index+1);
+        byteunStuff(array);
+        messages.append(array);
         emit messageReceived();
     }
 }
