@@ -102,7 +102,6 @@ static void res_proxy_delete_handler(void *request, void *response, uint8_t *buf
 
 //This is only for intermidiate storage - to avoid warnings about non initialized variables
 static resource_t temp_resource;
-static proxy_resource_t temp_proxy_resource;
 
 struct pt pt_worker;
 int msgid = 1;
@@ -121,55 +120,21 @@ PT_THREAD(initResources(struct pt *pt)){
 	resources_availble = *((char*) rx_reply.payload);
 
 	for(j=0; j< resources_availble; j++){
-		//Get all the resource fields
-		//The URL is put together by the group and the type. Do it here
-/*		frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_group, &j, 1, &txbuf[0]));
-		PT_WAIT_UNTIL(pt, rx_reply.seqno == msgid);
-		temp_resource.url = (char*)rx_reply.payload;
-		rx_reply.payload += rx_reply.len - 1;	//Shrink the payload, to keep the string.
-		*((char*)rx_reply.payload++) = '/';	//Separate the type and the group with a /
-
-		frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_type, &j, 1, &txbuf[0]));
-		PT_WAIT_UNTIL(pt, rx_reply.seqno == msgid);
-		rx_reply.payload += rx_reply.len;	//Shrink the payload, to keep the string.
-		//The url is now finished being assembled in the payloadbuffer
-
-		frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_attributes, &j, 1, &txbuf[0]));
-		PT_WAIT_UNTIL(pt, rx_reply.seqno == msgid);
-		temp_resource.attributes = (char*)rx_reply.payload;
-		rx_reply.payload += rx_reply.len;	//Shrink the payload, to keep the string.
-
-		frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_flags, &j, 1, &txbuf[0]));
-		PT_WAIT_UNTIL(pt, rx_reply.seqno == msgid);
-		temp_resource.flags = *((char*)rx_reply.payload);
-
-		//Next get the sensor specific data
-		frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_spec, &j, 1, &txbuf[0]));
-		PT_WAIT_UNTIL(pt, rx_reply.seqno == msgid);
-		temp_proxy_resource.spec = (char*)rx_reply.payload;
-		rx_reply.payload += rx_reply.len;	//Shrink the payload, to keep the string.
-
-		frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_unit, &j, 1, &txbuf[0]));
-		PT_WAIT_UNTIL(pt, rx_reply.seqno == msgid);
-		temp_proxy_resource.unit = (char*)rx_reply.payload;
-		rx_reply.payload += rx_reply.len;	//Shrink the payload, to keep the string.
-*/
 		frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_config, &j, 1, &txbuf[0]));
 		PT_WAIT_UNTIL(pt, rx_reply.seqno == msgid);
-		//Its msgpack encoded
-		struct resourceconf config;
-		//Place the strings in the beginning of the data.
-		//It will override what we received with the relevant strings, but that dont matter.
-		cp_decoderesource_conf(&config, rx_reply.payload, &txbuf[0]);
-
-		//temp_proxy_resource.updateinterval = *((int32_t*)rx_reply.payload);
 
 		//create the proxy resource
 		proxy_resource_t* p = (proxy_resource_t*)memb_alloc(&proxy_resources);
 		if(p != 0){
-			memcpy(&p->conf, &config, sizeof(struct resourceconf));
-		}
+			//Its msgpack encoded
+			//Place the strings in the beginning of the data.
+			//It will override what we received with the relevant strings, but that dont matter.
+			cp_decoderesource_conf(&p->conf, rx_reply.payload, (char*)&txbuf[0]);
 
+			//We need to make sure that we dont override the strings.
+			rx_reply.payload = p->conf.attr + strlen(p->conf.attr) + 1;
+
+		}
 		//Create the resource for the coap engine
 		resource_t* r = (resource_t*)memb_alloc(&coap_resources);
 		if(r != 0){
@@ -203,36 +168,22 @@ PT_THREAD(initResources(struct pt *pt)){
 	PT_END(pt);
 }
 
-//Used to read from msgpacked buffer
-static bool buf_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
-	char* ptr = ctx->buf;
-	for(int i=0; i<limit; i++){
-		*ptr++ = *((char*)data++);
-	}
-	return true;
-}
-
 void handleSensorMessages(){
-	cmp_ctx_t cmp;
-	struct pl_res_post* pl = (struct pl_res_post*)rx_reply.payload;
 
 	if(rx_reply.cmd == resource_value_update){
-		unsigned long t;
-		cmp_init(&cmp, pl->data, buf_reader, 0);
-		cmp_read_u64(&cmp, &t);
-		printf("Resource ID %d: %lu\n", pl->resource_id, t);
-	}
 
-//	proxy_resource_t *resource = NULL;
-//	for(resource = (proxy_resource_t *)list_head(proxy_resource_list);
-//			resource; resource = resource->next) {
-//		if(pl->resource_id == resource->id){
-//
-//			cmp_init(&cmp, pl->data, buf_reader, 0);
-//			cmp_read_u64(&cmp, &t);
-//			printf("Resource ID %d: %lu\n", pl->resource_id, t);
-//		}
-//	}
+		char str[20];
+		char id[2];
+		int len = 0;
+		if(cp_decodeReadings(rx_reply.payload, &id[0], &len) == 0){	//Its always the id first
+			printf("ID: %s = ", (char*)&id);
+			rx_reply.payload += len;
+		}
+
+		if(cp_decodeReadings(rx_reply.payload, &str[0], &len) == 0){
+			printf("%s\n", (char*)&str);
+		}
+	}
 }
 //Callback; used when the uart has parsed a message
 void proxy_tick_event(buffer_t* msg){

@@ -7,6 +7,7 @@
 #include "coap_proxy_protocolhandler.h"
 #include "lib/crc16.h"
 #include <string.h>
+#include <stdio.h>
 
 /*
  *
@@ -100,6 +101,7 @@ int cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer){
 	return (size_t)cmp.buf - (size_t)buffer;
 }
 
+//Returns the length of the written data
 int cp_encodereading(uint8_t* buffer, cmp_object_t *obj){
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, 0, buf_writer);
@@ -107,6 +109,10 @@ int cp_encodereading(uint8_t* buffer, cmp_object_t *obj){
 	return (size_t)cmp.buf - (size_t)buffer;
 }
 
+/* Returns:
+ *  0 for OK
+ *  1 for err
+ */
 int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* strings){
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, buf_reader, buf_writer);
@@ -147,8 +153,32 @@ int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* str
 	cmp_read_str(&cmp, strings, &len);
 	strings += len;	//Keep the \0
 
-	return (size_t)cmp.buf - (size_t)buffer;
+	return 1;
 }
 
+
+/* Returns:
+ *  0 for OK
+ *  1 for err
+ */
+int cp_decodeReadings(uint8_t* buffer, char* conv, int* len){
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, buffer, buf_reader, 0);
+
+	cmp_object_t obj;
+	cmp_read_object(&cmp, &obj);
+
+	if(obj.type == CMP_TYPE_POSITIVE_FIXNUM){
+		sprintf(conv, "%d", obj.as.u8);
+	}
+	else if(obj.type == CMP_TYPE_UINT64){
+		sprintf(conv, "%lu", obj.as.s64);
+	}
+	else{
+		return 1;
+	}
+	*len = (size_t)cmp.buf - (size_t)buffer;
+	return 0;
+}
 
 

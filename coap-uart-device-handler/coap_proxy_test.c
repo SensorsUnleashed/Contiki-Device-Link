@@ -217,28 +217,25 @@ PROCESS_THREAD(coap_proxy_test, ev, data)
 					else
 						printf("Wrong Resource ID (resource_config)");
 				}
-
-//				else if(rx_req.cmd == resource_updateinterval){
-//					int id = *((char*)rx_req.payload);
-//					if(id < RESOURCE_COUNT){
-//						frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(rx_req.seqno, resource_updateinterval, (char*)&rs[id].updateinterval, 4, (uint8_t*)&inputbuffer[0]));
-//					}
-//					else
-//						printf("Wrong Resource ID (resource_updateinterval)");
-//				}
-
 				//Reset buffer to be ready to receive yet another message
 				wrt_ptr = &inputbuffer[0];
 			}
 		}
+#include "cmp.h"
+
 		else if(ev == PROCESS_EVENT_TIMER){
 			etimer_reset(&et);
-			struct pl_res_post pl;
-			pl.resource_id = 1;	//The time
-			pl.data[0] = 0xcf;	//msgpack for uint64	(unsigned long for x64)
-			sprintf(&pl.data[1],"%lu", clock_seconds());
-			frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(rx_req.seqno, resource_value_update, (char*)&pl, 10, (uint8_t*)&inputbuffer[0]));
-			//printf("%lu\n", clock_seconds());
+
+			char pl[20];
+			char* plptr = &pl[0];
+			cmp_object_t obj;
+			obj.type = CMP_TYPE_POSITIVE_FIXNUM;
+			obj.as.u8 = 1;
+			plptr += cp_encodereading((uint8_t*)plptr, &obj);
+			obj.type = CMP_TYPE_UINT64;
+			obj.as.u64 = clock_seconds();
+			plptr += cp_encodereading((uint8_t*)plptr, &obj);
+			frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(rx_req.seqno, resource_value_update, (char*)&pl[0], (char)((unsigned long)plptr - (unsigned long)&pl[0]), (uint8_t*)&inputbuffer[0]));
 		}
 	}
 

@@ -98,4 +98,6 @@ int cp_encodemessage(uint8_t msgid, enum req_cmd cmd, void* payload, char len, u
 int cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer);
 int cp_encodereading(uint8_t* buffer, cmp_object_t *obj);
 int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* strings);
+int cp_decodeReadings(uint8_t* buffer, char* conv, int* len);
+
 #endif /* COAP_UART_DEVICE_HANDLER_COAP_PROXY_PROTOCOLHANDLER_H_ */
