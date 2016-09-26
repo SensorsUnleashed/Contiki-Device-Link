@@ -126,9 +126,9 @@ PT_THREAD(initResources(struct pt *pt)){
 		//create the proxy resource
 		proxy_resource_t* p = (proxy_resource_t*)memb_alloc(&proxy_resources);
 		if(p != 0){
-			//Its msgpack encoded
-			//Place the strings in the beginning of the data.
-			//It will override what we received with the relevant strings, but that dont matter.
+			//Place the strings in the beginning of the buffer.
+			//It will override what we received with the relevant strings, but as
+			//long as we read ahead, it doesn't matter.
 			cp_decoderesource_conf(&p->conf, rx_reply.payload, (char*)&txbuf[0]);
 
 			//We need to make sure that we dont override the strings.
@@ -139,6 +139,12 @@ PT_THREAD(initResources(struct pt *pt)){
 		resource_t* r = (resource_t*)memb_alloc(&coap_resources);
 		if(r != 0){
 			memcpy(r, &temp_resource, sizeof(resource_t));
+
+			//This is a way to easier to find the id of the sensor/actuator later on
+			p->resourceptr = r;
+			r->url = p->conf.type;
+			r->attributes = p->conf.attr;
+			r->flags = p->conf.flags;
 
 			if(r->flags & METHOD_GET){
 				r->get_handler = res_proxy_get_handler;
@@ -153,11 +159,6 @@ PT_THREAD(initResources(struct pt *pt)){
 				r->delete_handler = res_proxy_delete_handler;
 			}
 
-			//This is a way to easier to find the id of the sensor/actuator later on
-			p->resourceptr = r;
-			r->url = p->conf.type;
-			r->attributes = p->conf.attr;
-			r->flags = p->conf.flags;
 			list_add(proxy_resource_list, p);
 
 			//Finally activate the resource with the rest coap
@@ -177,10 +178,9 @@ void handleSensorMessages(){
 		int len = 0;
 		if(cp_decodeReadings(rx_reply.payload, &id[0], &len) == 0){	//Its always the id first
 			printf("ID: %s = ", (char*)&id);
-			rx_reply.payload += len;
 		}
 
-		if(cp_decodeReadings(rx_reply.payload, &str[0], &len) == 0){
+		if(cp_decodeReadings(rx_reply.payload+len, &str[0], &len) == 0){
 			printf("%s\n", (char*)&str);
 		}
 	}
