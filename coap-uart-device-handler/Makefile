@@ -1,5 +1,5 @@
 CONTIKI_PROJECT = er-uart-server
-PROJECT_SOURCEFILES += coap_proxy.c uarthandler.c
+PROJECT_SOURCEFILES += coap_proxy.c uarthandler.c coap_proxy_protocolhandler.c cmp.c
 
 all: $(CONTIKI_PROJECT)
 
@@ -8,6 +8,13 @@ TARGETDIRS += ../targets
 CONTIKI=../contiki
 
 CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
+
+ifeq ($(TARGET), native)
+CFLAGS += -DNATIVE=1
+PROJECT_SOURCEFILES += coap_proxy_test.c
+else
+CFLAGS += -DNATIVE=0
+endif
 
 # automatically build RESTful resources
 REST_RESOURCES_DIR = ./resources

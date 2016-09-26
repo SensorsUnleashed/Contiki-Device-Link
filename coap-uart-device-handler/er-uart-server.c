@@ -40,11 +40,70 @@
 #include <stdlib.h>
 #include <string.h>
 #include "contiki.h"
-#include "contiki-net.h"
+//#include "contiki-net.h"
 #include "rest-engine.h"
 
 #include "dev/button-sensor.h"
 #include "coap_proxy.h"
+
+#include "pt.h"
+
+struct timer timer;
+
+struct pt testpt, testpt2;
+struct pt childpt;
+
+static struct timer input_timer;
+
+PT_THREAD(wait5sec(struct pt *pt)){
+	PT_BEGIN(pt);
+	  printf("Waiting 1 second\n");
+	  timer_set(&input_timer, 1000);
+	  PT_WAIT_UNTIL(pt, timer_expired(&input_timer));
+
+	  printf("Waiting 5 second\n");
+	  timer_set(&input_timer, 5000);
+	  PT_WAIT_UNTIL(pt, timer_expired(&input_timer));
+
+	  printf("Waiting 5 second\n");
+	  timer_set(&input_timer, 5000);
+	  PT_WAIT_UNTIL(pt, timer_expired(&input_timer));
+
+	  printf("Waiting 5 second\n");
+	  timer_set(&input_timer, 5000);
+	  PT_WAIT_UNTIL(pt, timer_expired(&input_timer));
+
+	PT_END(pt);
+
+}
+
+PT_THREAD(waitagainsec(struct pt *pt)){
+	PT_BEGIN(pt);
+
+	while(1){
+
+	  printf("Waiting 1 second\n");
+	  timer_set(&input_timer, 1000);
+	  PT_WAIT_UNTIL(pt, timer_expired(&input_timer));
+
+	  printf("Waiting 2 second\n");
+	  timer_set(&input_timer, 2000);
+	  PT_WAIT_UNTIL(pt, timer_expired(&input_timer));
+
+	  printf("Waiting 2 second\n");
+	  timer_set(&input_timer, 2000);
+	  PT_WAIT_UNTIL(pt, timer_expired(&input_timer));
+
+	  printf("Waiting 2 second\n");
+	  timer_set(&input_timer, 2000);
+	  PT_WAIT_UNTIL(pt, timer_expired(&input_timer));
+	}
+	PT_END(pt);
+
+}
+
+
+
 
 /*
  * Resources to be activated need to be imported through the extern keyword.
@@ -59,21 +118,56 @@ PROCESS_THREAD(er_uart_server, ev, data)
 {
 	PROCESS_BEGIN();
 
-	PROCESS_PAUSE();
+	//PT_INIT(&testpt);
+	//PT_INIT(&testpt2);
+
+
 
 	/* Initialize the REST engine. */
-	rest_init_engine();
+//	rest_init_engine();
+//	rest_activate_resource(&res_mirror, "debug/mirror");
 
-	rest_activate_resource(&res_mirror, "debug/mirror");
+
 
 	proxy_init();
 
-
+//	while(wait5sec(&testpt) == 0);
+//	while(waitagainsec(&testpt2) == 0);
+//	PROCESS_PT_SPAWN(&testpt2, waitagainsec(&testpt2));
 
 	/* Define application-specific events here. */
+
 	while(1) {
-		PROCESS_WAIT_EVENT();
-	}                             /* while (1) */
+	     PROCESS_WAIT_EVENT();
+
+	     printf("Got event number %d\n", ev);
+
+		//PROCESS_WAIT_EVENT_UNTIL(wait5sec(&testpt) == 0);
+		//while (wait5sec(&testpt) == 0);
+		//PROCESS_WAIT_EVENT();
+	}
 
 	PROCESS_END();
 }
+
+#if 0
+PROCESS(example_process1, "Example process");
+AUTOSTART_PROCESSES(&example_process1);
+struct etimer et;
+PROCESS_THREAD(example_process1, ev, data)
+{
+  PROCESS_BEGIN();
+
+  /* Delay 1 second */
+  etimer_set(&et, CLOCK_SECOND);
+
+  while(1) {
+    PROCESS_WAIT_EVENT();
+    /* Reset the etimer to trig again in 1 second */
+    etimer_reset(&et);
+    printf("Got event number %d\n", ev);
+  }
+
+  PROCESS_END();
+}
+#endif

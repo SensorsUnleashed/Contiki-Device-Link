@@ -38,37 +38,10 @@
                res_event_handler);
  * */
 
-enum req_cmd {
-	resource_count = 1,		//Get the total no of resources
-	resource_url,			//Get a specific resource uri
-    resource_attributes,    //Get a specific resource attribute
-	resource_flags,			//Get the flags for a specific resource
-	debugstring,
-};
-
-#define END     0xC0
-#define ESC     0xDB
-#define ESC_END 0xDC
-#define ESC_ESC 0xDD
-
-#define ACK     0x06
-#define NAK     0x15
-
-//This struct contains the raw messages.
-typedef struct  {
-	struct resource *next;
-	unsigned char seqno;
-	enum req_cmd cmd;
-	char len;
-	void* payload;
-}rx_msg;
-
 #ifndef NULL
 #define NULL 0
 #endif
 
 void proxy_init(void);
-void req_resource(enum req_cmd cmd, void* payload, int len);
-int req_received(enum req_cmd cmd, void* ret);
 
 #endif /* COAP_UART_DEVICE_HANDLER_COAP_PROXY_H_ */
