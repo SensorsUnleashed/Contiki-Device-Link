@@ -25,16 +25,25 @@ THE SOFTWARE.
 #ifndef CMP_H__
 #define CMP_H__
 
-#include <stdbool.h>
 #include "contiki.h"
 
-typedef unsigned long size_t;
+#ifndef bool
+typedef uint8_t bool;
+#endif
+
+#ifndef true
+#define true	1
+#endif
+
+#ifndef false
+#define false	!true
+#endif
 
 struct cmp_ctx_s;
 
-typedef bool   (*cmp_reader)(struct cmp_ctx_s *ctx, void *data, size_t limit);
-typedef size_t (*cmp_writer)(struct cmp_ctx_s *ctx, const void *data,
-                                                    size_t count);
+typedef bool   (*cmp_reader)(struct cmp_ctx_s *ctx, void *data, uint32_t limit);
+typedef uint32_t (*cmp_writer)(struct cmp_ctx_s *ctx, const void *data,
+                                                    uint32_t count);
 
 enum {
   CMP_TYPE_POSITIVE_FIXNUM, /*  0 */

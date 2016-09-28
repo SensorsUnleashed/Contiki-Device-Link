@@ -41,7 +41,7 @@ int cp_decodemessage(char* source, int len, rx_msg* destination){
  * Encode the requested message
  * return: Buffer length
  * */
-int cp_encodemessage(uint8_t msgid, enum req_cmd cmd, void* payload, char len, uint8_t* buffer){
+uint32_t cp_encodemessage(uint8_t msgid, enum req_cmd cmd, void* payload, char len, uint8_t* buffer){
 
 	char* tmp = payload;
 	char* buffer_start = (char*)buffer;
@@ -52,17 +52,17 @@ int cp_encodemessage(uint8_t msgid, enum req_cmd cmd, void* payload, char len, u
 	for(int i=0; i<len; i++){
 		*buffer++ = *tmp++;
 	}
-	count = (int)buffer - (int)buffer_start;
+	count = (void*)buffer - (void*)buffer_start;
 	*buffer++ = count;
 	crc = crc16_data((uint8_t*)buffer_start, count+1, 0);
 	*buffer++ = crc & 0xff;
 	*buffer++ = crc >> 8;
 
-	return ((int)buffer - (int)buffer_start);
+	return (uint32_t)((void*)buffer - (void*)buffer_start);
 }
 
 //Used to read from msgpacked buffer
-static bool buf_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
+static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit) {
 	for(int i=0; i<limit; i++){
 		 *((char*)data++) = *((char*)ctx->buf++);
 	}
@@ -70,7 +70,7 @@ static bool buf_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
 }
 
 
-static size_t buf_writer(cmp_ctx_t* ctx, const void *data, size_t count){
+static uint32_t buf_writer(cmp_ctx_t* ctx, const void *data, uint32_t count){
 	for(int i=0; i<count; i++){
 		*((uint8_t*)ctx->buf++) = *((char*)data++);
 	}
@@ -81,7 +81,7 @@ static size_t buf_writer(cmp_ctx_t* ctx, const void *data, size_t count){
  * MsgPack Encode the resourceconfiguration message
  * return: Buffer length
  * */
-int cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer){
+uint32_t cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer){
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, buf_reader, buf_writer);
 
@@ -98,15 +98,15 @@ int cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer){
 	cmp_write_str(&cmp, data->attr, strlen(data->attr)+1);
 
 
-	return (size_t)cmp.buf - (size_t)buffer;
+	return (uint32_t)(((void*)cmp.buf) - ((void*)buffer));
 }
 
 //Returns the length of the written data
-int cp_encodereading(uint8_t* buffer, cmp_object_t *obj){
+uint32_t cp_encodereading(uint8_t* buffer, cmp_object_t *obj){
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, 0, buf_writer);
 	cmp_write_object(&cmp, obj);
-	return (size_t)cmp.buf - (size_t)buffer;
+	return (uint32_t)((void*)cmp.buf - (void*)buffer);
 }
 
 /* Returns:
@@ -157,28 +157,105 @@ int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* str
 }
 
 
-/* Returns:
+/* Convert the device readingspayload to a string.
+ * Parameter:
+ * 	buffer: Raw messagepacked buffer
+ * 	conv: String result
+ * 	len: String length without trailing '\0'
+ * 	TODO: Consider changing the len, to how far we read the buffer instead.
+ *
+ * Returns:
  *  0 for OK
  *  1 for err
  */
-int cp_decodeReadings(uint8_t* buffer, char* conv, int* len){
+int cp_decodeReadings(uint8_t* buffer, uint8_t* conv, uint32_t* len){
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, buf_reader, 0);
 
 	cmp_object_t obj;
-	cmp_read_object(&cmp, &obj);
-
-	if(obj.type == CMP_TYPE_POSITIVE_FIXNUM){
-		sprintf(conv, "%d", obj.as.u8);
-	}
-	else if(obj.type == CMP_TYPE_UINT64){
-		sprintf(conv, "%lu", obj.as.s64);
-	}
-	else{
+	if(!cmp_read_object(&cmp, &obj)){
 		return 1;
 	}
-	*len = (size_t)cmp.buf - (size_t)buffer;
+
+	switch(obj.type){
+	case CMP_TYPE_POSITIVE_FIXNUM:
+	case CMP_TYPE_NIL:	// NULL = 0
+	case CMP_TYPE_UINT8:
+		*len = sprintf((char*)conv, "%u", obj.as.u8);
+		break;
+	case CMP_TYPE_BOOLEAN:
+		*len = sprintf((char*)conv, "%u", obj.as.boolean);
+		break;
+	case CMP_TYPE_FLOAT:
+	case CMP_TYPE_DOUBLE:
+		*len = sprintf((char*)conv, "%f", obj.as.dbl);
+		break;
+	case CMP_TYPE_UINT16:
+		*len = sprintf((char*)conv, "%u", obj.as.u16);
+		break;
+	case CMP_TYPE_UINT32:
+		*len = sprintf((char*)conv, "%lu", obj.as.u32);
+		break;
+	case CMP_TYPE_UINT64:
+		*len = sprintf((char*)conv, "%Lu", obj.as.u64);
+		break;
+	case CMP_TYPE_SINT8:
+	case CMP_TYPE_NEGATIVE_FIXNUM:
+		*len = sprintf((char*)conv, "%d", obj.as.s8);
+		break;
+	case CMP_TYPE_SINT16:
+		*len = sprintf((char*)conv, "%d", obj.as.s16);
+		break;
+	case CMP_TYPE_SINT32:
+		*len = sprintf((char*)conv, "%ld", obj.as.s32);
+		break;
+	case CMP_TYPE_SINT64:
+		*len = sprintf((char*)conv, "%Ld", obj.as.s64);
+		break;
+	case CMP_TYPE_FIXMAP:
+	case CMP_TYPE_FIXARRAY:
+	case CMP_TYPE_FIXSTR:
+	case CMP_TYPE_BIN8:
+	case CMP_TYPE_BIN16:
+	case CMP_TYPE_BIN32:
+	case CMP_TYPE_EXT8:
+	case CMP_TYPE_EXT16:
+	case CMP_TYPE_EXT32:
+	case CMP_TYPE_FIXEXT1:
+	case CMP_TYPE_FIXEXT2:
+	case CMP_TYPE_FIXEXT4:
+	case CMP_TYPE_FIXEXT8:
+	case CMP_TYPE_FIXEXT16:
+	case CMP_TYPE_STR8:
+	case CMP_TYPE_STR16:
+	case CMP_TYPE_STR32:
+	case CMP_TYPE_ARRAY16:
+	case CMP_TYPE_ARRAY32:
+	case CMP_TYPE_MAP16:
+	case CMP_TYPE_MAP32:
+		return 1;
+	}
+
 	return 0;
+}
+
+/*
+ * Read the Message ID
+ * Param:
+ * 	x = result ID
+ * 	len = How far did we read into the buffer
+ *
+ * */
+int cp_decodeID(uint8_t* buffer, uint8_t* x, uint32_t* len){
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, buffer, buf_reader, 0);
+
+	if(cmp_read_uchar(&cmp, x)){
+		*len = (void*)cmp.buf - (void*)buffer;
+		return 0;
+	}
+
+	return 1;
 }
 
 

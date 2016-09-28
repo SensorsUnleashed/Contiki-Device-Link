@@ -19,19 +19,30 @@
 #include "process.h"
 #include "lib/list.h"
 #include "contiki.h"
-#include <stdio.h>
 #include <string.h>
 #include "rest-engine.h"
 #include "uarthandler.h"
-#include "cmp.h"
 
-typedef unsigned long size_t;
+#define DEBUG 1
+#if DEBUG
+#include <stdio.h>
+#define PRINTF(...) printf(__VA_ARGS__)
+#define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
+#define PRINTLLADDR(lladdr) PRINTF("[%02x:%02x:%02x:%02x:%02x:%02x]", (lladdr)->addr[0], (lladdr)->addr[1], (lladdr)->addr[2], (lladdr)->addr[3], (lladdr)->addr[4], (lladdr)->addr[5])
+#else
+#define PRINTF(...)
+#define PRINT6ADDR(addr)
+#define PRINTLLADDR(addr)
+#endif
 
+
+#define LASTVALSIZE	15
 //This is the type we use, so that we can find the resource on the sensor
 struct proxy_resource{
 	struct proxy_resource *next;	/* for LIST, points to next resource defined */
 	struct resourceconf conf;
 	resource_t* resourceptr;		/* Pointer to the resource COAP knows about */
+	uint8_t* lastval;				/* We use LASTVALSIZE bytes to store the last non-decoded reading */
 };
 
 typedef struct proxy_resource proxy_resource_t;
@@ -41,11 +52,15 @@ typedef struct proxy_resource proxy_resource_t;
 PROCESS(coap_proxy_server, "Coap uart proxy");
 
 //event_data_ready event is posted when ever a message has been fully decoded.
-process_event_t tick_event;
+process_event_t tick_event;	//ticks the message handling statemachine
 
 //When a message has been decoded, this is where it goes
-static char payloadbuffer[1024];
-static rx_msg rx_reply;
+static char payloadbuffer[1024];	//This is also the device's strings database
+static rx_msg rx_reply;				//Holds the current parsed reply. Payload is still msgpacked here.
+
+struct pt pt_worker;
+int msgid = 1;			//Used to identify that a request/reply pair
+uint8_t txbuf[100];		//Used when transmitting commands to the device
 
 static char j;
 static char resources_availble = 0;
@@ -57,6 +72,19 @@ MEMB(proxy_resources, proxy_resource_t, MAX_RESOURCES);
 
 #include "dev/leds.h"
 #include "sys/pt.h"
+
+void res_proxy_get_handler_tester(){
+	proxy_resource_t *resource = NULL;
+	for(resource = (proxy_resource_t *)list_head(proxy_resource_list);
+			resource; resource = resource->next) {
+
+		uint8_t buf[20];
+		uint32_t len;
+		if(cp_decodeReadings(resource->lastval, &buf[0], &len) == 0){
+			PRINTF("ID %d: Lastval = %s\n", resource->conf.id, (char*)buf);
+		}
+	}
+}
 
 static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	leds_toggle(LEDS_GREEN);
@@ -100,17 +128,6 @@ static void res_proxy_delete_handler(void *request, void *response, uint8_t *buf
 	REST.set_response_payload(response, (uint8_t *)buffer, strlen((char *)buffer));
 }
 
-//This is only for intermidiate storage - to avoid warnings about non initialized variables
-static resource_t temp_resource;
-
-struct pt pt_worker;
-int msgid = 1;
-uint8_t txbuf[256];
-
-char rx_msg_payload[100];
-buffer_t* rx_buf = 0;
-
-
 PT_THREAD(initResources(struct pt *pt)){
 	PT_BEGIN(pt);
 
@@ -126,19 +143,21 @@ PT_THREAD(initResources(struct pt *pt)){
 		//create the proxy resource
 		proxy_resource_t* p = (proxy_resource_t*)memb_alloc(&proxy_resources);
 		if(p != 0){
-			//Place the strings in the beginning of the buffer.
+			//Place the strings in the beginning of the payloadbuffer.
 			//It will override what we received with the relevant strings, but as
 			//long as we read ahead, it doesn't matter.
-			cp_decoderesource_conf(&p->conf, rx_reply.payload, (char*)&txbuf[0]);
+			cp_decoderesource_conf(&p->conf, rx_reply.payload, (char*)rx_reply.payload);
 
-			//We need to make sure that we dont override the strings.
+			//We need to make sure that we dont allocate the mememory and override the strings.
 			rx_reply.payload = p->conf.attr + strlen(p->conf.attr) + 1;
 
+			//Allocate LASTVALSIZE in the buffer, for values received.
+			p->lastval = rx_reply.payload;
+			rx_reply.payload += LASTVALSIZE;
 		}
 		//Create the resource for the coap engine
 		resource_t* r = (resource_t*)memb_alloc(&coap_resources);
 		if(r != 0){
-			memcpy(r, &temp_resource, sizeof(resource_t));
 
 			//This is a way to easier to find the id of the sensor/actuator later on
 			p->resourceptr = r;
@@ -148,22 +167,22 @@ PT_THREAD(initResources(struct pt *pt)){
 
 			if(r->flags & METHOD_GET){
 				r->get_handler = res_proxy_get_handler;
-			}
+			}else r->get_handler = NULL;
 			if(r->flags & METHOD_POST){
 				r->post_handler = res_proxy_post_handler;
-			}
+			}else r->post_handler = NULL;
 			if(r->flags & METHOD_PUT){
 				r->put_handler = res_proxy_put_handler;
-			}
+			}else r->put_handler = NULL;
 			if(r->flags & METHOD_DELETE){
 				r->delete_handler = res_proxy_delete_handler;
-			}
+			}else r->delete_handler = NULL;
 
 			list_add(proxy_resource_list, p);
 
 			//Finally activate the resource with the rest coap
 			rest_activate_resource(r, (char*)r->url);
-			printf("ID %d: Activated resource: %s Attributes: %s - Spec: %s, Unit: %s\n", j, r->url, r->attributes, p->conf.spec, p->conf.unit );
+			PRINTF("ID %d: Activated resource: %s Attributes: %s - Spec: %s, Unit: %s\n", j, r->url, r->attributes, p->conf.spec, p->conf.unit );
 		}
 	}
 	PT_END(pt);
@@ -171,17 +190,29 @@ PT_THREAD(initResources(struct pt *pt)){
 
 void handleSensorMessages(){
 
+	/* When a new reading comes in from the device,
+	 * we chose to store the raw message, non-decoded.
+	 * The reason is, that we dont want to waste energy
+	 * converting, if noone needs the value anyway.
+	 *
+	 * */
+
 	if(rx_reply.cmd == resource_value_update){
+		uint8_t id;
+		uint32_t len = 0;
+		if(cp_decodeID(rx_reply.payload, &id, &len) == 0){	//Its always the id first
+			proxy_resource_t* resource;
+			for(resource = (proxy_resource_t *)list_head(proxy_resource_list);
+						resource; resource = resource->next) {
+				if(resource->conf.id == id){
+					if(len <= LASTVALSIZE){
+						memcpy(resource->lastval, rx_reply.payload + len, rx_reply.len - len);	//Copy the value to to the lastvalue loc
+					}else{
+						PRINTF("Couldn't store the lastval\n");
+					}
 
-		char str[20];
-		char id[2];
-		int len = 0;
-		if(cp_decodeReadings(rx_reply.payload, &id[0], &len) == 0){	//Its always the id first
-			printf("ID: %s = ", (char*)&id);
-		}
-
-		if(cp_decodeReadings(rx_reply.payload+len, &str[0], &len) == 0){
-			printf("%s\n", (char*)&str);
+				}
+			}
 		}
 	}
 }
@@ -197,13 +228,6 @@ void proxy_init(void){
 	PT_INIT(&pt_worker);
 
 	process_start(&coap_proxy_server, 0);
-
-	temp_resource.get_handler = NULL;
-	temp_resource.put_handler = NULL;
-	temp_resource.post_handler = NULL;
-	temp_resource.delete_handler = NULL;
-
-//	temp_proxy_resource.id = 0;
 
 	rx_reply.payload = &payloadbuffer[0];
 }
@@ -227,6 +251,9 @@ PROCESS_THREAD(coap_proxy_server, ev, data)
 			state = initResources(&pt_worker);
 		}
 	}while(state != PT_ENDED);
+
+	//Request that the attached device updates us with its current value(s)
+	frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_req_update, 0, 0, &txbuf[0]));
 
 	//Normal operation
 	while(1){

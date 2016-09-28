@@ -31,17 +31,8 @@ char* rs002_att = "title=\"Orange LED\";rt=\"Control\"";
 char* rs002_spec = "1 sec";
 char* rs002_unit = "Sec";
 
-//struct resource_map{
-//	char* group;
-//	char* type;
-//	char* attr;
-//	char* spec;
-//	char* unit;
-//	uint8_t flags;
-//	int32_t updateinterval;
-//	struct resourceconf conf;
-//};
-struct resourceconf rs[RESOURCE_COUNT];
+static void tx_value(int id);
+static struct resourceconf rs[RESOURCE_COUNT];
 
 //When a message has been decoded, this is where it goes
 static rx_msg rx_req;
@@ -50,7 +41,7 @@ char inputbuffer[1024];
 char* rd_ptr = &inputbuffer[0];
 char* wrt_ptr = &inputbuffer[0];
 
-struct etimer et;
+static struct etimer et;
 
 process_event_t event_data_ready;
 PROCESS(coap_proxy_test, "Coap uart proxy test");
@@ -63,29 +54,29 @@ void uart_set_input(uint8_t uart, int (* input)(unsigned char c))
 	//init the resources, that we would like to emulate
 	rs[0] = (struct resourceconf){
 		.id = 0,
-		.resolution = 100,
-		.hysteresis = 10,
-		.flags = METHOD_GET | METHOD_POST,
-		.max_pollinterval = 2000,
-		.version = 0001,
-		.unit = rs001_unit,
-		.spec = rs001_spec,
-		.group = rs001_group,
-		.type = rs001_type,
-		.attr = rs001_att,
+				.resolution = 100,
+				.hysteresis = 10,
+				.flags = METHOD_GET | METHOD_POST,
+				.max_pollinterval = 2000,
+				.version = 0001,
+				.unit = rs001_unit,
+				.spec = rs001_spec,
+				.group = rs001_group,
+				.type = rs001_type,
+				.attr = rs001_att,
 	};
 	rs[1] = (struct resourceconf){
 		.id = 1,
-		.resolution = 100,
-		.hysteresis = 1,
-		.flags = METHOD_GET | METHOD_PUT,
-		.max_pollinterval = -1,
-		.version = 0001,
-		.unit = rs002_unit,
-		.spec = rs002_spec,
-		.group = rs002_group,
-		.type = rs002_type,
-		.attr = rs002_att,
+				.resolution = 100,
+				.hysteresis = 1,
+				.flags = METHOD_GET | METHOD_PUT,
+				.max_pollinterval = -1,
+				.version = 0001,
+				.unit = rs002_unit,
+				.spec = rs002_spec,
+				.group = rs002_group,
+				.type = rs002_type,
+				.attr = rs002_att,
 	};
 
 	rx_req.payload = &inputbuffer[0];
@@ -217,6 +208,12 @@ PROCESS_THREAD(coap_proxy_test, ev, data)
 					else
 						printf("Wrong Resource ID (resource_config)");
 				}
+				else if(rx_req.cmd == resource_req_update){
+					for(int i=0; i<RESOURCE_COUNT; i++){
+						wrt_ptr = &inputbuffer[0];
+						tx_value(i);
+					}
+				}
 				//Reset buffer to be ready to receive yet another message
 				wrt_ptr = &inputbuffer[0];
 			}
@@ -240,4 +237,30 @@ PROCESS_THREAD(coap_proxy_test, ev, data)
 	}
 
 	PROCESS_END();
+}
+
+void tx_value(int id){
+	char pl[20];
+	char* plptr = &pl[0];
+	cmp_object_t obj;
+
+	//first pack the ID
+	obj.type = CMP_TYPE_POSITIVE_FIXNUM;
+	obj.as.u8 = id;
+	plptr += cp_encodereading((uint8_t*)plptr, &obj);
+
+	if(id == 0){
+		//Next the payload
+		obj.type = CMP_TYPE_POSITIVE_FIXNUM;
+		obj.as.u8 = 1;
+		plptr += cp_encodereading((uint8_t*)plptr, &obj);
+	}
+	else if(id == 1){
+		//Next the payload
+		obj.type = CMP_TYPE_UINT64;
+		obj.as.u64 = clock_seconds();
+		plptr += cp_encodereading((uint8_t*)plptr, &obj);
+	}
+
+	frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(255, resource_value_update, (char*)&pl[0], (char)((unsigned long)plptr - (unsigned long)&pl[0]), (uint8_t*)&inputbuffer[0]));
 }

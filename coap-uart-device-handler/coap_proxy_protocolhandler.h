@@ -23,7 +23,8 @@ enum req_cmd {
 	resource_updateinterval,//Get how often values can be requested from the device
 	resource_config,
 	resource_get,			//Get the data for a specific resource
-	resource_value_update,			//A resource autonomously postes its value
+	resource_value_update,	//A resource autonomously postes its value
+	resource_req_update,	//Request that the device updates us
 	debugstring,
 };
 
@@ -90,14 +91,21 @@ struct resourceconf{
  *
  * */
 
-
+/*
+ * 	Button: 0,1		uint8_t =>	CMP_TYPE_POSITIVE_FIXNUM
+ * 	Tempsensor:	-30000 - 30000 int16_t =>	CMP_TYPE_SINT16
+ * 	Humidsensor:0 - 10000 uint16_t =>		CMP_TYPE_UINT16
+ *
+ *
+ * */
 int cp_decodemessage(char* source, int len, rx_msg* destination);
-int cp_encodemessage(uint8_t msgid, enum req_cmd cmd, void* payload, char len, uint8_t* buffer);
+uint32_t cp_encodemessage(uint8_t msgid, enum req_cmd cmd, void* payload, char len, uint8_t* buffer);
 
 //Msgpack encode the configuration
-int cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer);
-int cp_encodereading(uint8_t* buffer, cmp_object_t *obj);
+uint32_t cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer);
+uint32_t cp_encodereading(uint8_t* buffer, cmp_object_t *obj);
 int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* strings);
-int cp_decodeReadings(uint8_t* buffer, char* conv, int* len);
+int cp_decodeReadings(uint8_t* buffer, uint8_t* conv, uint32_t* len);
+int cp_decodeID(uint8_t* buffer, uint8_t* x, uint32_t* len);
 
 #endif /* COAP_UART_DEVICE_HANDLER_COAP_PROXY_PROTOCOLHANDLER_H_ */
