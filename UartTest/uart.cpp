@@ -2,10 +2,10 @@
 #include <QDebug>
 #include <QThread>
 
-#define END     (char)0xC0
-#define ESC     (char)0xDB
-#define ESC_END (char)0xDC
-#define ESC_ESC (char)0xDD
+#define END     (const char)0xC0
+#define ESC     (const char)0xDB
+#define ESC_END (const char)0xDC
+#define ESC_ESC (const char)0xDD
 
 #define SOH     (char)0x01
 #define STX     (char)0x02  /* start of 1024-byte data packet */
@@ -18,9 +18,9 @@ uart::uart()
 {
     uartport = 0;
     portfound = false;
-    recbytes = new QByteArray();
-
     uartport = new QSerialPort("/dev/ttyUSB0");
+    activebuffer = 0;
+    switchbuffer();
 
     if(!uartport) return;   //If we did not create a uartport just return
 
@@ -45,25 +45,14 @@ uart::uart()
 
 
 }
-char debug_str[] = {0x4, 0x3, 0x2f, 0x62, 0x75, 0x74, 0x74, 0x6f, 0x6e, 0x2f, 0x61, 0x63, 0x74, 0x75, 0x61, 0x74, 0x6f, 0x72, 0x12, (char)0xca, 0x3d, (char)0xc0, 0x5, 0x3, 0x2f, 0x74, (char)0x69, 0x6d, 0x65, 0x72, 0x2f, 0x63, 0x6f, 0x75, 0x6e, 0x74, 0x65, 0x72, 0x10, (char)0xe2, (char)0xed, (char)0xc0 };
 
-void uart::test(){
+void uart::switchbuffer(){
+    activebuffer++;
+    activebuffer = activebuffer >= RX_BUFFERS ? 0 : activebuffer;
 
-    recbytes->append(&debug_str[0]);
-
-    while(recbytes->contains(END)){
-        QByteArray* array = new QByteArray;
-        int index = recbytes->indexOf(END, 0);
-        for(int i=0; i<=index; i++){
-            array->append(recbytes->at(i));
-        }
-        recbytes->remove(0, index+1);
-        byteunStuff(array);
-        messages.append(array);
-        emit messageReceived();
-    }
+    //Reset the write pointer
+    rxbuf[activebuffer].wrt_ptr = &rxbuf[activebuffer].buffer[0];
 }
-
 
 void uart::setup(QString command){
     if(command.compare("DTR Toggle") == 0){
@@ -91,43 +80,37 @@ void uart::setup(QString command){
     }
 }
 
+/* Read into a circular buffer and unstuff the messages
+ * I didn't have to be a circular buffer, but for debugging
+ * it was nice to have the possibility to see back in time.
+*/
 void uart::readData(){
 
-    QByteArray peek = uartport->peek(500);
-//    QString valueInHex;
-//    for(int i=0; i<peek.length(); i++){
+    char c;
 
-//        valueInHex += QString("0x%1 ").arg((quint8)peek[i] , 0, 16);
-//    }
-//    qDebug() << "RX: " << valueInHex;
-    //qDebug() << peek;
-    recbytes->append(uartport->readAll());
+    while(!uartport->atEnd()){
+        uartport->read(&c, 1);
 
-    while(recbytes->contains(END)){
-        QByteArray* array = new QByteArray;
-        int index = recbytes->indexOf(END, 0);  //TODO: consider just checking for the char
-        for(int i=0; i<=index; i++){
-            array->append(recbytes->at(i));
+        if(c == END){	//Is it the last byte in a frame
+            emit messageReceived(&rxbuf[activebuffer]);
+            switchbuffer();
         }
-        recbytes->remove(0, index+1);
-        byteunStuff(array);
-        messages.append(array);
-        emit messageReceived();
+        else if(c == ESC_ESC && last_c == ESC){
+            *rxbuf[activebuffer].wrt_ptr++ = last_c;
+        }
+        else if(c == ESC_END && last_c == ESC){
+            *rxbuf[activebuffer].wrt_ptr++ = END;
+        }
+        else{
+            *rxbuf[activebuffer].wrt_ptr++ = c;
+        }
+        last_c = c;
     }
 }
 
-int uart::messageQueEmpty(){
-    return messages.isEmpty();
-}
+void uart::transmit(const char* txbuf, uint8_t len){
 
-QByteArray *uart::getFirstMessage(){
-    QByteArray* msg = messages.first();
-    messages.removeFirst();
-    return msg;
-}
-
-void uart::transmit(QByteArray tx){
-
+    QByteArray tx(txbuf, len);
     byteStuff(&tx);
     tx.append(END);
     uartport->write(tx);
@@ -154,28 +137,6 @@ void uart::byteStuff(QByteArray* msg){
         /*if the ESC byte occurs in the data, the two byte sequence ESC, ESC_ESC is sent.*/
         else if(msg->at(i) == ESC){
             msg->insert(i+1, ESC_ESC);
-        }
-    }
-}
-
-/*
-    SLIP decode the message
-*/
-void uart::byteunStuff(QByteArray* msg){
-
-    for(int i=0; i<msg->size(); i++){
-        /*if the ESC byte occurs in the data, the two byte sequence ESC, ESC_ESC is sent.*/
-        if(i > 0 && msg->at(i) == ESC_ESC && msg->at(i-1) == ESC){
-            msg->remove(i, 1);  //Remove it.
-        }
-        /*if the END byte occurs in the data to be sent, the two byte sequence ESC, ESC_END is sent instead */
-        else if(i > 0 && msg->at(i) == ESC_END && msg->at(i-1) == ESC){
-            msg->remove(i-1, 2);  //Remove it.
-            msg->insert(i-1, END);
-        }
-        /* If the message contains a end token , remove it. */
-        else if(msg->at(i) == END) {
-            msg->remove(i, 1);
         }
     }
 }

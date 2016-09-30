@@ -5,9 +5,11 @@ QT += serialport
 
 SOURCES += main.cpp \
     uart.cpp \
-    helper.cpp \
     proto1.cpp \
-    ../contiki/core/lib/crc16.c
+    ../coap-uart-device-handler/cmp.c \
+    ../coap-uart-device-handler/coap_proxy_protocolhandler.c \
+    ../contiki/core/lib/crc16.c \
+    guiglue.cpp
 
 RESOURCES += qml.qrc \
     widgets.qrc \
@@ -20,8 +22,8 @@ QML_IMPORT_PATH =
 include(deployment.pri)
 
 HEADERS += \
-    helper.h \
     proto1.h \
     ../contiki/core/lib/crc16.h \
-    uart.h
+    uart.h \
+    guiglue.h
 

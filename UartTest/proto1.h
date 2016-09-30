@@ -4,6 +4,10 @@
 #include "uart.h"
 #include <QObject>
 
+extern "C" {
+#include "../coap-uart-device-handler/coap_proxy_protocolhandler.h"
+}
+
 typedef enum {
   NO_FLAGS = 0,
 
@@ -20,33 +24,32 @@ typedef enum {
   IS_PERIODIC = (1 << 7)
 } rest_resource_flags_t;
 
-class proto1: public QObject
+
+
+class proto1: public uart
 {
     Q_OBJECT
 
 public:
-    proto1(uart *comm);
+    proto1();
+
+    int tx_value(cmp_object_t* payload);
+
+    int frameandtx(uint8_t *payload, uint8_t len, uint8_t seqno = 255);
+    int frameandtx(uint8_t id, cmp_object_t* value, uint8_t seqno = 255);
 
 private:
-
-    QVector<QVariantMap> resources;
-
-    enum commands {
-        resource_count = 1,     //Get the total no of resources
-        resource_url,           //Get a specific resource uri
-        resource_attributes,    //Get a specific resource attribute
-        resource_flags,
-        debugstring,
-    };
-
-
-
     uart* comm;
-    
-    int parseMessage(QByteArray& msg);
+    QByteArray currentmsg;
+    int parseMessage(QByteArray msg);
     
 private slots:
-    void handleIncomming();
+    void handleIncomming(buffer_t *rxbuf);
+
+signals:
+    void reqResourceCount(rx_msg* rx_req);
+    void reqConfig(rx_msg* rx_req);
+    void reqValueUpdate(rx_msg* rx_req);
 };
 
 #endif // PROTO1_H

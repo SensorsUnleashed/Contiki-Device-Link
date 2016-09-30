@@ -3,22 +3,20 @@
 #include <QQmlContext>
 #include "uart.h"
 #include "proto1.h"
+#include "guiglue.h"
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    uart* hwlayer = new uart;
-    proto1* protohandler = new proto1(hwlayer);
-
     QQmlApplicationEngine engine;
     QQmlContext *context = engine.rootContext();
 
-    context->setContextProperty("uart", hwlayer);
-    context->setContextProperty("comm", protohandler);
+    proto1* protohandler = new proto1();
+    guiglue* guihandler = new guiglue(protohandler);
 
-//    context->setContextProperty("comm", comm);
-//    context->setContextProperty("board", board);
+    context->setContextProperty("comm", protohandler);
+    context->setContextProperty("guiglue", guihandler);
 
     engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
 

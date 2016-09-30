@@ -8,7 +8,6 @@ Item{
         width: 100;
         height: 100;
         color: "black";
-
     }
 
     Rectangle{
@@ -29,12 +28,9 @@ Item{
         MouseArea{
             anchors.fill: parent;
             onClicked: {
-                uart.transmit_cmd(emu_sensordevice.url);
+                guiglue.updateValue(1);
             }
         }
 
     }
 }
-
-
-
