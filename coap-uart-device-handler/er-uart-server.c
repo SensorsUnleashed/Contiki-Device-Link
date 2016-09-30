@@ -68,7 +68,7 @@ PROCESS_THREAD(er_uart_server, ev, data)
 		etimer_reset(&et);
 
 		//Check what the last value is for all attached devices
-		res_proxy_get_handler_tester();
+		//res_proxy_get_handler_tester();
 	}
 
 	PROCESS_END();

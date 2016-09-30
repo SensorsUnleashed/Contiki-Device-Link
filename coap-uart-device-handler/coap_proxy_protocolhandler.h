@@ -8,7 +8,7 @@
 #ifndef COAP_UART_DEVICE_HANDLER_COAP_PROXY_PROTOCOLHANDLER_H_
 #define COAP_UART_DEVICE_HANDLER_COAP_PROXY_PROTOCOLHANDLER_H_
 
-#include "contiki.h"
+//#include "contiki.h"
 #include "cmp.h"
 
 //TODO: When implementation is done, simplify these commands

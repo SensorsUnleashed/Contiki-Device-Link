@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "rest-engine.h"
+#include "cmp.h"
 
 #define END     0xC0
 #define ESC     0xDB
@@ -54,11 +55,11 @@ void uart_set_input(uint8_t uart, int (* input)(unsigned char c))
 	//init the resources, that we would like to emulate
 	rs[0] = (struct resourceconf){
 		.id = 0,
-				.resolution = 100,
-				.hysteresis = 10,
-				.flags = METHOD_GET | METHOD_POST,
-				.max_pollinterval = 2000,
-				.version = 0001,
+					.resolution = 100,
+					.hysteresis = 10,
+					.flags = METHOD_GET | METHOD_POST,
+					.max_pollinterval = 2000,
+					.version = 0001,
 				.unit = rs001_unit,
 				.spec = rs001_spec,
 				.group = rs001_group,
@@ -218,21 +219,10 @@ PROCESS_THREAD(coap_proxy_test, ev, data)
 				wrt_ptr = &inputbuffer[0];
 			}
 		}
-#include "cmp.h"
 
 		else if(ev == PROCESS_EVENT_TIMER){
 			etimer_reset(&et);
-
-			char pl[20];
-			char* plptr = &pl[0];
-			cmp_object_t obj;
-			obj.type = CMP_TYPE_POSITIVE_FIXNUM;
-			obj.as.u8 = 1;
-			plptr += cp_encodereading((uint8_t*)plptr, &obj);
-			obj.type = CMP_TYPE_UINT64;
-			obj.as.u64 = clock_seconds();
-			plptr += cp_encodereading((uint8_t*)plptr, &obj);
-			frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(rx_req.seqno, resource_value_update, (char*)&pl[0], (char)((unsigned long)plptr - (unsigned long)&pl[0]), (uint8_t*)&inputbuffer[0]));
+			tx_value(1);
 		}
 	}
 

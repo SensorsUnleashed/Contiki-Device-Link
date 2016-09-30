@@ -23,7 +23,7 @@
 #include "rest-engine.h"
 #include "uarthandler.h"
 
-#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -106,7 +106,7 @@ static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer
 						&& url[res_url_len] == '/'))
 				&& strncmp(resource->resourceptr->url, url, res_url_len) == 0) {
 
-			//Request a uartmessage, and wait for it here
+			//Send the lastmessage to who ever is asking
 
 		}
 	}

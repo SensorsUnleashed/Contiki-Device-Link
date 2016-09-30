@@ -5,7 +5,7 @@
  *      Author: omn
  */
 #include "coap_proxy_protocolhandler.h"
-#include "lib/crc16.h"
+#include "crc16.h"
 #include <string.h>
 #include <stdio.h>
 
@@ -63,7 +63,7 @@ uint32_t cp_encodemessage(uint8_t msgid, enum req_cmd cmd, void* payload, char l
 
 //Used to read from msgpacked buffer
 static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit) {
-	for(int i=0; i<limit; i++){
+    for(uint32_t i=0; i<limit; i++){
 		 *((char*)data++) = *((char*)ctx->buf++);
 	}
 	return true;
@@ -71,7 +71,7 @@ static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit) {
 
 
 static uint32_t buf_writer(cmp_ctx_t* ctx, const void *data, uint32_t count){
-	for(int i=0; i<count; i++){
+    for(uint32_t i=0; i<count; i++){
 		*((uint8_t*)ctx->buf++) = *((char*)data++);
 	}
 	return count;

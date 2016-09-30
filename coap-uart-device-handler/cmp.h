@@ -25,8 +25,10 @@ THE SOFTWARE.
 #ifndef CMP_H__
 #define CMP_H__
 
-#include "contiki.h"
+//#include "contiki.h"
+#include <stdint.h>
 
+#ifndef __cplusplus
 #ifndef bool
 typedef uint8_t bool;
 #endif
@@ -38,6 +40,7 @@ typedef uint8_t bool;
 #ifndef false
 #define false	!true
 #endif
+#endif	//__cplusplus
 
 struct cmp_ctx_s;
 
