@@ -28,7 +28,7 @@ Item{
         MouseArea{
             anchors.fill: parent;
             onClicked: {
-                guiglue.updateValue(1);
+                guiglue.updateValue(0);
             }
         }
 

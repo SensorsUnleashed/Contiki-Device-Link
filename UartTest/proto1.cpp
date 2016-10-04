@@ -26,20 +26,36 @@ void proto1::handleIncomming(buffer_t *lastmsg){
             emit reqConfig(&rx_req);
         }
         else if(rx_req.cmd == resource_value_update){
-            emit reqValueUpdate(&rx_req);  //Ask the
+            emit reqValueUpdate(&rx_req);
+        }
+        else if(rx_req.cmd == resource_req_updateAll){
+            emit reqValueUpdateAll(&rx_req);
         }
     }
 }
 
-int proto1::frameandtx(uint8_t *payload, uint8_t len, uint8_t seqno){
+int proto1::frameandtx(uint8_t *payload, uint8_t len, req_cmd cmd, uint8_t seqno){
     uint8_t buf[200];
-    len = cp_encodemessage(seqno, resource_value_update, payload, len, &buf[0]);
+
+    len = cp_encodemessage(seqno, cmd, payload, len, &buf[0]);
     transmit((const char*)&buf[0], len);
 
     return 0;
 }
 
-int proto1::frameandtx(uint8_t id, cmp_object_t* value, uint8_t seqno){
+void testdecode(uint8_t* buffer){
+    uint8_t id;
+    uint8_t string[30];
+    uint32_t len;
+
+    cp_decodeID(buffer, &id, &len);
+    cp_decodeReadings(buffer+len, &string[0], &len);
+    qDebug() << "ID: " << id;
+    qDebug() << "Value: " << QString::fromLatin1((const char*)string);
+
+}
+
+int proto1::frameandtx(uint8_t id, cmp_object_t* value, enum req_cmd cmd, uint8_t seqno){
     uint8_t buf[20];
     cmp_object_t obj;
     int len = 0;
@@ -49,7 +65,8 @@ int proto1::frameandtx(uint8_t id, cmp_object_t* value, uint8_t seqno){
     len += cp_encodereading(&buf[0], &obj);
     len += cp_encodereading(&buf[len], value);
 
-    frameandtx(&buf[0], seqno, len);
+    frameandtx(&buf[0], len, cmd, seqno);
+    testdecode(&buf[0]);
     return 0;
 }
 

@@ -35,8 +35,8 @@ public:
 
     int tx_value(cmp_object_t* payload);
 
-    int frameandtx(uint8_t *payload, uint8_t len, uint8_t seqno = 255);
-    int frameandtx(uint8_t id, cmp_object_t* value, uint8_t seqno = 255);
+    int frameandtx(uint8_t *payload, uint8_t len, req_cmd cmd = resource_value_update, uint8_t seqno = 255);
+    int frameandtx(uint8_t id, cmp_object_t* value, req_cmd cmd = resource_value_update, uint8_t seqno = 255);
 
 private:
     uart* comm;
@@ -50,6 +50,7 @@ signals:
     void reqResourceCount(rx_msg* rx_req);
     void reqConfig(rx_msg* rx_req);
     void reqValueUpdate(rx_msg* rx_req);
+    void reqValueUpdateAll(rx_msg* rx_req);
 };
 
 #endif // PROTO1_H

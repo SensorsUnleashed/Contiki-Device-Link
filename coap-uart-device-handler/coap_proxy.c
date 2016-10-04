@@ -43,6 +43,7 @@ struct proxy_resource{
 	struct resourceconf conf;
 	resource_t* resourceptr;		/* Pointer to the resource COAP knows about */
 	uint8_t* lastval;				/* We use LASTVALSIZE bytes to store the last non-decoded reading */
+	uint8_t hasEvent;				/* Non handled active event */
 };
 
 typedef struct proxy_resource proxy_resource_t;
@@ -88,8 +89,6 @@ void res_proxy_get_handler_tester(){
 
 static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	leds_toggle(LEDS_GREEN);
-	//int len = 0;
-
 	proxy_resource_t *resource = NULL;
 	const char *url = NULL;
 	int url_len, res_url_len;
@@ -107,7 +106,29 @@ static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer
 				&& strncmp(resource->resourceptr->url, url, res_url_len) == 0) {
 
 			//Send the lastmessage to who ever is asking
+			uint32_t len;
+			unsigned int accept = -1;
+			REST.get_header_accept(request, &accept);
 
+			if(accept == -1 || accept == REST.type.TEXT_PLAIN) {
+
+				if(cp_decodeReadings(resource->lastval, buffer, &len) == 0){
+					REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
+					REST.set_response_payload(response, buffer, len /*strlen((char *)buffer)*/);
+				}
+				else{
+					//Data error
+					const char* dataerr = "No data available from the sensor....";
+					REST.set_response_payload(response, dataerr, strlen((const char *)dataerr));
+				}
+			}
+			else {
+				REST.set_response_status(response, REST.status.NOT_ACCEPTABLE);
+				const char *msg = "Supporting content-types text/plain";
+				REST.set_response_payload(response, msg, strlen(msg));
+			}
+			REST.set_header_max_age(response, 180);	//3 minutes
+			break;
 		}
 	}
 }
@@ -126,6 +147,18 @@ static void res_proxy_delete_handler(void *request, void *response, uint8_t *buf
 
 	snprintf((char *)buffer, REST_MAX_CHUNK_SIZE, "Du har kaldt res_proxy_delete_handler");
 	REST.set_response_payload(response, (uint8_t *)buffer, strlen((char *)buffer));
+}
+static void res_proxy_trigger_handler(void){
+
+	proxy_resource_t* resource;
+	for(resource = (proxy_resource_t *)list_head(proxy_resource_list);
+			resource; resource = resource->next) {
+		if(resource->hasEvent == 1){
+		    /* Notify the registered observers which will trigger the res_get_handler to create the response. */
+			REST.notify_subscribers(resource->resourceptr);
+			resource->hasEvent = 0;
+		}
+	}
 }
 
 PT_THREAD(initResources(struct pt *pt)){
@@ -161,12 +194,14 @@ PT_THREAD(initResources(struct pt *pt)){
 
 			//This is a way to easier to find the id of the sensor/actuator later on
 			p->resourceptr = r;
+			p->conf.id = j;
 			r->url = p->conf.type;
 			r->attributes = p->conf.attr;
 			r->flags = p->conf.flags;
 
 			if(r->flags & METHOD_GET){
 				r->get_handler = res_proxy_get_handler;
+				r->trigger = res_proxy_trigger_handler;
 			}else r->get_handler = NULL;
 			if(r->flags & METHOD_POST){
 				r->post_handler = res_proxy_post_handler;
@@ -197,20 +232,25 @@ void handleSensorMessages(){
 	 *
 	 * */
 
-	if(rx_reply.cmd == resource_value_update){
+	if(rx_reply.cmd == resource_value_update || rx_reply.cmd == resource_event){
 		uint8_t id;
 		uint32_t len = 0;
 		if(cp_decodeID(rx_reply.payload, &id, &len) == 0){	//Its always the id first
 			proxy_resource_t* resource;
 			for(resource = (proxy_resource_t *)list_head(proxy_resource_list);
-						resource; resource = resource->next) {
+					resource; resource = resource->next) {
 				if(resource->conf.id == id){
 					if(len <= LASTVALSIZE){
 						memcpy(resource->lastval, rx_reply.payload + len, rx_reply.len - len);	//Copy the value to to the lastvalue loc
+
+						if(rx_reply.cmd == resource_event){
+							/* Call the event_handler for this application-specific event. */
+							resource->hasEvent = 1;
+							resource->resourceptr->trigger();
+						}
 					}else{
 						PRINTF("Couldn't store the lastval\n");
 					}
-
 				}
 			}
 		}
@@ -253,7 +293,7 @@ PROCESS_THREAD(coap_proxy_server, ev, data)
 	}while(state != PT_ENDED);
 
 	//Request that the attached device updates us with its current value(s)
-	frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_req_update, 0, 0, &txbuf[0]));
+	frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_req_updateAll, 0, 0, &txbuf[0]));
 
 	//Normal operation
 	while(1){

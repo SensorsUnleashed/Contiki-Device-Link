@@ -152,54 +152,6 @@ PROCESS_THREAD(coap_proxy_test, ev, data)
 					char c = RESOURCE_COUNT;
 					frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(rx_req.seqno, resource_count, &c, 1, (uint8_t*)&inputbuffer[0]));
 				}
-				else if(rx_req.cmd == resource_group){
-					int id = *((char*)rx_req.payload);
-					if(id < RESOURCE_COUNT){
-						frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(rx_req.seqno, resource_group, rs[id].group, strlen(rs[id].group)+1, (uint8_t*)&inputbuffer[0]));
-					}
-					else
-						printf("Wrong Resource ID (resource_group)");
-				}
-				else if(rx_req.cmd == resource_type){
-					int id = *((char*)rx_req.payload);
-					if(id < RESOURCE_COUNT){
-						frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(rx_req.seqno, resource_type, rs[id].type, strlen(rs[id].type)+1, (uint8_t*)&inputbuffer[0]));
-					}
-					else
-						printf("Wrong Resource ID (resource_type)");
-				}
-				else if(rx_req.cmd == resource_attributes){
-					int id = *((char*)rx_req.payload);
-					if(id < RESOURCE_COUNT){
-						frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(rx_req.seqno, resource_attributes, rs[id].attr, strlen(rs[id].attr)+1, (uint8_t*)&inputbuffer[0]));
-					}
-					else
-						printf("Wrong Resource ID (resource_attributes)");
-				}
-				else if(rx_req.cmd == resource_spec){
-					int id = *((char*)rx_req.payload);
-					if(id < RESOURCE_COUNT){
-						frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(rx_req.seqno, resource_spec, rs[id].spec, strlen(rs[id].spec)+1, (uint8_t*)&inputbuffer[0]));
-					}
-					else
-						printf("Wrong Resource ID (resource_spec)");
-				}
-				else if(rx_req.cmd == resource_flags){
-					int id = *((char*)rx_req.payload);
-					if(id < RESOURCE_COUNT){
-						frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(rx_req.seqno, resource_flags, (char*)&rs[id].flags, 1, (uint8_t*)&inputbuffer[0]));
-					}
-					else
-						printf("Wrong Resource ID (resource_flags)");
-				}
-				else if(rx_req.cmd == resource_unit){
-					int id = *((char*)rx_req.payload);
-					if(id < RESOURCE_COUNT){
-						frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(rx_req.seqno, resource_unit, rs[id].unit, strlen(rs[id].unit)+1, (uint8_t*)&inputbuffer[0]));
-					}
-					else
-						printf("Wrong Resource ID (resource_unit)");
-				}
 				else if(rx_req.cmd == resource_config){
 					int id = *((char*)rx_req.payload);
 					if(id < RESOURCE_COUNT){
@@ -208,12 +160,6 @@ PROCESS_THREAD(coap_proxy_test, ev, data)
 					}
 					else
 						printf("Wrong Resource ID (resource_config)");
-				}
-				else if(rx_req.cmd == resource_req_update){
-					for(int i=0; i<RESOURCE_COUNT; i++){
-						wrt_ptr = &inputbuffer[0];
-						tx_value(i);
-					}
 				}
 				//Reset buffer to be ready to receive yet another message
 				wrt_ptr = &inputbuffer[0];

@@ -14,17 +14,11 @@
 //TODO: When implementation is done, simplify these commands
 enum req_cmd {
 	resource_count = 1,		//Get the total no of resources
-	resource_group,			//Part of url
-	resource_type,			//Part of url
-    resource_attributes,    //Get a specific resource attribute
-	resource_spec,			//Get the specification of the device
-	resource_unit,			//Get the unit, human readable
-	resource_flags,			//Get the flags for a specific resource
-	resource_updateinterval,//Get how often values can be requested from the device
 	resource_config,
 	resource_get,			//Get the data for a specific resource
 	resource_value_update,	//A resource autonomously postes its value
-	resource_req_update,	//Request that the device updates us
+	resource_req_updateAll,	//Request that the device updates us with the last values from all resources
+	resource_event,			//Post an event, whether its above or below can be verified by the subscribers.
 	debugstring,
 };
 
@@ -36,9 +30,10 @@ typedef struct  {
 	void* payload;
 }rx_msg;
 
-struct pl_res_post{
-	char resource_id;
-	char data[10];	//msgpacked buffer
+enum eventstate{
+	NoEventActive =    (1 << 0),
+	AboveEventActive = (1 << 1),
+	BelowEventActive = (1 << 2),
 };
 
 //void* lastval;			//MsgPacked value. Actual SI value is calculated as: Value * 1/resolution = X [Unit].
@@ -49,6 +44,11 @@ struct resourceconf{
 	uint32_t version;		//Q22.10
 	uint8_t flags;			//Flags - which handle do we serve: Get/Post/PUT/Delete
 	int32_t max_pollinterval;	//How often can you ask for a new reading
+
+	uint8_t eventsActive;
+	cmp_object_t AboveEventAt;	//When resource crosses this line from low to high give an event (>=)
+	cmp_object_t BelowEventAt;	//When resource crosses this line from high to low give an event (<=)
+
 	char* unit;				//SI unit - can be preceeded with mC for 1/1000 of a C. In that case the resolution should be 1;
 	char* spec;				//Human readable spec of the sensor
 	char* type;				//Can be button, sensor, motor, relay etc.

@@ -21,15 +21,16 @@ private:
     char* stringbuffer;
     QVector<struct deviceinfo_s> devinfo;
 
-    void updateTimerValue();
 signals:
 
 public slots:
     void updateValue(QVariant id);
+    void updateTimerValue();
 
 private slots:
     void reqResourceCount(rx_msg* rx_req);
     void reqConfig(rx_msg *rx_req);
+    void reqValueUpdateAll(rx_msg* rx_req);
     void reqValueUpdate(rx_msg *rx_req);
 };
 
