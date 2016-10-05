@@ -85,6 +85,9 @@ typedef uint32_t rtimer_clock_t;
 #define RADIO_DELAY_BEFORE_RX     ((unsigned)US_TO_RTIMERTICKS(250))
 #define RADIO_DELAY_BEFORE_DETECT 0
 /*---------------------------------------------------------------------------*/
+
+#define CC2538_RF_CONF_TX_POWER	0xED	//5dbm ( from cc2538-rf.c )
+
 /**
  * \name Serial Boot Loader Backdoor configuration
  *

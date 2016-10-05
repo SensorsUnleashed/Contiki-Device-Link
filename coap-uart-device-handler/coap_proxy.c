@@ -91,6 +91,7 @@ static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer
 	leds_toggle(LEDS_GREEN);
 	proxy_resource_t *resource = NULL;
 	const char *url = NULL;
+	const char *str = NULL;
 	int url_len, res_url_len;
 
 	url_len = REST.get_url(request, &url);
@@ -109,11 +110,31 @@ static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer
 			uint32_t len;
 			unsigned int accept = -1;
 			REST.get_header_accept(request, &accept);
+			REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
+			REST.set_header_max_age(response, 180);	//3 minutes
 
-			if(accept == -1 || accept == REST.type.TEXT_PLAIN) {
-
+				//If the payload is empty, respond with the measurement
+				len = REST.get_query(request, &str);
+				if(len > 0){
+					//There is a query, find out if its a valid one.
+					if(strcmp(str, "spec") == 0){
+						REST.set_response_payload(response, resource->conf.spec, strlen(resource->conf.spec));
+					}
+					else if(strcmp(str, "eventstatus") == 0){
+						len = sprintf((char*)buffer, "%u", resource->conf.eventsActive);
+						REST.set_response_payload(response, buffer, len);
+					}
+//					else if(strcmp(str, "higheventvalue") == 0){
+//					}
+					else{
+						//Data error
+						const char* dataerr = "Command not recognized....";
+						REST.set_response_payload(response, dataerr, strlen((const char *)dataerr));
+					}
+				}
+				else
 				if(cp_decodeReadings(resource->lastval, buffer, &len) == 0){
-					REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
+
 					REST.set_response_payload(response, buffer, len /*strlen((char *)buffer)*/);
 				}
 				else{
@@ -121,13 +142,6 @@ static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer
 					const char* dataerr = "No data available from the sensor....";
 					REST.set_response_payload(response, dataerr, strlen((const char *)dataerr));
 				}
-			}
-			else {
-				REST.set_response_status(response, REST.status.NOT_ACCEPTABLE);
-				const char *msg = "Supporting content-types text/plain";
-				REST.set_response_payload(response, msg, strlen(msg));
-			}
-			REST.set_header_max_age(response, 180);	//3 minutes
 			break;
 		}
 	}
@@ -154,7 +168,7 @@ static void res_proxy_trigger_handler(void){
 	for(resource = (proxy_resource_t *)list_head(proxy_resource_list);
 			resource; resource = resource->next) {
 		if(resource->hasEvent == 1){
-		    /* Notify the registered observers which will trigger the res_get_handler to create the response. */
+			/* Notify the registered observers which will trigger the res_get_handler to create the response. */
 			REST.notify_subscribers(resource->resourceptr);
 			resource->hasEvent = 0;
 		}

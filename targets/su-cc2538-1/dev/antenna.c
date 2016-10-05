@@ -47,6 +47,9 @@
 #include "contiki-conf.h"
 #include "dev/gpio.h"
 #include "dev/antenna.h"
+
+#include "dev/rfcore-xreg.h"
+#include "dev/cctest.h"
 /*---------------------------------------------------------------------------*/
 #define BSP_RADIO_BASE              GPIO_PORT_TO_BASE(GPIO_C_NUM)
 #define BSP_RADIO_PA_EN				GPIO_PIN_MASK(3)
@@ -54,6 +57,30 @@
 
 #define BSP_RADIO_GAIN_BASE			GPIO_PORT_TO_BASE(GPIO_D_NUM)
 #define BSP_RADIO_HGM				GPIO_PIN_MASK(2)
+
+
+/* RF observable control register value to output PA signal */
+#define RFC_OBS_CTRL_PA_PD_INV        0x6A
+
+/* RF observable control register value to output LNA signal */
+#define RFC_OBS_CTRL_LNAMIX_PD_INV    0x68
+
+/* RF observable control register value to output LNA signal
+ *  * for CC2591 compression workaround.
+ */
+#define RFC_OBS_CTRL_DEMOD_CCA        0x0D
+
+/* OBSSELn register value to select RF observable 0 */
+#define OBSSEL_OBS_CTRL0             0x81
+
+/* OBSSELn register value to select RF observable 1 */
+#define OBSSEL_OBS_CTRL1             0x80
+
+
+#define RFC_OBS_CTRL0	REG(RFCORE_XREG_RFC_OBS_CTRL0)
+#define RFC_OBS_CTRL1	REG(RFCORE_XREG_RFC_OBS_CTRL1)
+#define OBSSEL3		REG(CCTEST_OBSSEL3)
+#define OBSSEL2		REG(CCTEST_OBSSEL2)
 
 /*---------------------------------------------------------------------------*/
 void
@@ -68,6 +95,13 @@ antenna_init(void)
 	GPIO_WRITE_PIN(BSP_RADIO_BASE, BSP_RADIO_PA_EN, 1);
 	GPIO_WRITE_PIN(BSP_RADIO_BASE, BSP_RADIO_LNA_EN, 1);
 	GPIO_WRITE_PIN(BSP_RADIO_GAIN_BASE, BSP_RADIO_HGM, REC_HIGH_GAIN_MODE_EN == 0 ? 0 : 1);
+
+	RFC_OBS_CTRL0 = RFC_OBS_CTRL_PA_PD_INV;
+	OBSSEL3 = OBSSEL_OBS_CTRL0;
+
+	// PC2 -> EN (LNA control)
+	RFC_OBS_CTRL1 = RFC_OBS_CTRL_LNAMIX_PD_INV;
+	OBSSEL2 = OBSSEL_OBS_CTRL1;
 }
 
 /*---------------------------------------------------------------------------*/
