@@ -87,14 +87,12 @@ void res_proxy_get_handler_tester(){
 	}
 }
 
-static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
-	leds_toggle(LEDS_GREEN);
-	proxy_resource_t *resource = NULL;
-	const char *url = NULL;
-	const char *str = NULL;
-	int url_len, res_url_len;
+//Return the proxy_resource based on the url.
+static proxy_resource_t* find_proxy_resource(const char* url, int url_len){
 
-	url_len = REST.get_url(request, &url);
+	proxy_resource_t *resource = NULL;
+	int res_url_len;
+
 	for(resource = (proxy_resource_t *)list_head(proxy_resource_list);
 			resource; resource = resource->next) {
 
@@ -105,56 +103,116 @@ static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer
 						&& (resource->resourceptr->flags & HAS_SUB_RESOURCES)
 						&& url[res_url_len] == '/'))
 				&& strncmp(resource->resourceptr->url, url, res_url_len) == 0) {
-
-			//Send the lastmessage to who ever is asking
-			uint32_t len;
-			unsigned int accept = -1;
-			REST.get_header_accept(request, &accept);
-			REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-			REST.set_header_max_age(response, 180);	//3 minutes
-
-				//If the payload is empty, respond with the measurement
-				len = REST.get_query(request, &str);
-				if(len > 0){
-					//There is a query, find out if its a valid one.
-					if(strcmp(str, "spec") == 0){
-						REST.set_response_payload(response, resource->conf.spec, strlen(resource->conf.spec));
-					}
-					else if(strcmp(str, "eventstatus") == 0){
-						len = sprintf((char*)buffer, "%u", resource->conf.eventsActive);
-						REST.set_response_payload(response, buffer, len);
-					}
-//					else if(strcmp(str, "higheventvalue") == 0){
-//					}
-					else{
-						//Data error
-						const char* dataerr = "Command not recognized....";
-						REST.set_response_payload(response, dataerr, strlen((const char *)dataerr));
-					}
-				}
-				else
-				if(cp_decodeReadings(resource->lastval, buffer, &len) == 0){
-
-					REST.set_response_payload(response, buffer, len /*strlen((char *)buffer)*/);
-				}
-				else{
-					//Data error
-					const char* dataerr = "No data available from the sensor....";
-					REST.set_response_payload(response, dataerr, strlen((const char *)dataerr));
-				}
-			break;
+			return resource;
 		}
+
+	}
+	return NULL;
+}
+
+/*
+ * Called when someone asks for the last value available
+ * It is possible to make a query for:
+ * 	info: 			Send back the spec string
+ * 	eventstatus:	Events enabled/disabled (0/1)
+ * 	eventsetup:		AE=AboveEvent, BE=BelowEvent, CE=ChangeEvent *
+ * */
+static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
+	const char *url = NULL;
+	const char *str = NULL;
+	int url_len;
+
+	url_len = REST.get_url(request, &url);
+	proxy_resource_t *resource = find_proxy_resource(url, url_len);
+	if(resource != NULL){
+
+		uint32_t len;
+		unsigned int accept = -1;
+		REST.get_header_accept(request, &accept);
+		REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
+
+
+		//If the payload is empty, respond with the measurement
+		len = REST.get_query(request, &str);
+		if(len > 0){
+			//There is a query, find out if its a valid one.
+			if(strncmp(str, "info", len) == 0){
+				REST.set_response_payload(response, resource->conf.spec, strlen(resource->conf.spec));
+				REST.set_header_max_age(response, 3600);
+			}
+			else if(strncmp(str, "eventstatus", len) == 0){
+				len = sprintf((char*)buffer, "%u", resource->conf.eventsActive);
+				REST.set_response_payload(response, buffer, len);
+				REST.set_header_max_age(response, 600);
+			}
+			else if(strcmp(str, "eventsetup") == 0){
+				len = sprintf((char*)buffer, "AE=");
+				cp_cmp_to_string(&resource->conf.AboveEventAt, buffer+len, &len);
+				len += sprintf((char*)buffer, "\nBE=");
+				cp_cmp_to_string(&resource->conf.BelowEventAt, buffer+len, &len);
+				len += sprintf((char*)buffer, "\nCE=");
+				cp_cmp_to_string(&resource->conf.ChangeEvent, buffer+len, &len);
+				REST.set_response_payload(response, buffer, len);
+				REST.set_header_max_age(response, 600);
+			}
+			else{
+				//Data error
+				const char* dataerr = "Command not recognized....";
+				REST.set_response_payload(response, dataerr, strlen(dataerr));
+			}
+		}
+		else
+			len = 0;
+			if(cp_decodeReadings(resource->lastval, buffer, &len) == 0){
+				REST.set_response_payload(response, buffer, len);
+				REST.set_header_max_age(response, 0);	//Value can change anytime
+			}
+			else{
+				//Data error
+				const char* dataerr = "No data available from the sensor....";
+				REST.set_response_payload(response, dataerr, strlen((const char *)dataerr));
+			}
+	}
+	else{
+		REST.set_response_status(response, REST.status.BAD_REQUEST);
 	}
 }
 
 static void res_proxy_post_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	//	leds_toggle(LEDS_ORANGE);
 }
+
+/* Called when a devices should be updated
+ *
+ *  eventstatus:	Events enabled/disabled (0/1)
+ * 	eventsetup:		AE=AboveEvent, BE=BelowEvent, CE=ChangeEvent *
+ *
+ * */
 static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	leds_toggle(LEDS_YELLOW);
 
-	snprintf((char *)buffer, REST_MAX_CHUNK_SIZE, "Du har kaldt res_proxy_put_handler");
-	REST.set_response_payload(response, (uint8_t *)buffer, strlen((char *)buffer));
+	const char *url = NULL;
+	const char *str = NULL;
+	int url_len;
+
+	url_len = REST.get_url(request, &url);
+	proxy_resource_t *resource = find_proxy_resource(url, url_len);
+
+	if(resource != NULL){
+		//setEventState	=> 0 = disable, 1 = enable
+		//setAElevel = upper level in same format as readings
+		//setBElevel = lower level in same format as readings
+		//setCElevel = change event span
+		int len = REST.get_query(request, &str);
+		REST.set_response_payload(response, (uint8_t *)str, len);
+		//REST.set_response_status(response, REST.status.CHANGED);
+//		const char* msg = "So far so good....";
+//		REST.set_response_payload(response, msg, strlen((const char *)msg));
+//		REST.set_response_payload(response, resource->conf.spec, strlen(resource->conf.spec));
+	}
+	else{
+		//REST.set_response_status(response, REST.status.BAD_REQUEST);
+	}
 }
 static void res_proxy_delete_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	leds_toggle(LEDS_RED);

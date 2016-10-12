@@ -20,6 +20,7 @@ private:
     proto1 *interface;
     char* stringbuffer;
     QVector<struct deviceinfo_s> devinfo;
+    qint8 direction;
 
 signals:
 

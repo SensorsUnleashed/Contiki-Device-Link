@@ -87,7 +87,6 @@ uint32_t cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer){
 
 	cmp_write_u8(&cmp, data->id);
 	cmp_write_u32(&cmp, data->resolution);
-	cmp_write_u32(&cmp, data->hysteresis);
 	cmp_write_u32(&cmp, data->version);
 	cmp_write_u8(&cmp, data->flags);
 	cmp_write_s32(&cmp, data->max_pollinterval);
@@ -119,7 +118,6 @@ int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* str
 
 	cmp_read_u8(&cmp, &data->id);
 	cmp_read_u32(&cmp, &data->resolution);
-	cmp_read_u32(&cmp, &data->hysteresis);
 	cmp_read_u32(&cmp, &data->version);
 	cmp_read_u8(&cmp, &data->flags);
 	cmp_read_s32(&cmp, &data->max_pollinterval);
@@ -156,12 +154,86 @@ int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* str
 	return 1;
 }
 
+/*
+ * Convert an messagepack object to a char string
+ * Parameter:
+ * 	obj:	The object to convert
+ * 	result: The resulting char buffer
+ * 	len: 	String length without trailing '\0' (Note its not initialized - has to be done from the caller)
+ *
+ *  Returns:
+ *  0 for OK
+ *  1 for err
+ *
+ * */
+int cp_cmp_to_string(cmp_object_t* obj, uint8_t* result, uint32_t* len){
+
+	switch(obj->type){
+		case CMP_TYPE_POSITIVE_FIXNUM:
+		case CMP_TYPE_NIL:	// NULL = 0
+		case CMP_TYPE_UINT8:
+			*len += sprintf((char*)result, "%u", obj->as.u8);
+			break;
+		case CMP_TYPE_BOOLEAN:
+			*len += sprintf((char*)result, "%u", obj->as.boolean);
+			break;
+		case CMP_TYPE_FLOAT:
+		case CMP_TYPE_DOUBLE:
+			*len += sprintf((char*)result, "%f", obj->as.dbl);
+			break;
+		case CMP_TYPE_UINT16:
+			*len += sprintf((char*)result, "%u", obj->as.u16);
+			break;
+		case CMP_TYPE_UINT32:
+			*len += sprintf((char*)result, "%lu", obj->as.u32);
+			break;
+		case CMP_TYPE_UINT64:
+			*len += sprintf((char*)result, "%Lu", obj->as.u64);
+			break;
+		case CMP_TYPE_SINT8:
+		case CMP_TYPE_NEGATIVE_FIXNUM:
+			*len += sprintf((char*)result, "%d", obj->as.s8);
+			break;
+		case CMP_TYPE_SINT16:
+			*len += sprintf((char*)result, "%d", obj->as.s16);
+			break;
+		case CMP_TYPE_SINT32:
+			*len = sprintf((char*)result, "%ld", obj->as.s32);
+			break;
+		case CMP_TYPE_SINT64:
+			*len += sprintf((char*)result, "%Ld", obj->as.s64);
+			break;
+		case CMP_TYPE_FIXMAP:
+		case CMP_TYPE_FIXARRAY:
+		case CMP_TYPE_FIXSTR:
+		case CMP_TYPE_BIN8:
+		case CMP_TYPE_BIN16:
+		case CMP_TYPE_BIN32:
+		case CMP_TYPE_EXT8:
+		case CMP_TYPE_EXT16:
+		case CMP_TYPE_EXT32:
+		case CMP_TYPE_FIXEXT1:
+		case CMP_TYPE_FIXEXT2:
+		case CMP_TYPE_FIXEXT4:
+		case CMP_TYPE_FIXEXT8:
+		case CMP_TYPE_FIXEXT16:
+		case CMP_TYPE_STR8:
+		case CMP_TYPE_STR16:
+		case CMP_TYPE_STR32:
+		case CMP_TYPE_ARRAY16:
+		case CMP_TYPE_ARRAY32:
+		case CMP_TYPE_MAP16:
+		case CMP_TYPE_MAP32:
+			return 1;
+		}
+	return 0;
+}
 
 /* Convert the device readingspayload to a string.
  * Parameter:
  * 	buffer: Raw messagepacked buffer
  * 	conv: String result
- * 	len: String length without trailing '\0'
+ * 	len: String length without trailing '\0' (Note its not initialized - has to be done from the caller)
  * 	TODO: Consider changing the len, to how far we read the buffer instead.
  *
  * Returns:
@@ -177,66 +249,7 @@ int cp_decodeReadings(uint8_t* buffer, uint8_t* conv, uint32_t* len){
 		return 1;
 	}
 
-	switch(obj.type){
-	case CMP_TYPE_POSITIVE_FIXNUM:
-	case CMP_TYPE_NIL:	// NULL = 0
-	case CMP_TYPE_UINT8:
-		*len = sprintf((char*)conv, "%u", obj.as.u8);
-		break;
-	case CMP_TYPE_BOOLEAN:
-		*len = sprintf((char*)conv, "%u", obj.as.boolean);
-		break;
-	case CMP_TYPE_FLOAT:
-	case CMP_TYPE_DOUBLE:
-		*len = sprintf((char*)conv, "%f", obj.as.dbl);
-		break;
-	case CMP_TYPE_UINT16:
-		*len = sprintf((char*)conv, "%u", obj.as.u16);
-		break;
-	case CMP_TYPE_UINT32:
-		*len = sprintf((char*)conv, "%lu", obj.as.u32);
-		break;
-	case CMP_TYPE_UINT64:
-		*len = sprintf((char*)conv, "%Lu", obj.as.u64);
-		break;
-	case CMP_TYPE_SINT8:
-	case CMP_TYPE_NEGATIVE_FIXNUM:
-		*len = sprintf((char*)conv, "%d", obj.as.s8);
-		break;
-	case CMP_TYPE_SINT16:
-		*len = sprintf((char*)conv, "%d", obj.as.s16);
-		break;
-	case CMP_TYPE_SINT32:
-		*len = sprintf((char*)conv, "%ld", obj.as.s32);
-		break;
-	case CMP_TYPE_SINT64:
-		*len = sprintf((char*)conv, "%Ld", obj.as.s64);
-		break;
-	case CMP_TYPE_FIXMAP:
-	case CMP_TYPE_FIXARRAY:
-	case CMP_TYPE_FIXSTR:
-	case CMP_TYPE_BIN8:
-	case CMP_TYPE_BIN16:
-	case CMP_TYPE_BIN32:
-	case CMP_TYPE_EXT8:
-	case CMP_TYPE_EXT16:
-	case CMP_TYPE_EXT32:
-	case CMP_TYPE_FIXEXT1:
-	case CMP_TYPE_FIXEXT2:
-	case CMP_TYPE_FIXEXT4:
-	case CMP_TYPE_FIXEXT8:
-	case CMP_TYPE_FIXEXT16:
-	case CMP_TYPE_STR8:
-	case CMP_TYPE_STR16:
-	case CMP_TYPE_STR32:
-	case CMP_TYPE_ARRAY16:
-	case CMP_TYPE_ARRAY32:
-	case CMP_TYPE_MAP16:
-	case CMP_TYPE_MAP32:
-		return 1;
-	}
-
-	return 0;
+	return cp_cmp_to_string(&obj, conv, len);
 }
 
 /*

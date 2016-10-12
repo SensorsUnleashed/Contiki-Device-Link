@@ -1,8 +1,26 @@
 # COAP Proxy uart
-This is a module, that will make the board ask through uart which resources to accept. This way the radio is interchangeable to all sensors.
+This is a module, that will make the board ask through uart which resources availble to publish. This way the radio is interchangeable to all sensors.
 Perhaps, later we will have some basic capabilities included directly into the core radio module.
 
 All actions are forwarded to the attached through the uart, and like wise, all readings delivered the other way around.
+
+## Operation
+The sensor will update the radio every time its readings varies. The radio will not pass these data on, but they will be available if a subscriber asks for its current value through the "get" command.
+
+If a subscriber chose to observe a sensor, the sensor will emit new values, based on the setup of the 3 kinds of events:
+* AboveEventAt
+	* When a resource crosses this line from low to high give an event (>=)
+* BelowEventAt
+	* When resource crosses this line from high to low give an event (<=)
+* ChangeEvent
+	* When value has changed more than changeEvent + lastevent value <>= value
+
+* It is possible to get the event setup by quering the sensor with the get query "eventsetup".
+eg. counter/timer?eventsetup
+
+* It is possible to disable all events, by setting the flag "eventsActive" to false.
+It can be queried by:
+counter/timer?eventstatus
 
 ## Protocol description
 

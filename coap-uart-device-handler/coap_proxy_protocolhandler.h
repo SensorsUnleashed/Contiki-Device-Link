@@ -40,14 +40,29 @@ enum eventstate{
 struct resourceconf{
 	uint8_t id;
 	uint32_t resolution;	//1/resoltion of a unit. eg. if resolution is 1000 and unit is C, then each LSB equals 0.001C
-	uint32_t hysteresis;	//Same as resolution
 	uint32_t version;		//Q22.10
 	uint8_t flags;			//Flags - which handle do we serve: Get/Post/PUT/Delete
 	int32_t max_pollinterval;	//How often can you ask for a new reading
 
-	uint8_t eventsActive;
+	/* Pseudocode:
+	 *
+	 * Eg. We want a toggle button to signal when its on, but not off
+	 * AboveEventAt = 1
+	 * AboveEventAt = -1	//Off because its outside button spec
+	 * changeEvent = 0		//0 = off
+	 *
+	 * We want a temperature sensor to feed us with updates with every 0.5C
+	 * AboveEvent = 9999	//Off because its outside button spec
+	 * BelowEvent = 9999	//Off because its outside button spec
+	 * changeEvent = 0.5	//For every 0.5C low/high from last event, a new will be emitted
+	 *
+	 * It is possible to have all event types enabled together, but its the subscriber that
+	 * will need to detect which event was fired. They are all alike.
+	 * */
+	uint8_t eventsActive;		//All events on or Off
 	cmp_object_t AboveEventAt;	//When resource crosses this line from low to high give an event (>=)
 	cmp_object_t BelowEventAt;	//When resource crosses this line from high to low give an event (<=)
+        cmp_object_t ChangeEvent;	//When value has changed more than changeEvent + lastevent value <>= value
 
 	char* unit;				//SI unit - can be preceeded with mC for 1/1000 of a C. In that case the resolution should be 1;
 	char* spec;				//Human readable spec of the sensor
@@ -58,46 +73,7 @@ struct resourceconf{
 	//uint8_t notation;		//Qm.f => MMMM.FFFF	eg. Q1.29 = int32_t with 1 integer bit and 29 fraction bits, Q32 = uint32_t = 32 positive integer bits. Q31 is a int32_t
 };
 
-/*
- * resource{
- * 	int lastval	- get: Last value that the radio has in its database.
- * 	char* spec	- get: Explain what it is, and its resolution (Read from sensor)
- * 	char* type	- get: Is it a button, temperature sensor etc (Read from sensor)
- * 	char* group - get/set(radio only): default is sensor or actuator (Read from sensor)
- * 	int hysteresis	- get/set. How much of a difference before an event.
- * 					  eg. 10 for tempsensor will give an event when temperaure changes more than 0.1C since last update
- * 					  eg. 1 for an on/off actuator, or >1 if we never want an event (Will disable an on/off actuator)
- * 	int updateinterval	get/set: Default 0, how often to update subscribers with the current resource value
- *	char* unit - C for Celcius, g for gram etc.
- *	int resolution	:get 1/1000 * resolution. 1 = 0.001, 1000 = 1, 10000 = 10 (32bit = 31 bit without sign eg. a max value of 536870.912 - -536870.912
- *	int version		: x.xxx, like with the resolution.
- * }
- * Capabilities:
- * Sensor:
- * 		Button:
- * 			Auto resond when state changes:
- * 				1 = ON
- * 				0 = OFF
- * 			Get state
- * 		Temperature:
- * 			Auto respond when temp changed more than a setpoint
- * 			Temp is send as int, with 10000 meaning 100.00C
- *
- * 	Actuator
- * 		Relay:
- * 			Get state
- * 				1 = ON  (Coil is engaged)
- * 				0 = OFF (Coil is not engaged)
- *
- * */
 
-/*
- * 	Button: 0,1		uint8_t =>	CMP_TYPE_POSITIVE_FIXNUM
- * 	Tempsensor:	-30000 - 30000 int16_t =>	CMP_TYPE_SINT16
- * 	Humidsensor:0 - 10000 uint16_t =>		CMP_TYPE_UINT16
- *
- *
- * */
 int cp_decodemessage(char* source, int len, rx_msg* destination);
 uint32_t cp_encodemessage(uint8_t msgid, enum req_cmd cmd, void* payload, char len, uint8_t* buffer);
 
@@ -105,6 +81,7 @@ uint32_t cp_encodemessage(uint8_t msgid, enum req_cmd cmd, void* payload, char l
 uint32_t cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer);
 uint32_t cp_encodereading(uint8_t* buffer, cmp_object_t *obj);
 int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* strings);
+int cp_cmp_to_string(cmp_object_t* obj, uint8_t* result, uint32_t* len);
 int cp_decodeReadings(uint8_t* buffer, uint8_t* conv, uint32_t* len);
 int cp_decodeID(uint8_t* buffer, uint8_t* x, uint32_t* len);
 
