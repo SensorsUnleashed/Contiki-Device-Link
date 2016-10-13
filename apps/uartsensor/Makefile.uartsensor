@@ -1,0 +1,1 @@
+uartsensor_src = uart_protocolhandler.c uartsensor.c cmp.c uarthandler.c
