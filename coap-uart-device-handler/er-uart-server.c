@@ -107,7 +107,7 @@ PROCESS_THREAD(er_uart_server, ev, data)
 //			"actuator/button", notification_callback, NULL);
 
 
-	proxy_init();
+	uartsensors_init();
 
 	/* Delay 1 second */
 	//etimer_set(&et, CLOCK_SECOND*10);

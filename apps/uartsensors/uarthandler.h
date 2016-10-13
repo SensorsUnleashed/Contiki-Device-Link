@@ -14,7 +14,7 @@ typedef struct {
 	char* wrt_ptr;
 }buffer_t;
 
-void cp_uarthandler_init(void (* callback)(buffer_t* msg));
+void uarthandler_init(void (* callback)(buffer_t* msg));
 unsigned int frameandsend(const unsigned char *s, unsigned int len);
 
 #endif /* COAP_UART_DEVICE_HANDLER_UARTHANDLER_H_ */

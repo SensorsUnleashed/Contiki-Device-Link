@@ -49,10 +49,10 @@ typedef struct proxy_resource proxy_resource_t;
 
 /* Messages are always initiated from the us (the host).
  */
-PROCESS(coap_proxy_server, "Coap uart proxy");
+PROCESS(uartsensors_server, "Coap uart proxy");
 
 //event_data_ready event is posted when ever a message has been fully decoded.
-process_event_t tick_event;	//ticks the message handling statemachine
+process_event_t uart_event;	//ticks the message handling statemachine
 
 //When a message has been decoded, this is where it goes
 static char payloadbuffer[1024];	//This is also the device's strings database
@@ -328,17 +328,17 @@ void handleSensorMessages(){
 	}
 }
 //Callback; used when the uart has parsed a message
-void proxy_tick_event(buffer_t* msg){
-	process_post(&coap_proxy_server, tick_event, msg);
+void uart_event_callback(buffer_t* msg){
+	process_post(&uartsensors_server, uart_event, msg);
 }
 
-void proxy_init(void){
+void uartsensors_init(void){
 
-	cp_uarthandler_init(proxy_tick_event);
+	uarthandler_init(uart_event_callback);
 
 	PT_INIT(&pt_worker);
 
-	process_start(&coap_proxy_server, 0);
+	process_start(&uartsensors_server, 0);
 
 	rx_reply.payload = &payloadbuffer[0];
 }
@@ -347,7 +347,7 @@ void proxy_init(void){
  * Main statemachine
  * All new messages recieved will come from here.
  */
-PROCESS_THREAD(coap_proxy_server, ev, data)
+PROCESS_THREAD(uartsensors_server, ev, data)
 {
 	PROCESS_BEGIN();
 	char state;
@@ -355,7 +355,7 @@ PROCESS_THREAD(coap_proxy_server, ev, data)
 
 	//Init
 	do{
-		PROCESS_WAIT_EVENT_UNTIL(ev == tick_event);
+		PROCESS_WAIT_EVENT_UNTIL(ev == uart_event);
 		state = PT_WAITING;
 		buffer_t* lastmsg = data;
 		if(cp_decodemessage(lastmsg->buffer, lastmsg->wrt_ptr - &lastmsg->buffer[0], &rx_reply) == 0){
@@ -363,15 +363,15 @@ PROCESS_THREAD(coap_proxy_server, ev, data)
 		}
 	}while(state != PT_ENDED);
 
-	//Request that the attached device updates us with its current value(s)
+	//Request that the attached devices updates us with the current value(s)
 	frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_req_updateAll, 0, 0, &txbuf[0]));
 
 	//Normal operation
 	while(1){
-		PROCESS_WAIT_EVENT_UNTIL(ev == tick_event);
+		PROCESS_WAIT_EVENT_UNTIL(ev == uart_event);
 		buffer_t* lastmsg = data;
 		if(cp_decodemessage(lastmsg->buffer, lastmsg->wrt_ptr - &lastmsg->buffer[0], &rx_reply) == 0){
-			handleSensorMessages();	//Just print a message
+			handleSensorMessages();
 		}
 	}
 

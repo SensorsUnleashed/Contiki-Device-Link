@@ -52,7 +52,7 @@ int proxy_rx_callback(unsigned char c) {
 	return 1;
 }
 
-void cp_uarthandler_init(void (* callback)(buffer_t* msg)){
+void uarthandler_init(void (* callback)(buffer_t* msg)){
 	uart_set_input(0, proxy_rx_callback);
 	switchbuffer();	//Prepare buffer to be written
 	msgrdy_callback =  callback;

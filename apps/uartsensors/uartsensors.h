@@ -13,6 +13,6 @@
 #endif
 
 void res_proxy_get_handler_tester();
-void proxy_init(void);
+void uartsensors_init(void);
 
 #endif /* COAP_UART_DEVICE_HANDLER_COAP_PROXY_H_ */
