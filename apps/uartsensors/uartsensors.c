@@ -53,6 +53,7 @@ PROCESS(uartsensors_server, "Coap uart proxy");
 
 //event_data_ready event is posted when ever a message has been fully decoded.
 process_event_t uart_event;	//ticks the message handling statemachine
+process_event_t uartsensors_event;	//When a sensor emits an event
 
 //When a message has been decoded, this is where it goes
 static char payloadbuffer[1024];	//This is also the device's strings database
@@ -124,19 +125,12 @@ static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer
 	url_len = REST.get_url(request, &url);
 	proxy_resource_t *resource = find_proxy_resource(url, url_len);
 	if(resource != NULL){
-
-		uint32_t len;
-		unsigned int accept = -1;
-		REST.get_header_accept(request, &accept);
-		REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-
-
-		//If the payload is empty, respond with the measurement
+		uint32_t len = 0;
 		len = REST.get_query(request, &str);
 		if(len > 0){
-			//There is a query, find out if its a valid one.
 			if(strncmp(str, "info", len) == 0){
-				REST.set_response_payload(response, resource->conf.spec, strlen(resource->conf.spec));
+				len = sprintf((char*)buffer, "%s", resource->conf.spec);
+				REST.set_response_payload(response, buffer, len);
 				REST.set_header_max_age(response, 3600);
 			}
 			else if(strncmp(str, "eventstatus", len) == 0){
@@ -144,23 +138,24 @@ static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer
 				REST.set_response_payload(response, buffer, len);
 				REST.set_header_max_age(response, 600);
 			}
-			else if(strcmp(str, "eventsetup") == 0){
-				len = sprintf((char*)buffer, "AE=");
+			else if(strncmp(str, "eventsetup", len) == 0){
+				len = 0;
+				len = sprintf((char*)buffer + len, "AE=");
 				cp_cmp_to_string(&resource->conf.AboveEventAt, buffer+len, &len);
-				len += sprintf((char*)buffer, "\nBE=");
+				len += sprintf((char*)buffer + len, "\nBE=");
 				cp_cmp_to_string(&resource->conf.BelowEventAt, buffer+len, &len);
-				len += sprintf((char*)buffer, "\nCE=");
+				len += sprintf((char*)buffer + len, "\nCE=");
 				cp_cmp_to_string(&resource->conf.ChangeEvent, buffer+len, &len);
 				REST.set_response_payload(response, buffer, len);
 				REST.set_header_max_age(response, 600);
 			}
 			else{
 				//Data error
-				const char* dataerr = "Command not recognized....";
+				const char* dataerr = "Query not recognized....";
 				REST.set_response_payload(response, dataerr, strlen(dataerr));
 			}
 		}
-		else
+		else{ //If the payload is empty, respond with the measurement
 			len = 0;
 			if(cp_decodeReadings(resource->lastval, buffer, &len) == 0){
 				REST.set_response_payload(response, buffer, len);
@@ -171,9 +166,8 @@ static void res_proxy_get_handler(void *request, void *response, uint8_t *buffer
 				const char* dataerr = "No data available from the sensor....";
 				REST.set_response_payload(response, dataerr, strlen((const char *)dataerr));
 			}
-	}
-	else{
-		REST.set_response_status(response, REST.status.BAD_REQUEST);
+		}
+		REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
 	}
 }
 
@@ -205,9 +199,9 @@ static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer
 		int len = REST.get_query(request, &str);
 		REST.set_response_payload(response, (uint8_t *)str, len);
 		//REST.set_response_status(response, REST.status.CHANGED);
-//		const char* msg = "So far so good....";
-//		REST.set_response_payload(response, msg, strlen((const char *)msg));
-//		REST.set_response_payload(response, resource->conf.spec, strlen(resource->conf.spec));
+		//		const char* msg = "So far so good....";
+		//		REST.set_response_payload(response, msg, strlen((const char *)msg));
+		//		REST.set_response_payload(response, resource->conf.spec, strlen(resource->conf.spec));
 	}
 	else{
 		//REST.set_response_status(response, REST.status.BAD_REQUEST);
@@ -318,6 +312,7 @@ void handleSensorMessages(){
 							/* Call the event_handler for this application-specific event. */
 							resource->hasEvent = 1;
 							resource->resourceptr->trigger();
+							process_post(PROCESS_BROADCAST, uartsensors_event, (void*)resource);
 						}
 					}else{
 						PRINTF("Couldn't store the lastval\n");
@@ -351,6 +346,9 @@ PROCESS_THREAD(uartsensors_server, ev, data)
 {
 	PROCESS_BEGIN();
 	char state;
+
+	uartsensors_event = process_alloc_event();
+
 	initResources(&pt_worker);	//start the init process
 
 	//Init
