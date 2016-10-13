@@ -36,7 +36,7 @@ PROJECT_SOURCEFILES += $(REST_RESOURCES_FILES)
 SMALL=1
 
 # REST Engine shall use Erbium CoAP implementation
-APPS += uartsensor
+APPS += uartsensors
 APPS += er-coap
 APPS += rest-engine
 

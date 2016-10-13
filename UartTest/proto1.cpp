@@ -2,7 +2,7 @@
 #include <QDebug>
 
 extern "C" {
-#include "../coap-uart-device-handler/coap_proxy_protocolhandler.h"
+#include "../apps/uartsensor/uart_protocolhandler.h"
 
 #include "crc16.h"
 }

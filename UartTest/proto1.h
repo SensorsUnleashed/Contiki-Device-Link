@@ -5,7 +5,7 @@
 #include <QObject>
 
 extern "C" {
-#include "../coap-uart-device-handler/coap_proxy_protocolhandler.h"
+#include "../apps/uartsensors/uart_protocolhandler.h"
 }
 
 typedef enum {

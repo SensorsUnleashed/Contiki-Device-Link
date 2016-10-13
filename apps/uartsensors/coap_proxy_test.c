@@ -5,10 +5,11 @@
  *      Author: omn
  */
 #include "contiki.h"
-#include "coap_proxy_protocolhandler.h"
+#include "uart_protocolhandler.h"
 #include <stdio.h>
 #include <string.h>
 #include "rest-engine.h"
+
 #include "cmp.h"
 
 #define END     0xC0

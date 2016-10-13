@@ -6,8 +6,8 @@ QT += serialport
 SOURCES += main.cpp \
     uart.cpp \
     proto1.cpp \
-    ../coap-uart-device-handler/cmp.c \
-    ../coap-uart-device-handler/coap_proxy_protocolhandler.c \
+    ../apps/uartsensors/cmp.c \
+    ../apps/uartsensors/uart_protocolhandler.c \
     ../contiki/core/lib/crc16.c \
     guiglue.cpp
 

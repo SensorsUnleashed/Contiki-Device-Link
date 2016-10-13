@@ -16,7 +16,7 @@ enum req_cmd {
 	resource_config,
 	resource_get,			//Get the data for a specific resource
 	resource_value_update,	//A resource autonomously postes its value
-	resource_req_updateAll,	//Request that the device updates us with the last values from all resources
+	resource_req_updateAll,	//Request that the device updates us with the last values from all resources (Happens automatically after init)
 	resource_event,			//Post an event, whether its above or below can be verified by the subscribers.
 	debugstring,
 };

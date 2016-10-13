@@ -38,10 +38,11 @@
 
 #include "contiki.h"
 #include "rest-engine.h"
-#include "uartsensor.h"
 #include "er-coap-engine.h"
 #include "dev/leds.h"
 #include <stdlib.h>
+
+#include "uartsensors.h"
 /*
  * Resources to be activated need to be imported through the extern keyword.
  * The build system automatically compiles the resources in the corresponding sub-directory.

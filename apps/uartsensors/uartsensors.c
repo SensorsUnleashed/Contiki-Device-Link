@@ -5,7 +5,7 @@
  *      Author: omn
  */
 
-#include "uartsensor.h"
+#include "uartsensors.h"
 #include "uart_protocolhandler.h"
 
 #ifdef NATIVE

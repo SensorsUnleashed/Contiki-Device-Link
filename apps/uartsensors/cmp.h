@@ -25,7 +25,6 @@ THE SOFTWARE.
 #ifndef CMP_H__
 #define CMP_H__
 
-//#include "contiki.h"
 #include <stdint.h>
 
 #ifndef __cplusplus
