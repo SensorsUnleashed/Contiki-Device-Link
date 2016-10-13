@@ -113,11 +113,9 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	//etimer_set(&et, CLOCK_SECOND*10);
 
 	while(1) {
-		//PROCESS_WAIT_EVENT();
-
-		PROCESS_WAIT_EVENT_UNTIL(ev == sensors_event);
+		PROCESS_WAIT_EVENT_UNTIL(ev == uartsensors_event/* || ev == sensors_event*/);
 		//Sync the current observed resources
-
+		leds_toggle(LEDS_YELLOW);
 		/* Reset the etimer to trig again in 1 second */
 		//		etimer_reset(&et);
 
