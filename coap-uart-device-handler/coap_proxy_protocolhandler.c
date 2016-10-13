@@ -90,12 +90,15 @@ uint32_t cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer){
 	cmp_write_u32(&cmp, data->version);
 	cmp_write_u8(&cmp, data->flags);
 	cmp_write_s32(&cmp, data->max_pollinterval);
+	cmp_write_u8(&cmp, data->eventsActive);
+	cmp_write_object(&cmp, &data->AboveEventAt);
+	cmp_write_object(&cmp, &data->BelowEventAt);
+	cmp_write_object(&cmp, &data->ChangeEvent);
 	cmp_write_str(&cmp, data->unit, strlen(data->unit)+1);
 	cmp_write_str(&cmp, data->spec, strlen(data->spec)+1);
 	cmp_write_str(&cmp, data->type, strlen(data->type)+1);
 	cmp_write_str(&cmp, data->group, strlen(data->group)+1);
 	cmp_write_str(&cmp, data->attr, strlen(data->attr)+1);
-
 
 	return (uint32_t)(((void*)cmp.buf) - ((void*)buffer));
 }
@@ -121,6 +124,11 @@ int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* str
 	cmp_read_u32(&cmp, &data->version);
 	cmp_read_u8(&cmp, &data->flags);
 	cmp_read_s32(&cmp, &data->max_pollinterval);
+
+	cmp_read_u8(&cmp, &data->eventsActive);
+	cmp_read_object(&cmp, &data->AboveEventAt);
+	cmp_read_object(&cmp, &data->BelowEventAt);
+	cmp_read_object(&cmp, &data->ChangeEvent);
 
 	//Put the strings in a mem location and point to them from the data structure
 	data->unit = strings;

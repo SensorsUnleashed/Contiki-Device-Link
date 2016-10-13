@@ -26,7 +26,7 @@ guiglue::guiglue(proto1 *protohandler)
     di.conf.version = 0001;
     di.conf.AboveEventAt.type = CMP_TYPE_UINT8;
     di.conf.AboveEventAt.as.u8 = 10;
-    di.conf.AboveEventAt.type = CMP_TYPE_UINT8;
+    di.conf.BelowEventAt.type = CMP_TYPE_UINT8;
     di.conf.BelowEventAt.as.u8 = 10;
     di.conf.ChangeEvent.type = CMP_TYPE_UINT8;
     di.conf.ChangeEvent.as.u8 = 1;

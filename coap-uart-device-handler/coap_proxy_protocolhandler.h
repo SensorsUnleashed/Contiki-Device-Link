@@ -62,7 +62,7 @@ struct resourceconf{
 	uint8_t eventsActive;		//All events on or Off
 	cmp_object_t AboveEventAt;	//When resource crosses this line from low to high give an event (>=)
 	cmp_object_t BelowEventAt;	//When resource crosses this line from high to low give an event (<=)
-        cmp_object_t ChangeEvent;	//When value has changed more than changeEvent + lastevent value <>= value
+    cmp_object_t ChangeEvent;	//When value has changed more than changeEvent + lastevent value <>= value
 
 	char* unit;				//SI unit - can be preceeded with mC for 1/1000 of a C. In that case the resolution should be 1;
 	char* spec;				//Human readable spec of the sensor

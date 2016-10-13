@@ -98,12 +98,12 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	//	rest_activate_resource(&res_mirror, "debug/mirror");
 
 	/* store server address in server_ipaddr */
-	SERVER_NODE(server_ipaddr);
-	/* receives all CoAP messages */
-	coap_init_engine();
-
-	coap_obs_request_registration(server_ipaddr, REMOTE_PORT,
-			"actuator/button", notification_callback, NULL);
+//	SERVER_NODE(server_ipaddr);
+//	/* receives all CoAP messages */
+//	coap_init_engine();
+//
+//	coap_obs_request_registration(server_ipaddr, REMOTE_PORT,
+//			"actuator/button", notification_callback, NULL);
 
 
 	proxy_init();
