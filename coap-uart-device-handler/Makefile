@@ -1,9 +1,10 @@
 CONTIKI_PROJECT = er-uart-server
-PROJECT_SOURCEFILES += coap_proxy.c uarthandler.c coap_proxy_protocolhandler.c cmp.c
+#PROJECT_SOURCEFILES +=  
 
 all: $(CONTIKI_PROJECT)
 
 TARGETDIRS += ../targets
+APPDIRS += ../apps
 
 CONTIKI=../contiki
 
@@ -35,6 +36,7 @@ PROJECT_SOURCEFILES += $(REST_RESOURCES_FILES)
 SMALL=1
 
 # REST Engine shall use Erbium CoAP implementation
+APPS += uartsensor
 APPS += er-coap
 APPS += rest-engine
 

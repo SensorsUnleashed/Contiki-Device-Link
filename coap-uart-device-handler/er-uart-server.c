@@ -38,7 +38,7 @@
 
 #include "contiki.h"
 #include "rest-engine.h"
-#include "coap_proxy.h"
+#include "uartsensor.h"
 #include "er-coap-engine.h"
 #include "dev/leds.h"
 #include <stdlib.h>
