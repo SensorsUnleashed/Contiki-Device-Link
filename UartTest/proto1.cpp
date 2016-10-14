@@ -2,8 +2,7 @@
 #include <QDebug>
 
 extern "C" {
-#include "../apps/uartsensor/uart_protocolhandler.h"
-
+#include "../apps/uartsensors/uart_protocolhandler.h"
 #include "crc16.h"
 }
 
