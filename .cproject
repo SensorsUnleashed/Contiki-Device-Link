@@ -3,6 +3,10 @@
 	<storageModule moduleId="org.eclipse.cdt.core.settings">
 		<cconfiguration id="cdt.managedbuild.toolchain.gnu.cross.base.2100788783">
 			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="cdt.managedbuild.toolchain.gnu.cross.base.2100788783" moduleId="org.eclipse.cdt.core.settings" name="Default">
+				<macros>
+					<stringMacro name="BOARD" type="VALUE_TEXT" value="su-cc2538-1"/>
+					<stringMacro name="TARGET" type="VALUE_TEXT" value="su-cc2538-1"/>
+				</macros>
 				<externalSettings/>
 				<extensions>
 					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
@@ -25,9 +29,15 @@
 								<option id="gnu.c.compiler.option.include.paths.1275002001" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/core}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/targets/su-cc2538-1}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/targets/su-cc2538-1/dev}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc2538}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc2538/dev}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc2538/usb}&quot;"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.3063084" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="NATIVE=0"/>
+									<listOptionValue builtIn="false" value="AUTOSTART_ENABLE=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1721034232" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -81,6 +91,7 @@
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.446876805" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="NATIVE=1"/>
+									<listOptionValue builtIn="false" value="AUTOSTART_ENABLE=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.272618941" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
