@@ -4,12 +4,13 @@
  *  Created on: 07/10/2016
  *      Author: omn
  */
-
+#ifndef NATIVE
 #include <string.h>
 #include "contiki.h"
 #include "rest-engine.h"
 #include "dev/leds.h"
 #include "board.h"
+
 
 static void res_sysinfo_gethandler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 
@@ -39,4 +40,4 @@ res_sysinfo_gethandler(void *request, void *response, uint8_t *buffer, uint16_t 
 	len += sprintf((char*)(buffer+len), "Version: 0.0.1\n");
 	REST.set_response_payload(response, buffer, len);
 }
-
+#endif

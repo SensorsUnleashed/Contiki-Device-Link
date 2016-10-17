@@ -39,6 +39,7 @@
 #include "contiki.h"
 #include "rest-engine.h"
 #include "er-coap-engine.h"
+#include "res-uartsensor.h"
 #include "dev/leds.h"
 #include <stdlib.h>
 
@@ -47,45 +48,18 @@
  * Resources to be activated need to be imported through the extern keyword.
  * The build system automatically compiles the resources in the corresponding sub-directory.
  */
-extern resource_t res_mirror;
+#ifndef NATIVE
 extern resource_t res_sysinfo;
+#endif
 extern resource_t res_ledtoggle;
 
 PROCESS(er_uart_server, "Erbium Uart Server");
 AUTOSTART_PROCESSES(&er_uart_server);
-//static struct etimer et;
 
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 #define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xfd81, 0x3daa, 0xfb4a, 0xf7ae, 0x0212, 0x4b00, 0x5af, 0x8323)
 static uip_ipaddr_t server_ipaddr[1]; /* holds the server ip address */
 
-static void
-notification_callback(coap_observee_t *obs, void *notification,
-		coap_notification_flag_t flag){
-	int len = 0;
-	const uint8_t *payload = NULL;
-	if(notification) {
-		len = coap_get_payload(notification, &payload);
-
-		if(len > 0){
-			int id = strtol((char*)payload, 0, 0);
-			switch(id){
-			case 1:
-				leds_set(LEDS_GREEN);
-				break;
-			case 2:
-				leds_set(LEDS_RED);
-				break;
-			case 3:
-				leds_set(LEDS_YELLOW);
-				break;
-			case 4:
-				leds_set(LEDS_ORANGE);
-				break;
-			}
-		}
-	}
-}
 #include "dev/button-sensor.h"
 
 PROCESS_THREAD(er_uart_server, ev, data)
@@ -94,7 +68,9 @@ PROCESS_THREAD(er_uart_server, ev, data)
 
 	/* Initialize the REST engine. */
 	rest_init_engine();
+#ifndef NATIVE
 	rest_activate_resource(&res_sysinfo, "SU/SystemInfo");
+#endif
 	rest_activate_resource(&res_ledtoggle, "SU/ledtoggle");
 	//	rest_activate_resource(&res_mirror, "debug/mirror");
 
@@ -108,19 +84,20 @@ PROCESS_THREAD(er_uart_server, ev, data)
 
 
 	uartsensors_init();
-
-	/* Delay 1 second */
-	//etimer_set(&et, CLOCK_SECOND*10);
+	while(1) {	//Wait until uartsensors has been initialized
+		PROCESS_WAIT_EVENT_UNTIL(ev == uartsensors_event);
+		if(data != NULL){
+			res_uartsensors_activate((uartsensors_device_t*)data);
+		}
+		else
+		break;
+	}
 
 	while(1) {
 		PROCESS_WAIT_EVENT_UNTIL(ev == uartsensors_event/* || ev == sensors_event*/);
+		res_uartsensors_event((uartsensors_device_t*)data);
 		//Sync the current observed resources
 		leds_toggle(LEDS_YELLOW);
-		/* Reset the etimer to trig again in 1 second */
-		//		etimer_reset(&et);
-
-		//Check what the last value is for all attached devices
-		//		res_proxy_get_handler_tester();
 	}
 
 	PROCESS_END();

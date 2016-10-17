@@ -45,6 +45,9 @@
 #include "rest-engine.h"
 #include "dev/leds.h"
 #include <stdlib.h>
+#include "er-coap-engine.h"
+
+static coap_observee_t *obs;
 
 static void res_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 
@@ -56,29 +59,64 @@ RESOURCE(res_ledtoggle,
 		 res_put_handler,
          NULL);
 
+static void toggleled(int id){
+	switch(id){
+	case 1:
+		leds_set(LEDS_GREEN);
+		break;
+	case 2:
+		leds_set(LEDS_RED);
+		break;
+	case 3:
+		leds_set(LEDS_YELLOW);
+		break;
+	case 4:
+#ifndef NATIVE
+		leds_set(LEDS_ORANGE);
+#endif
+		break;
+	}
+}
+
+static void
+notification_callback(coap_observee_t *obs, void *notification,
+		coap_notification_flag_t flag){
+	int len = 0;
+	const uint8_t *payload = NULL;
+	if(notification) {
+		len = coap_get_payload(notification, &payload);
+		if(len > 0){
+			int id = strtol((char*)payload, 0, 0);
+			toggleled(id);
+		}
+	}
+}
+
 static void
 res_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
 	const char* str;
+	const uint8_t* payload;
 	int len = REST.get_query(request, &str);
 	if(len > 0){
 		int id = strtol(str, 0, 0);
-		switch(id){
-		case 1:
-			leds_set(LEDS_GREEN);
-			break;
-		case 2:
-			leds_set(LEDS_RED);
-			break;
-		case 3:
-			leds_set(LEDS_YELLOW);
-			break;
-		case 4:
-			leds_set(LEDS_ORANGE);
-			break;
-		}
 		if(id >= 0 && id <= 4){
 			REST.set_response_status(response, REST.status.CHANGED);
+		}
+		else{
+			toggleled(id);
+		}
+
+		/*
+		 * Payload:
+		 * url\n
+		 * ip6 address to join\n
+		 * obs or poll=interval
+		 * */
+		if(strncmp(str, "join", len) == 0){
+			REST.get_request_payload(request, &payload);
+
+
 		}
 	}
 }

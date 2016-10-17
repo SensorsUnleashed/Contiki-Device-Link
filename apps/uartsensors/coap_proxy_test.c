@@ -56,11 +56,10 @@ void uart_set_input(uint8_t uart, int (* input)(unsigned char c))
 	//init the resources, that we would like to emulate
 	rs[0] = (struct resourceconf){
 		.id = 0,
-					.resolution = 100,
-					.hysteresis = 10,
-					.flags = METHOD_GET | METHOD_POST,
-					.max_pollinterval = 2000,
-					.version = 0001,
+				.resolution = 100,
+				.flags = METHOD_GET | METHOD_PUT | IS_OBSERVABLE,
+				.max_pollinterval = 2000,
+				.version = 0001,
 				.unit = rs001_unit,
 				.spec = rs001_spec,
 				.group = rs001_group,
@@ -70,8 +69,7 @@ void uart_set_input(uint8_t uart, int (* input)(unsigned char c))
 	rs[1] = (struct resourceconf){
 		.id = 1,
 				.resolution = 100,
-				.hysteresis = 1,
-				.flags = METHOD_GET | METHOD_PUT,
+				.flags = METHOD_GET | METHOD_PUT | IS_OBSERVABLE,
 				.max_pollinterval = -1,
 				.version = 0001,
 				.unit = rs002_unit,

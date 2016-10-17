@@ -1,6 +1,7 @@
 #include "guiglue.h"
 #include <QDebug>
 #include <QTimer>
+#include <QDateTime>
 
 guiglue::guiglue(proto1 *protohandler)
 {
@@ -52,15 +53,17 @@ guiglue::guiglue(proto1 *protohandler)
     di2.conf.flags = METHOD_GET | METHOD_PUT | IS_OBSERVABLE;
     di2.conf.max_pollinterval = -1;
     di2.conf.version = 0001;
-    di2.lastval.type = CMP_TYPE_POSITIVE_FIXNUM;
-    di2.lastval.as.u8 = 1;
-    di2.conf.AboveEventAt.as.s64 = 0;
-    di2.conf.BelowEventAt.as.s64 = 0;
+    di2.lastval.type = CMP_TYPE_UINT32;
+    di2.lastval.as.u32 = (uint32_t)QDateTime::currentMSecsSinceEpoch();
+    di2.conf.AboveEventAt.as.u32 = 0;
+    di2.conf.BelowEventAt.as.u32 = 0;
+    di2.conf.ChangeEvent.type = CMP_TYPE_UINT8;
+    di2.conf.ChangeEvent.as.u8 = 10;    //event every 10 sec
     di2.conf.eventsActive = 1;
     devinfo.append(di2);
 
     QTimer* tick = new QTimer;
-    tick->setInterval(10000);
+    tick->setInterval(1000);
     //tick->start();
     connect(tick, SIGNAL(timeout()), this, SLOT(updateTimerValue()));
     connect(interface, SIGNAL(reqResourceCount(rx_msg*)), this, SLOT(reqResourceCount(rx_msg*)));
@@ -121,15 +124,11 @@ void guiglue::updateValue(QVariant id){
     interface->frameandtx(index, &devinfo[index].lastval, resource_event);
 }
 
-#include <QDateTime>
 void guiglue::updateTimerValue(){
-//    devinfo[1].lastval.type = CMP_TYPE_SINT64;
-//    devinfo[1].lastval.as.s64 = QDateTime::currentMSecsSinceEpoch();
-
     devinfo[1].lastval.type = CMP_TYPE_UINT32;
-    devinfo[1].lastval.as.u32 = (uint32_t)QDateTime::currentMSecsSinceEpoch();
+    devinfo[1].lastval.as.u32 = (uint32_t)(QDateTime::currentMSecsSinceEpoch() / 1000); //Second tick
 
-    if(devinfo[1].conf.eventsActive == 1){
+    if(devinfo[1].conf.eventsActive == 1 && devinfo[1].lastval.as.u32 % devinfo[1].conf.ChangeEvent.as.u8){
         interface->frameandtx(1, &devinfo[1].lastval, resource_event);
     }
     else{

@@ -38,6 +38,7 @@
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.3063084" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="NATIVE=0"/>
 									<listOptionValue builtIn="false" value="AUTOSTART_ENABLE=1"/>
+									<listOptionValue builtIn="false" value="REST=coap_rest_implementation"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1721034232" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -92,6 +93,7 @@
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.446876805" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="NATIVE=1"/>
 									<listOptionValue builtIn="false" value="AUTOSTART_ENABLE=1"/>
+									<listOptionValue builtIn="false" value="REST=coap_rest_implementation"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.272618941" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
