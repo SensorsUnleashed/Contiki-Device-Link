@@ -44,9 +44,9 @@ guiglue::guiglue(proto1 *protohandler)
     di2.conf.type = wrtptr;
     wrtptr += sprintf(wrtptr, "counter") + 1;
     di2.conf.attr = wrtptr;
-    wrtptr += sprintf(wrtptr, "title=\"Orange LED\";rt=\"Control\"") + 1;
+    wrtptr += sprintf(wrtptr, "title=\"Timer\";rt=\"Control\"") + 1;
     di2.conf.spec = wrtptr;
-    wrtptr += sprintf(wrtptr, "Resolution: 1 sec") + 1;
+    wrtptr += sprintf(wrtptr, "Res: 1 sec") + 1;
     di2.conf.unit = wrtptr;
     wrtptr += sprintf(wrtptr, "Sec") + 1;
     di2.conf.resolution = 100;
@@ -54,8 +54,10 @@ guiglue::guiglue(proto1 *protohandler)
     di2.conf.max_pollinterval = -1;
     di2.conf.version = 0001;
     di2.lastval.type = CMP_TYPE_UINT32;
-    di2.lastval.as.u32 = (uint32_t)QDateTime::currentMSecsSinceEpoch();
+    di2.lastval.as.u32 = (uint32_t)(QDateTime::currentMSecsSinceEpoch()/1000);
+    di2.conf.AboveEventAt.type = CMP_TYPE_UINT32;
     di2.conf.AboveEventAt.as.u32 = 0;
+    di2.conf.BelowEventAt.type = CMP_TYPE_UINT32;
     di2.conf.BelowEventAt.as.u32 = 0;
     di2.conf.ChangeEvent.type = CMP_TYPE_UINT8;
     di2.conf.ChangeEvent.as.u8 = 10;    //event every 10 sec
@@ -64,7 +66,7 @@ guiglue::guiglue(proto1 *protohandler)
 
     QTimer* tick = new QTimer;
     tick->setInterval(1000);
-    //tick->start();
+    tick->start();
     connect(tick, SIGNAL(timeout()), this, SLOT(updateTimerValue()));
     connect(interface, SIGNAL(reqResourceCount(rx_msg*)), this, SLOT(reqResourceCount(rx_msg*)));
     connect(interface, SIGNAL(reqConfig(rx_msg*)), this, SLOT(reqConfig(rx_msg*)));
@@ -80,7 +82,9 @@ void guiglue::reqResourceCount(rx_msg* rx_req){
 }
 
 void guiglue::reqConfig(rx_msg* rx_req){
+
     int id = *((char*)rx_req->payload);
+    qDebug() << "reqConfig id: " << id;
     if(id < devinfo.count()){
         uint8_t payloadbuf[200];
         int len = cp_encoderesource_conf(&devinfo[id].conf, &payloadbuf[0]);
@@ -128,7 +132,7 @@ void guiglue::updateTimerValue(){
     devinfo[1].lastval.type = CMP_TYPE_UINT32;
     devinfo[1].lastval.as.u32 = (uint32_t)(QDateTime::currentMSecsSinceEpoch() / 1000); //Second tick
 
-    if(devinfo[1].conf.eventsActive == 1 && devinfo[1].lastval.as.u32 % devinfo[1].conf.ChangeEvent.as.u8){
+    if(devinfo[1].conf.eventsActive == 1 && (devinfo[1].lastval.as.u32 % devinfo[1].conf.ChangeEvent.as.u8 == 0)){
         interface->frameandtx(1, &devinfo[1].lastval, resource_event);
     }
     else{

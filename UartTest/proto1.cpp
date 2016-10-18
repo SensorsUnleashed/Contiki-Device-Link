@@ -39,6 +39,14 @@ int proto1::frameandtx(uint8_t *payload, uint8_t len, req_cmd cmd, uint8_t seqno
     len = cp_encodemessage(seqno, cmd, payload, len, &buf[0]);
     transmit((const char*)&buf[0], len);
 
+//    rx_msg rx_req;
+//    uint8_t* pl = new uint8_t[150];
+//    rx_req.payload = pl;
+//    struct resourceconf data;
+//    uint8_t* strings = new uint8_t[200];
+//    cp_decodemessage((char*)&buf[0], len, &rx_req);
+//    cp_decoderesource_conf(&data, (uint8_t*)rx_req.payload, (char*)strings);
+
     return 0;
 }
 

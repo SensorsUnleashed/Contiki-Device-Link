@@ -8,7 +8,7 @@
 #define COAP_UART_DEVICE_HANDLER_UARTHANDLER_H_
 #include "contiki.h"
 
-#define RX_BUFLEN	150
+#define RX_BUFLEN	200
 typedef struct {
 	char buffer[RX_BUFLEN];
 	char* wrt_ptr;

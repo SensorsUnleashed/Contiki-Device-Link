@@ -92,7 +92,7 @@ PROCESS_THREAD(er_uart_server, ev, data)
 		else
 		break;
 	}
-
+	leds_on(LEDS_RED);
 	while(1) {
 		PROCESS_WAIT_EVENT_UNTIL(ev == uartsensors_event/* || ev == sensors_event*/);
 		res_uartsensors_event((uartsensors_device_t*)data);

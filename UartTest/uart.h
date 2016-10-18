@@ -6,7 +6,7 @@
 #include <QVariant>
 #include <QVector>
 
-#define RX_BUFLEN	150
+#define RX_BUFLEN	300
 typedef struct {
     char buffer[RX_BUFLEN];
     char* wrt_ptr;
