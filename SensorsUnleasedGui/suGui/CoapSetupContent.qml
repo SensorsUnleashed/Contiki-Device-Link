@@ -12,7 +12,7 @@ Item {
 
         GroupBox{
             width: parent.width;
-            height: 150;
+            height: 200;
             title: qsTr("CoAP settings");
             Column{
                 width: parent.width;
@@ -29,9 +29,17 @@ Item {
                 SettingSlider{
                     id: coapAckTimeout;
                     name: qsTr("ACK timeout");
+                    to: 10000;
+                    from: 1000;
+                    value: 5000;
+                    stepSize: 1000;
+                }
+                SettingSlider{
+                    id: coapRetrans;
+                    name: qsTr("Retransmissions");
                     to: 10;
                     from: 1;
-                    value: 5;
+                    value: 3;
                     stepSize: 1;
                 }
             }
@@ -39,6 +47,7 @@ Item {
                 var options = coap.getSettings();
                 coapPrefMsgSize.value = options['coapPrefMsgSize'];
                 coapAckTimeout.value = options['coapAckTimeout'];
+                coapRetrans.value = options['coapRetrans'];
             }
         }
     }
@@ -56,6 +65,7 @@ Item {
                 var settings = {
                     'coapPrefMsgSize' : parseInt(coapPrefMsgSize.resultval),
                     'coapAckTimeout' : parseInt(coapAckTimeout.resultval),
+                    'coapRetrans' : parseInt(coapRetrans.resultval),
                 }
                 coap.updateSettings(settings);
                 setupboxloader.source = "";

@@ -20,14 +20,21 @@ coaphandler::coaphandler(database *db)
             else if(keyval["Key"].toString().compare("prefMsgSize") == 0){
                 prefMsgSize = keyval["Value"].toInt();
             }
+            else if(keyval["Key"].toString().compare("retransmissions") == 0){
+                retransmissions = keyval["Value"].toInt();
+            }
         }
     }
     else{
         qDebug() << "Database not working - use default values!";
         ackTimeout = 5;
         prefMsgSize = 64;
+        retransmissions = 3;
     }
 
+    acktimer = new QTimer();
+    acktimer->setSingleShot(true);
+    connect(acktimer, SIGNAL(timeout()), this, SLOT(timeout()));
     initSocket();
 }
 
@@ -36,6 +43,7 @@ void coaphandler::updateSettings(QVariant setup){
 
     ackTimeout = map["coapAckTimeout"].toInt();
     prefMsgSize = map["coapPrefMsgSize"].toInt();
+    retransmissions = map["coapRetrans"].toInt();
 
     //Update the sql database
     QVariantList data;
@@ -46,6 +54,10 @@ void coaphandler::updateSettings(QVariant setup){
 
     item["Key"] = "prefMsgSize";
     item["Value"] = prefMsgSize;
+    data.insert(1, item);
+
+    item["Key"] = "retransmissions";
+    item["Value"] = retransmissions;
     data.insert(1, item);
 
     db->update(QString("coap"), data);
@@ -63,6 +75,7 @@ QVariant coaphandler::getSettings(){
         }
     }
     map["coapPrefMsgSize"] = temp;
+    map["coapRetrans"] = retransmissions;
     return map;
 }
 
@@ -167,10 +180,15 @@ QVariant coaphandler::reqGet(QVariant nodeaddr, QVariant uri, QVariant options, 
         pdu->setURI(uristring, strlen(uristring));
         send(addr, pdu->getPDUPointer(), pdu->getPDULength());
 
+        if(!acktimer->isActive()){
+            acktimer->start(ackTimeout);
+        }
+        storedPDU->txtime.start();
         storedPDU->initialPDU = pdu;
         storedPDU->messageid = ret;
         storedPDU->token = ret;
         storedPDU->ct = ct; //We assume we receive what we request
+        storedPDU->addr = addr;
         activePDUs.append(storedPDU);
         printPDU(pdu);
     }
@@ -197,18 +215,8 @@ struct sunode* coaphandler::findNode(QHostAddress addr){
 void coaphandler::send(QHostAddress addr, uint8_t* pduptr, int len){
     qDebug() << "Send pdu to: " << addr.toString();
     udpSocket->writeDatagram((char*)pduptr, len, addr, 5683);
-
-    //    QByteArray tx;
-    //    tx.resize(len);
-    //    memcpy(tx.data(), pduptr, len);
-
-    //    QString valueInHex;
-    //    for(int i=0; i<tx.length(); i++){
-
-    //        valueInHex += QString("0x%1 ").arg((quint8)tx[i] , 0, 16);
-    //    }
-    //    qDebug() << "TX: " << valueInHex;
 }
+
 
 void coaphandler::initSocket()
 {
@@ -447,6 +455,7 @@ void coaphandler::readPendingDatagrams()
                         }
                         else{
                             parseMessage(sender, storedPDU);
+                            removePDU(storedPDU->token);
                         }
                     }
                 }   //Block2 handling
@@ -457,6 +466,7 @@ void coaphandler::readPendingDatagrams()
                     }
                     //Handle single messages
                     parseMessage(sender, storedPDU);
+                    removePDU(storedPDU->token);
                 }
 
                 if(dotx){
@@ -471,6 +481,45 @@ void coaphandler::readPendingDatagrams()
         delete recvPDU;
     }
 }
+
+void coaphandler::timeout(){
+    qint64 nexttimeout = -1;
+
+    for(int i=0; i<activePDUs.count(); i++){
+        if(activePDUs[i]->txtime.hasExpired(ackTimeout)){
+            if(activePDUs[i]->retranscount >= retransmissions){ //Give up trying
+                qDebug() << "Giving up on message";
+                //Delete pdu
+            }
+            else{   //Try again
+                if(activePDUs[i]->initialPDU->getType() == CoapPDU::COAP_CONFIRMABLE){
+                    send(activePDUs[i]->addr, activePDUs[i]->initialPDU->getPDUPointer(), activePDUs[i]->initialPDU->getPDULength());
+                    activePDUs[i]->retranscount++;
+                    //reset timeout
+                    activePDUs[i]->txtime.start();
+                    if(nexttimeout == -1){
+                        nexttimeout = ackTimeout;
+                    }
+                }
+                else{
+                    //It was a COAP_NON_CONFIRMABLE pdu. Remove it now
+
+                }
+            }
+        }
+        else    //Not yet expired. Find next timeout - Wait at least 100ms
+        {
+            qint64 elabsed = activePDUs[i]->txtime.elapsed();
+            nexttimeout = nexttimeout < elabsed ? elabsed : nexttimeout;
+            nexttimeout = nexttimeout < 100 ? 100 : nexttimeout;
+        }
+    }
+
+    if(nexttimeout > 0){
+        acktimer->start(nexttimeout);
+    }
+}
+
 
 void coaphandler::parseMessage(QHostAddress sender, coapMessageStore* message){
 

@@ -39,6 +39,7 @@
 									<listOptionValue builtIn="false" value="NATIVE=0"/>
 									<listOptionValue builtIn="false" value="AUTOSTART_ENABLE=1"/>
 									<listOptionValue builtIn="false" value="REST=coap_rest_implementation"/>
+									<listOptionValue builtIn="false" value="NETSTACK_CONF_WITH_IPV6=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1721034232" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -94,6 +95,7 @@
 									<listOptionValue builtIn="false" value="NATIVE=1"/>
 									<listOptionValue builtIn="false" value="AUTOSTART_ENABLE=1"/>
 									<listOptionValue builtIn="false" value="REST=coap_rest_implementation"/>
+									<listOptionValue builtIn="false" value="NETSTACK_CONF_WITH_IPV6=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.272618941" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>

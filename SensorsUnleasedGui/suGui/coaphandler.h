@@ -8,10 +8,13 @@
 #include <QMap>
 #include <QHostAddress>
 #include <QUdpSocket>
+#include <QTimer>
+#include <QElapsedTimer>
 
 #define REST_MAX_CHUNK_SIZE            48
 
 struct coapMessageStore{
+    QHostAddress addr;
     uint16_t token;  //The first messageid, used for finding the right message reply from the gui
     uint16_t messageid;     //The message id, used when quering the nodes. Will shift if message is split in multible chunks
     CoapPDU* initialPDU;    //The inital message send to the node
@@ -20,6 +23,8 @@ struct coapMessageStore{
     uint32_t tx_next_index; //What should be send next
     uint32_t num;           //Active number (Not yet acknowledged)
     enum CoapPDU::ContentFormat ct; //How should the payload be parsed?
+    QElapsedTimer txtime;
+    uint8_t retranscount;
 };
 
 struct sunode{
@@ -41,12 +46,14 @@ public:
     Q_INVOKABLE QVariant reqGet(QVariant nodeaddr, QVariant uri, QVariant options, QVariant oldtoken, QByteArray payload=0);
 
 private:
+    QTimer* acktimer;
     database *db;
     QUdpSocket* udpSocket;
     QVector<struct sunode*> knownnodes;
     QVector<struct coapMessageStore*> activePDUs;
     uint16_t ackTimeout;
     uint16_t prefMsgSize;
+    uint8_t retransmissions;
 
     struct sunode* findNode(QHostAddress addr);
 
@@ -70,6 +77,7 @@ private:
 
 private slots:
     void readPendingDatagrams();
+    void timeout();
 
 public slots:
 
