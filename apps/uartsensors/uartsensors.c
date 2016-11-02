@@ -70,21 +70,93 @@ uartsensors_device_t *uartsensors_find(const char *name, int len){
 	return NULL;
 }
 
+//TODO: Move some of the protocol stuff into the protocolhandler
 /*
- * Returns the actual value of the actuator/sensor
+ * Request the actual event value from the device (The device will return later, so wait and re-check the configuration for verification)
  * */
-void uartsensors_getVal(uartsensors_device_t* this, uint8_t type, cmp_object_t* val){
+void uartsensors_updateVal(uartsensors_device_t* this, enum up_parameter parameter){
+	int len = 0;
 
+	len += cp_encodeU8((uint8_t*)rx_reply.payload + len, this->conf.id);
+	len += cp_encodeU8((uint8_t*)rx_reply.payload + len, parameter);
+	frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_updateval, rx_reply.payload, len, &txbuf[0]));
 }
 
 /*
- * Set the value in the actuator
+ * Set an event parameter value to the device
  * */
-void uartsensors_setVal(uartsensors_device_t* this, uint8_t type, cmp_object_t val){
-
+void uartsensors_setEventVal(uartsensors_device_t* this, enum up_parameter parameter, cmp_object_t val){
+	int len = 0;
+	len += cp_encodeU8((uint8_t*)rx_reply.payload + len, this->conf.id);
+	len += cp_encodeU8((uint8_t*)rx_reply.payload + len, parameter);
+	len += cp_encodeObject((uint8_t*)rx_reply.payload + len, &val);
+	frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_setval, rx_reply.payload, len, &txbuf[0]));
 }
 
+/*
+ * Ask the sensor to reset back to its default value
+ * */
+void uartsensors_reset(uartsensors_device_t* this){
+	int len = 0;
+	len += cp_encodeU8((uint8_t*)rx_reply.payload + len, this->conf.id);
+	frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_reset, rx_reply.payload, len, &txbuf[0]));
+}
 
+void handleSensorMessages(){
+	uint8_t id;
+	uint32_t len = 0;
+	uint8_t found = 0;
+	uartsensors_device_t* resource;
+	if(cp_decodeU8(rx_reply.payload, &id, &len) == 0){	//Its always the id first
+		for(resource = (uartsensors_device_t *)list_head(proxy_resource_list);
+							resource; resource = resource->next) {
+			if(resource->conf.id == id){
+				found = 1;
+				break;
+			}
+		}
+	}
+	if(!found) return;
+
+	/* When a new reading comes in from the device,
+	 * we chose to store the raw message, non-decoded.
+	 * The reason is, that we dont want to waste energy
+	 * converting, if noone needs the value anyway.
+	 *
+	 * */
+	if(rx_reply.cmd == resource_value_update || rx_reply.cmd == resource_event){
+		if(len <= LASTVALSIZE){
+			resource->vallen = rx_reply.len - len;
+			memcpy(resource->lastval, rx_reply.payload + len, rx_reply.len - len);	//Copy the value to to the lastvalue loc
+
+			//If its an event, post it further on. Else, its just latently awaiting someone to request it
+			if(rx_reply.cmd == resource_event){
+				process_post(PROCESS_BROADCAST, uartsensors_event, (void*)resource);
+			}
+		}else{
+			PRINTF("Couldn't store the lastval\n");
+		}
+	}
+	else if(rx_reply.cmd == resource_updateval){
+		enum up_parameter parameter;
+		if(cp_decodeU8(rx_reply.payload + len, &parameter, &len) == 0){
+			cmp_object_t temp;
+			if(cp_decodeObject(rx_reply.payload + len, &temp, &len) != 0)
+				return;
+			switch(parameter){
+			case ChangeEventValue:	//Maybe we could handle regular value updates from here
+				resource->conf.ChangeEvent = temp;
+				break;
+			case AboveEventValue:
+				resource->conf.AboveEventAt = temp;
+				break;
+			case BelowEventValue:
+				resource->conf.BelowEventAt = temp;
+				break;
+			}
+		}
+	}
+}
 
 PT_THREAD(initResources(struct pt *pt)){
 	PT_BEGIN(pt);
@@ -118,39 +190,6 @@ PT_THREAD(initResources(struct pt *pt)){
 		}
 	}
 	PT_END(pt);
-}
-
-void handleSensorMessages(){
-
-	/* When a new reading comes in from the device,
-	 * we chose to store the raw message, non-decoded.
-	 * The reason is, that we dont want to waste energy
-	 * converting, if noone needs the value anyway.
-	 *
-	 * */
-	if(rx_reply.cmd == resource_value_update || rx_reply.cmd == resource_event){
-		uint8_t id;
-		uint32_t len = 0;
-		if(cp_decodeID(rx_reply.payload, &id, &len) == 0){	//Its always the id first
-			uartsensors_device_t* resource;
-			for(resource = (uartsensors_device_t *)list_head(proxy_resource_list);
-					resource; resource = resource->next) {
-				if(resource->conf.id == id){
-					if(len <= LASTVALSIZE){
-						resource->vallen = rx_reply.len - len;
-						memcpy(resource->lastval, rx_reply.payload + len, rx_reply.len - len);	//Copy the value to to the lastvalue loc
-
-						//If its an event, post it further on. Else, its just latently awaiting someone to request it
-						if(rx_reply.cmd == resource_event){
-							process_post(PROCESS_BROADCAST, uartsensors_event, (void*)resource);
-						}
-					}else{
-						PRINTF("Couldn't store the lastval\n");
-					}
-				}
-			}
-		}
-	}
 }
 
 //Callback; used when the uart has parsed a message

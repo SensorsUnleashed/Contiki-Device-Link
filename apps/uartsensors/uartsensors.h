@@ -26,7 +26,9 @@ struct proxy_resource{
 typedef struct proxy_resource uartsensors_device_t;
 
 uartsensors_device_t *uartsensors_find(const char *name, int len);
-void uartsensors_getVal(uartsensors_device_t* this, uint8_t type, cmp_object_t* val);
+void uartsensors_getEventVal(uartsensors_device_t* this, enum up_parameter parameter);
+void uartsensors_setEventVal(uartsensors_device_t* this, enum up_parameter parameter, cmp_object_t val);
+void uartsensors_reset(uartsensors_device_t* this);
 void uartsensors_init(void);
 
 extern process_event_t uartsensors_event;
