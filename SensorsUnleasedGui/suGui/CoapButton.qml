@@ -9,10 +9,11 @@ Button{
     property string requrl;
     property string ipaddr;
     property var options;
+    property string payload;
     onClicked: {
         if(nodesdir.activeurl){
             log.text += "Get " + nodesdir.activeurl + "\n";
-            acceptid = coap.reqGet(ipaddr, requrl, options, acceptid);
+            acceptid = coap.reqGet(ipaddr, requrl, options, acceptid, payload);
         }
     }
     Connections {

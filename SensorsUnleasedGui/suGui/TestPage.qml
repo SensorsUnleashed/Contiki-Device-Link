@@ -54,6 +54,17 @@ Item {
                     'code': 1,  //COAP_GET
                 }
             }
+            CoapButton{
+                text: "Put large";
+                requrl: nodesdir.activeurl;
+                ipaddr: nodesdir.activeip;
+                options: {
+                    'ct': 0,    //COAP_CONTENT_FORMAT_TEXT_PLAIN
+                    'type': 0,  //COAP_CONFIRMABLE
+                    'code': 3,  //COAP_PUT
+                }
+                payload: "Dette er en test for at se om vi kan sende en lang tekst";
+            }
         }
         Row{
             id: row3;

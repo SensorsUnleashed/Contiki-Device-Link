@@ -33,6 +33,22 @@ struct sunode{
     QVariant recvMessage;
 };
 
+typedef enum {
+    CA_BLOCK_SIZE_16_BYTE = 0,     /**< 16 byte */
+    CA_BLOCK_SIZE_32_BYTE = 1,     /**< 32 byte */
+    CA_BLOCK_SIZE_64_BYTE = 2,     /**< 64 byte */
+    CA_BLOCK_SIZE_128_BYTE = 3,    /**< 128 byte */
+    CA_BLOCK_SIZE_256_BYTE = 4,    /**< 256 byte */
+    CA_BLOCK_SIZE_512_BYTE = 5,    /**< 512 byte */
+    CA_BLOCK_SIZE_1_KBYTE = 6      /**< 1 Kbyte */
+} CABlockSize_t;
+
+typedef struct {
+    unsigned int num : 20;
+    unsigned int m : 1;      /**< 1 if more blocks follow, 0 otherwise */
+    unsigned int sze : 3;    /**< block size */
+} coap_block_t;
+
 class coaphandler : public QObject
 {
     Q_OBJECT
@@ -52,7 +68,7 @@ private:
     QVector<struct sunode*> knownnodes;
     QVector<struct coapMessageStore*> activePDUs;
     uint16_t ackTimeout;
-    uint16_t prefMsgSize;
+    uint32_t prefMsgSize;
     uint8_t retransmissions;
 
     struct sunode* findNode(QHostAddress addr);
@@ -67,7 +83,7 @@ private:
     void printPDU(CoapPDU* pdu);
     CoapPDU::CoapOption* coap_check_option(CoapPDU *pdu, enum CoapPDU::Option opt);
     int parseBlockOption(CoapPDU::CoapOption *blockoption, uint8_t* more, uint32_t *num, uint8_t *SZX);
-    int calc_block_option(uint8_t more, uint32_t num, uint16_t msgsize, uint8_t* blockval, uint8_t* len);
+    int calc_block_option(uint8_t more, uint32_t num, uint32_t msgsize, uint8_t* blockval, uint8_t* len);
 
     void removePDU(uint16_t token);
     struct coapMessageStore* findPDU(CoapPDU *pdu);

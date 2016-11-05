@@ -158,18 +158,19 @@ QVariant coaphandler::reqGet(QVariant nodeaddr, QVariant uri, QVariant options, 
         pdu->setType(type);
         pdu->setCode(code);
         pdu->setToken((uint8_t*)&ret,2);
-        pdu->addOption(CoapPDU::COAP_OPTION_CONTENT_FORMAT,1,(uint8_t*)&ct);    //App xml
+        pdu->addOption(CoapPDU::COAP_OPTION_CONTENT_FORMAT,1,(uint8_t*)&ct);
         pdu->setMessageID(ret);
 
         if(payload.size() > 0){
             if(payload.length() > prefMsgSize){  //Payload needs to be split
                 uint8_t buf[3];
                 uint8_t len;
-                calc_block_option(1, 0, prefMsgSize, &buf[0], &len);
+                calc_block_option(1, 0, 16/*prefMsgSize*/, &buf[0], &len);
                 pdu->addOption(CoapPDU::COAP_OPTION_BLOCK1, len, &buf[0]);
                 pdu->setPayload((uint8_t*)payload.data(), prefMsgSize);
                 storedPDU->tx_payload = payload;
                 storedPDU->tx_next_index = prefMsgSize;
+                storedPDU->num = 0;
             }
             else{   //Normal single message payload
                 pdu->setPayload((uint8_t*)payload.data(), payload.length());
@@ -178,19 +179,26 @@ QVariant coaphandler::reqGet(QVariant nodeaddr, QVariant uri, QVariant options, 
 
         char* uristring = uri.toString().toLatin1().data();
         pdu->setURI(uristring, strlen(uristring));
+
         send(addr, pdu->getPDUPointer(), pdu->getPDULength());
 
         if(!acktimer->isActive()){
             acktimer->start(ackTimeout);
         }
         storedPDU->txtime.start();
-        storedPDU->initialPDU = pdu;
+        storedPDU->lastPDU = pdu;
         storedPDU->messageid = ret;
         storedPDU->token = ret;
         storedPDU->ct = ct; //We assume we receive what we request
         storedPDU->addr = addr;
         activePDUs.append(storedPDU);
         printPDU(pdu);
+
+        //Print all options in our pdu
+        CoapPDU::CoapOption* testoptions = storedPDU->lastPDU->getOptions();
+        for(int i=0; i<storedPDU->lastPDU->getNumOptions(); i++){
+            qDebug() << (testoptions + i)->optionNumber;
+        }
     }
     else{
         qDebug() << "Error in IPv6 address" << nodeaddr.toString();
@@ -263,36 +271,50 @@ int coaphandler::parseBlockOption(CoapPDU::CoapOption* blockoption, uint8_t* mor
     return 0;
 }
 
-int coaphandler::calc_block_option(uint8_t more, uint32_t num, uint16_t msgsize, uint8_t* blockval, uint8_t* len){
-    //SSS.M.NNNN.NNNN.NNNN.NNNN.NNNN
-    //S = SZX = exponetial 4-10
-    //M = More
-    //N = NUM
+int coaphandler::calc_block_option(uint8_t more, uint32_t num, uint32_t msgsize, uint8_t* blockval, uint8_t* len){
+    /*
+        We store in little, and let cantcoap send it big endian
+        Illustration is in big endian.
+           0
+           0 1 2 3 4 5 6 7
+          +-+-+-+-+-+-+-+-+
+          |  NUM  |M| SZX |
+          +-+-+-+-+-+-+-+-+
 
-    uint16_t szx = msgsize;
-    for(int i=0; i<10; i++){
-        if((szx >> i) & 0x1){
-            szx = i;
-            break;
-        }
-    }
+           0                   1
+           0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+          |          NUM          |M| SZX |
+          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-    *(blockval + 0) = 0;
-    *(blockval + 0) = szx;
-    *(blockval + 0) |= more << 3;
-    *(blockval + 0) |= num << 4;
-    *(blockval + 1) = num >> 4;
-    *(blockval + 2) = num >> 12;
+           0               1                   2
+           0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
+          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+          |                   NUM                 |M| SZX |
+          +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-    if(msgsize < 16){
+    SZX = exponetial 4-10 (16 - 1024 bytes)
+    More = Will further blocks follow this
+    NUM = Current block number (0 is the first)
+*/
+
+    uint32_t result = 0;
+
+    //Calculate the exponential part
+    uint16_t szx = msgsize >> 5;
+
+    if (num < 16)
         *len = 1;
-    }
-    else if(msgsize < 4096){
+    else if(num < 4096)
         *len = 2;
-    }
-    else{
+    else
         *len = 3;
-    }
+
+    result |= num;
+    result <<= 4;
+    result |= szx + (more << 3);
+
+    memcpy(blockval, &result, *len);
 
     return 0;
 }
@@ -376,19 +398,24 @@ void coaphandler::readPendingDatagrams()
         qDebug() << "Message received";
         //processTheDatagram(datagram);
         CoapPDU *recvPDU = new CoapPDU((uint8_t*)datagram.data(),datagram.length());
+        CoapPDU *txPDU; //Assign this pdu to the next pdu to send, and switch out with the one in the store
         CoapPDU::CoapOption* options = 0;
         if(recvPDU->validate()) {
             printPDU(recvPDU);
 
-            struct coapMessageStore* storedPDU = findPDU(recvPDU);
+            struct coapMessageStore* storedPDUdata = findPDU(recvPDU);
+
             //We expected this message - handle it
-            if(storedPDU != 0){
+            if(storedPDUdata != 0){
                 options = coap_check_option(recvPDU, CoapPDU::COAP_OPTION_CONTENT_FORMAT);
                 if(options){
                     if(options->optionValueLength > 0){
-                        storedPDU->ct = (enum CoapPDU::ContentFormat)*options->optionValuePointer;
+                        storedPDUdata->ct = (enum CoapPDU::ContentFormat)*options->optionValuePointer;
                     }
                 }
+
+                CoapPDU::Code code = recvPDU->getCode();
+                qDebug() << "Code: " << code;
 
                 /* Handle block1 - response from a put/post (Send more money) */
                 options = coap_check_option(recvPDU, CoapPDU::COAP_OPTION_BLOCK1);
@@ -396,32 +423,58 @@ void coaphandler::readPendingDatagrams()
                     uint8_t more;
                     uint32_t num;
                     uint8_t szx;
+                    uint32_t prefsize;
+                    uint32_t bytesleft = storedPDUdata->tx_payload.length() - storedPDUdata->tx_next_index;
+
+
+                    //Print all options in our pdu
+                    CoapPDU::CoapOption* testoptions = coap_check_option(storedPDUdata->lastPDU, CoapPDU::COAP_OPTION_BLOCK1);
+                    qDebug() << testoptions->optionValueLength;
+
+                    //Sender send us some options to use from now on
                     if(parseBlockOption(options, &more, &num, &szx) == 0){
-                        uint32_t prefsize = 1 << (szx + 4);
-                        uint32_t bytesleft = storedPDU->tx_payload.length() - storedPDU->tx_next_index;
+                        prefsize = 1 << (szx + 4);
+                    }
+                    else{   //We continue with whatever options we started with
+                        num = storedPDUdata->num;
+                        prefsize = prefMsgSize;
+                    }
 
-                        if(bytesleft){
-                            uint8_t buf[3];
-                            uint8_t len;
+                    if(bytesleft){
+                        //We need to send yet another block
+                        //txPDU = new CoapPDU();
 
-                            more = bytesleft > prefsize;
-                            calc_block_option(more, ++num, prefsize, &buf[0], &len);
-                            storedPDU->initialPDU->addOption(CoapPDU::COAP_OPTION_BLOCK1, len, &buf[0]);
-                            if(more){
-                                storedPDU->initialPDU->setPayload((uint8_t*)(storedPDU->tx_payload.data()+storedPDU->tx_next_index), prefsize);
-                                storedPDU->tx_next_index += prefsize;
-                            }
-                            else{
-                                storedPDU->initialPDU->setPayload((uint8_t*)(storedPDU->tx_payload.data()+storedPDU->tx_next_index), bytesleft);
-                                storedPDU->tx_next_index += bytesleft;
-                            }
 
-                            dotx = 1;
+                        uint8_t buf[3];
+                        uint8_t len;
+                        uint8_t* bufptr = &buf[0];
+
+                        more = bytesleft > prefsize;
+                        calc_block_option(more, ++num, prefsize, bufptr, &len);
+
+                        storedPDUdata->lastPDU->addOption(CoapPDU::COAP_OPTION_BLOCK1, len, bufptr);
+                        storedPDUdata->num = num;
+                        if(more){
+                            storedPDUdata->lastPDU->setPayload((uint8_t*)(storedPDUdata->tx_payload.data()+storedPDUdata->tx_next_index), prefsize);
+                            storedPDUdata->tx_next_index += prefsize;
+
                         }
                         else{
-                            qDebug() << "ACK - Finished transmitting large message";
+                            storedPDUdata->lastPDU->setPayload((uint8_t*)(storedPDUdata->tx_payload.data()+storedPDUdata->tx_next_index), bytesleft);
+                            storedPDUdata->tx_next_index += bytesleft;
                         }
+
+//                        storedPDU->initialPDU->validate();
+//                        //Print all options in our pdu
+//                        CoapPDU::CoapOption* testoptions = coap_check_option(storedPDU->initialPDU, CoapPDU::COAP_OPTION_BLOCK1);
+//                        parseBlockOption(testoptions, &more, &num, &szx);
+
+                        dotx = 1;
                     }
+                    else{
+                        qDebug() << "ACK - Finished transmitting large message";
+                    }
+
                 }
 
                 //Handle block2 - response to a get
@@ -435,7 +488,7 @@ void coaphandler::readPendingDatagrams()
 
                         uint8_t* pl = recvPDU->getPayloadPointer();
                         for(int i=0; i<recvPDU->getPayloadLength(); i++){
-                            storedPDU->rx_payload[offset + i] = *(pl+i);
+                            storedPDUdata->rx_payload[offset + i] = *(pl+i);
                         }
                         if(more){
                             qDebug() << "Received " << num + 1 << "messages, so far";
@@ -450,31 +503,33 @@ void coaphandler::readPendingDatagrams()
                                 *(value+i)= 0;
                                 *value |= (num << (i * 8 + 4));
                             }
-                            storedPDU->initialPDU->addOption(CoapPDU::COAP_OPTION_BLOCK2, valuelen, value);
+                            storedPDUdata->lastPDU->addOption(CoapPDU::COAP_OPTION_BLOCK2, valuelen, value);
                             dotx = 1;
                         }
                         else{
-                            parseMessage(sender, storedPDU);
-                            removePDU(storedPDU->token);
+                            parseMessage(sender, storedPDUdata);
+                            removePDU(storedPDUdata->token);
                         }
                     }
                 }   //Block2 handling
                 else{
-                    uint8_t* pl = recvPDU->getPayloadPointer();
-                    for(int i=0; i<recvPDU->getPayloadLength(); i++){
-                        storedPDU->rx_payload[i] = *(pl+i);
+                    if(recvPDU->getPayloadLength()){
+                        uint8_t* pl = recvPDU->getPayloadPointer();
+                        for(int i=0; i<recvPDU->getPayloadLength(); i++){
+                            storedPDUdata->rx_payload[i] = *(pl+i);
+                        }
+                        //Handle single messages
+                        parseMessage(sender, storedPDUdata);
+                        removePDU(storedPDUdata->token);
                     }
-                    //Handle single messages
-                    parseMessage(sender, storedPDU);
-                    removePDU(storedPDU->token);
                 }
 
                 if(dotx){
-                    storedPDU->messageid++;
-                    storedPDU->initialPDU->setMessageID(storedPDU->messageid);
+                    storedPDUdata->messageid++;
+                    storedPDUdata->lastPDU->setMessageID(storedPDUdata->messageid);
 
-                    printPDU(storedPDU->initialPDU);
-                    send(sender, storedPDU->initialPDU->getPDUPointer(), storedPDU->initialPDU->getPDULength());
+                    printPDU(storedPDUdata->lastPDU);
+                    send(sender, storedPDUdata->lastPDU->getPDUPointer(), storedPDUdata->lastPDU->getPDULength());
                 }
             }
         }
@@ -492,8 +547,8 @@ void coaphandler::timeout(){
                 //Delete pdu
             }
             else{   //Try again
-                if(activePDUs[i]->initialPDU->getType() == CoapPDU::COAP_CONFIRMABLE){
-                    send(activePDUs[i]->addr, activePDUs[i]->initialPDU->getPDUPointer(), activePDUs[i]->initialPDU->getPDULength());
+                if(activePDUs[i]->lastPDU->getType() == CoapPDU::COAP_CONFIRMABLE){
+                    send(activePDUs[i]->addr, activePDUs[i]->lastPDU->getPDUPointer(), activePDUs[i]->lastPDU->getPDULength());
                     activePDUs[i]->retranscount++;
                     //reset timeout
                     activePDUs[i]->txtime.start();

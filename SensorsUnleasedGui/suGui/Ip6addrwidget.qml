@@ -39,7 +39,8 @@ Item{
                 anchors.fill: parent;
                 anchors.margins: 1
                 placeholderText: qsTr("Enter IPv6 address");
-                text: "fd81:3daa:fb4a:f7ae:212:4b00:5af:82b7";
+                //text: "fd81:3daa:fb4a:f7ae:212:4b00:5af:82b7";
+                text: "fd81:3daa:fb4a:f7ae:212:4b00:5af:8323";
             }
         }
     }
