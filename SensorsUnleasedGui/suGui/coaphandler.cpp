@@ -390,12 +390,16 @@ void coaphandler::parseMessage(QHostAddress sender, coapMessageStore* message){
         emit coapMessageRdy(QVariant(message->token));
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_XML:
+        qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_XML";
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET:
+        qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET";
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_EXI:
+        qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_EXI";
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_JSON:
+        qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_JSON";
         break;
     }
 }

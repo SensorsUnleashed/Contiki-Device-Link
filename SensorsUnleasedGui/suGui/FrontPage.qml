@@ -20,16 +20,12 @@ Item {
                 height: parent.height;
             }
             Button{
+                property int acceptid: -1;
                 height: 100;
                 width: parent.width * 0.15  - parent.spacing * 2;
                 text: "PAIR";
 
                 onClicked: {
-                    dstnode.activeip = "fe80::2677:3ff:fe6c:20f0";
-                    dstnode.activeurl = "relay/light"
-                    srcnode.activeip = "fe80::2677:3ff:fe6c:20f0";
-                    srcnode.activeurl = "button/actuator"
-
                     if(!dstnode.activeip || !dstnode.activeurl) return;
                     if(!srcnode.activeip || !srcnode.activeurl) return;
 
@@ -41,8 +37,7 @@ Item {
                     options['ct'] = 42;  //COAP_CONTENT_FORMAT_APP_OCTET
                     options['type'] = 0; //COAP_CONFIRMABLE
                     options['code'] = 3; //COAP_PUT
-                    var acceptid = su.pair(srcnode.activeip, srcnode.activeurl, options, acceptid, pairdata);
-                    //activeNodeAddr = ipaddr.text;
+                    acceptid = su.pair(srcnode.activeip, srcnode.activeurl, options, pairdata, acceptid);
                 }
             }
             ResourceDir{
