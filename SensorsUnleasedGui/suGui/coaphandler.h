@@ -15,9 +15,10 @@
 
 struct coapMessageStore{
     QHostAddress addr;
+    QByteArray uri;
     uint16_t token;  //The first messageid, used for finding the right message reply from the gui
     uint16_t messageid;     //The message id, used when quering the nodes. Will shift if message is split in multible chunks
-    CoapPDU* initialPDU;    //The inital message send to the node
+    CoapPDU* lastPDU;    //The inital message send to the node
     QByteArray rx_payload;  //The payload. Will be assembled as the right messages rolls in
     QByteArray tx_payload;
     uint32_t tx_next_index; //What should be send next
@@ -42,12 +43,6 @@ typedef enum {
     CA_BLOCK_SIZE_512_BYTE = 5,    /**< 512 byte */
     CA_BLOCK_SIZE_1_KBYTE = 6      /**< 1 Kbyte */
 } CABlockSize_t;
-
-typedef struct {
-    unsigned int num : 20;
-    unsigned int m : 1;      /**< 1 if more blocks follow, 0 otherwise */
-    unsigned int sze : 3;    /**< block size */
-} coap_block_t;
 
 class coaphandler : public QObject
 {
@@ -83,7 +78,7 @@ private:
     void printPDU(CoapPDU* pdu);
     CoapPDU::CoapOption* coap_check_option(CoapPDU *pdu, enum CoapPDU::Option opt);
     int parseBlockOption(CoapPDU::CoapOption *blockoption, uint8_t* more, uint32_t *num, uint8_t *SZX);
-    int calc_block_option(uint8_t more, uint32_t num, uint32_t msgsize, uint8_t* blockval, uint8_t* len);
+    int calc_block_option(uint8_t more, uint32_t num, uint32_t msgsize, uint8_t* blockval, uint16_t *len);
 
     void removePDU(uint16_t token);
     struct coapMessageStore* findPDU(CoapPDU *pdu);

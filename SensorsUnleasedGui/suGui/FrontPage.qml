@@ -41,7 +41,7 @@ Item {
                     options['ct'] = 42;  //COAP_CONTENT_FORMAT_APP_OCTET
                     options['type'] = 0; //COAP_CONFIRMABLE
                     options['code'] = 3; //COAP_PUT
-                    var acceptid = su.pair(srcnode.activeip, srcnode.activeurl, options, pairdata);
+                    var acceptid = su.pair(srcnode.activeip, srcnode.activeurl, options, acceptid, pairdata);
                     //activeNodeAddr = ipaddr.text;
                 }
             }

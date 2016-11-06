@@ -3,6 +3,13 @@
 #include <QHostAddress>
 #include <QDebug>
 
+#define DEBUG
+#undef DEBUG
+
+/**************************************************
+ * Constructors/Deconstructors
+***************************************************/
+
 coaphandler::coaphandler(database *db)
 {
 
@@ -37,6 +44,10 @@ coaphandler::coaphandler(database *db)
     connect(acktimer, SIGNAL(timeout()), this, SLOT(timeout()));
     initSocket();
 }
+
+/**************************************************
+ * Get/Set functions for the coaphandler
+***************************************************/
 
 void coaphandler::updateSettings(QVariant setup){
     QVariantMap map = setup.toMap();
@@ -103,23 +114,9 @@ QVariant coaphandler::getNodeMessage(QVariant nodeaddr){
     return QVariant();
 }
 
-//Return 0 for ok
-//Return > 0 for error
-int coaphandler::parseQMLOptions(QVariant options,
-                                 enum CoapPDU::ContentFormat* ct,
-                                 enum CoapPDU::Type* type,
-                                 enum CoapPDU::Code* code
-                                 ){
-    QVariantMap map = options.toMap();
-
-    bool ok;
-    *ct = (enum CoapPDU::ContentFormat) map["ct"].toUInt(&ok);  if(!ok) return 1;
-    *type = (enum CoapPDU::Type) map["type"].toUInt(&ok);       if(!ok) return 2;
-    *code = (enum CoapPDU::Code) map["code"].toUInt(&ok);       if(!ok) return 3;
-
-
-    return 0;
-}
+/**************************************************
+ * Public Action entry functions for the coaphandler
+***************************************************/
 
 /*
  * nodeaddr: The IpV6 address as a string
@@ -162,10 +159,10 @@ QVariant coaphandler::reqGet(QVariant nodeaddr, QVariant uri, QVariant options, 
         pdu->setMessageID(ret);
 
         if(payload.size() > 0){
-            if(payload.length() > prefMsgSize){  //Payload needs to be split
+            if(payload.length() > (int)prefMsgSize){  //Payload needs to be split
                 uint8_t buf[3];
-                uint8_t len;
-                calc_block_option(1, 0, 16/*prefMsgSize*/, &buf[0], &len);
+                uint16_t len;
+                calc_block_option(1, 0, prefMsgSize, &buf[0], &len);
                 pdu->addOption(CoapPDU::COAP_OPTION_BLOCK1, len, &buf[0]);
                 pdu->setPayload((uint8_t*)payload.data(), prefMsgSize);
                 storedPDU->tx_payload = payload;
@@ -185,26 +182,316 @@ QVariant coaphandler::reqGet(QVariant nodeaddr, QVariant uri, QVariant options, 
         if(!acktimer->isActive()){
             acktimer->start(ackTimeout);
         }
+        storedPDU->uri = uri.toByteArray();
         storedPDU->txtime.start();
         storedPDU->lastPDU = pdu;
         storedPDU->messageid = ret;
         storedPDU->token = ret;
-        storedPDU->ct = ct; //We assume we receive what we request
+        storedPDU->ct = ct;
         storedPDU->addr = addr;
         activePDUs.append(storedPDU);
-        printPDU(pdu);
-
-        //Print all options in our pdu
-        CoapPDU::CoapOption* testoptions = storedPDU->lastPDU->getOptions();
-        for(int i=0; i<storedPDU->lastPDU->getNumOptions(); i++){
-            qDebug() << (testoptions + i)->optionNumber;
-        }
     }
     else{
         qDebug() << "Error in IPv6 address" << nodeaddr.toString();
     }
 
+    qDebug() << "Token " << ret << " active";
     return QVariant(ret);
+}
+
+/**************************************************
+ * Private functions for the coaphandler
+***************************************************/
+
+void coaphandler::initSocket()
+{
+    udpSocket = new QUdpSocket(this);
+    if(udpSocket->bind(QHostAddress::AnyIPv6, 5683)){
+        qDebug() << "Successfully bound to Localhost port 5683";
+    }
+
+    connect(udpSocket, SIGNAL(readyRead()),
+            this, SLOT(readPendingDatagrams()));
+}
+
+void coaphandler::send(QHostAddress addr, uint8_t* pduptr, int len){
+    qDebug() << "Send pdu to: " << addr.toString();
+    udpSocket->writeDatagram((char*)pduptr, len, addr, 5683);
+}
+
+void coaphandler::readPendingDatagrams()
+{
+    while (udpSocket->hasPendingDatagrams()) {
+        QByteArray datagram;
+        datagram.resize(udpSocket->pendingDatagramSize());
+        QHostAddress sender;
+        quint16 senderPort;
+        int dotx = 0;
+
+        udpSocket->readDatagram(datagram.data(), datagram.size(),
+                                &sender, &senderPort);
+
+        //qDebug() << "Message received";
+        //processTheDatagram(datagram);
+        CoapPDU *recvPDU = new CoapPDU((uint8_t*)datagram.data(),datagram.length());
+        CoapPDU *txPDU; //Assign this pdu to the next pdu to send, and switch out with the one in the store
+        CoapPDU::CoapOption* options = 0;
+        if(recvPDU->validate()) {
+            printPDU(recvPDU);
+
+            struct coapMessageStore* storedPDUdata = findPDU(recvPDU);
+
+            //We expected this message - handle it
+            if(storedPDUdata != 0){
+                options = coap_check_option(recvPDU, CoapPDU::COAP_OPTION_CONTENT_FORMAT);
+                if(options){
+                    if(options->optionValueLength > 0){
+                        storedPDUdata->ct = (enum CoapPDU::ContentFormat)*options->optionValuePointer;
+                    }
+                }
+
+                //CoapPDU::Code code = recvPDU->getCode();
+
+                /* Handle block1 - response from a put/post (Send more money) */
+                options = coap_check_option(recvPDU, CoapPDU::COAP_OPTION_BLOCK1);
+                if(options != 0){
+                    uint8_t more;
+                    uint32_t num;
+                    uint8_t szx;
+                    uint32_t prefsize;
+                    uint32_t bytesleft = storedPDUdata->tx_payload.length() - storedPDUdata->tx_next_index;
+
+                    //Sender send us some options to use from now on
+                    if(parseBlockOption(options, &more, &num, &szx) == 0){
+                        prefsize = 1 << (szx + 4);
+                    }
+                    else{   //We continue with whatever options we started with
+                        num = storedPDUdata->num;
+                        prefsize = prefMsgSize;
+                    }
+
+                    if(bytesleft){
+                        //We need to send yet another block
+                        txPDU = new CoapPDU();
+
+                        uint8_t buf[3];
+                        uint16_t len;
+                        uint8_t* bufptr = &buf[0];
+
+                        more = bytesleft > prefsize;
+                        calc_block_option(more, ++num, prefsize, bufptr, &len);
+
+                        txPDU->addOption(CoapPDU::COAP_OPTION_BLOCK1, len, bufptr);
+
+                        storedPDUdata->num = num;
+                        if(more){
+                            txPDU->setPayload((uint8_t*)(storedPDUdata->tx_payload.data()+storedPDUdata->tx_next_index), prefsize);
+                            storedPDUdata->tx_next_index += prefsize;
+
+                        }
+                        else{
+                            txPDU->setPayload((uint8_t*)(storedPDUdata->tx_payload.data()+storedPDUdata->tx_next_index), bytesleft);
+                            storedPDUdata->tx_next_index += bytesleft;
+                        }
+
+                        dotx = 1;
+                    }
+                    else{
+                        qDebug() << "ACK - Finished transmitting large message";
+                        removePDU(storedPDUdata->token);
+                    }
+                }
+
+                //Handle block2 - response to a get
+                options = coap_check_option(recvPDU, CoapPDU::COAP_OPTION_BLOCK2);
+                if(options != 0){
+                    uint8_t more;
+                    uint32_t num;
+                    uint8_t szx;
+                    if(parseBlockOption(options, &more, &num, &szx) == 0){
+                        uint32_t offset = num << (szx + 4);
+
+                        uint8_t* pl = recvPDU->getPayloadPointer();
+                        for(int i=0; i<recvPDU->getPayloadLength(); i++){
+                            storedPDUdata->rx_payload[offset + i] = *(pl+i);
+                        }
+                        if(more){
+                            //qDebug() << "Received " << num + 1 << "messages, so far";
+                            uint8_t* value = options->optionValuePointer;
+                            uint8_t valuelen = options->optionValueLength;
+                            ++num;
+
+                            *value &= 0x7;
+                            *value |= num << 4;
+                            //Clear all but the SXZ part
+                            for(int i=1; i<valuelen; i++){
+                                *(value+i)= 0;
+                                *value |= (num << (i * 8 + 4));
+                            }
+
+                            txPDU = new CoapPDU();
+                            txPDU->addOption(CoapPDU::COAP_OPTION_BLOCK2, valuelen, value);
+                            dotx = 1;
+                        }
+                        else{
+                            parseMessage(sender, storedPDUdata);
+                            removePDU(storedPDUdata->token);
+                        }
+                    }
+                }   //Block2 handling
+                else{   //Just a plain single message
+                    if(recvPDU->getPayloadLength()){
+                        uint8_t* pl = recvPDU->getPayloadPointer();
+                        for(int i=0; i<recvPDU->getPayloadLength(); i++){
+                            storedPDUdata->rx_payload[i] = *(pl+i);
+                        }
+                        //Handle single messages
+                        parseMessage(sender, storedPDUdata);
+                        removePDU(storedPDUdata->token);
+                    }
+                }
+
+                if(dotx){
+                    storedPDUdata->messageid++;
+                    txPDU->setURI(storedPDUdata->uri.data());
+                    txPDU->setMessageID(storedPDUdata->messageid);
+                    txPDU->setToken(storedPDUdata->lastPDU->getTokenPointer(), storedPDUdata->lastPDU->getTokenLength());
+                    txPDU->setContentFormat(storedPDUdata->ct);
+                    txPDU->setType(storedPDUdata->lastPDU->getType());
+                    txPDU->setCode(storedPDUdata->lastPDU->getCode());
+
+                    //Switch out the old pdu with the new
+                    delete storedPDUdata->lastPDU;
+                    storedPDUdata->lastPDU = txPDU;
+
+                    printPDU(txPDU);
+                    send(sender, txPDU->getPDUPointer(),txPDU->getPDULength());
+                }
+            }
+        }
+        delete recvPDU;
+    }
+}
+
+void coaphandler::parseMessage(QHostAddress sender, coapMessageStore* message){
+
+    //QMap parsingOutput;
+    QVariant ret;
+    struct sunode* node = findNode(sender);
+
+    switch(message->ct){
+    case CoapPDU::COAP_CONTENT_FORMAT_TEXT_PLAIN:
+        node->recvMessage = QString(message->rx_payload);
+        emit coapMessageRdy(QVariant(message->token));
+        break;
+    case CoapPDU::COAP_CONTENT_FORMAT_APP_LINK:
+        ret = parseAppLinkFormat(message->rx_payload);
+        node->links = ret.toMap();
+        emit coapMessageRdy(QVariant(message->token));
+        break;
+    case CoapPDU::COAP_CONTENT_FORMAT_APP_XML:
+        break;
+    case CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET:
+        break;
+    case CoapPDU::COAP_CONTENT_FORMAT_APP_EXI:
+        break;
+    case CoapPDU::COAP_CONTENT_FORMAT_APP_JSON:
+        break;
+    }
+}
+
+QVariant coaphandler::parseAppLinkFormat(QByteArray payload){
+    QVariantMap linklist;
+
+    QString pl = QString(payload);
+    //All resources are separeted by a ','
+    QStringList rlist = pl.split(',', QString::SkipEmptyParts);
+    //qDebug() << rlist;
+    for(int i=0; i<rlist.count(); i++){
+        QStringList slist = rlist.at(i).split(';', QString::SkipEmptyParts);
+        QString root;
+
+        //For now index 0 is always the uri
+        root = slist.at(0);
+        root.remove(QRegExp("[<>]"));
+        if( root.at(0) == '/' ) root.remove( 0, 1 );    //Remove leading "/"
+        slist.removeAt(0);
+        linklist.insert(root, slist);
+    }
+
+    return linklist;
+}
+
+/**************************************************
+ * Private timeout handler functions used by the coaphandler
+***************************************************/
+void coaphandler::timeout(){
+    qint64 nexttimeout = -1;
+
+    QVector<uint16_t> delindex;
+
+    for(int i=0; i<activePDUs.count(); i++){
+        if(activePDUs[i]->txtime.hasExpired(ackTimeout)){
+            if(activePDUs[i]->retranscount >= retransmissions){ //Give up trying
+                qDebug() << "Giving up on message";
+                //Mark PDU for Deletion pdu
+                delindex.append(activePDUs[i]->token);
+            }
+            else{   //Try again
+                if(activePDUs[i]->lastPDU->getType() == CoapPDU::COAP_CONFIRMABLE){
+                    send(activePDUs[i]->addr, activePDUs[i]->lastPDU->getPDUPointer(), activePDUs[i]->lastPDU->getPDULength());
+                    activePDUs[i]->retranscount++;
+                    //reset timeout
+                    activePDUs[i]->txtime.start();
+                    if(nexttimeout == -1){
+                        nexttimeout = ackTimeout;
+                    }
+                }
+                else{
+                    //It was a COAP_NON_CONFIRMABLE pdu. Remove it now
+                    delindex.append(activePDUs[i]->token);
+                }
+            }
+        }
+        else    //Not yet expired. Find next timeout - Wait at least 100ms
+        {
+            qint64 elabsed = activePDUs[i]->txtime.elapsed();
+            nexttimeout = nexttimeout < elabsed ? elabsed : nexttimeout;
+            nexttimeout = nexttimeout < 100 ? 100 : nexttimeout;
+        }
+    }
+
+    if(nexttimeout > 0){
+        acktimer->start(nexttimeout);
+    }
+
+    //Now cleanup
+    for(int i=0; i<delindex.count(); i++){
+        removePDU(delindex.at(i));
+        qDebug() << "Deleted token " << delindex.at(i);
+    }
+}
+
+/**************************************************
+ * Helper functions used by the coaphandler
+***************************************************/
+
+//Return 0 for ok
+//Return > 0 for error
+int coaphandler::parseQMLOptions(QVariant options,
+                                 enum CoapPDU::ContentFormat* ct,
+                                 enum CoapPDU::Type* type,
+                                 enum CoapPDU::Code* code
+                                 ){
+    QVariantMap map = options.toMap();
+
+    bool ok;
+    *ct = (enum CoapPDU::ContentFormat) map["ct"].toUInt(&ok);  if(!ok) return 1;
+    *type = (enum CoapPDU::Type) map["type"].toUInt(&ok);       if(!ok) return 2;
+    *code = (enum CoapPDU::Code) map["code"].toUInt(&ok);       if(!ok) return 3;
+
+
+    return 0;
 }
 
 //Return a pointer to the node if its known or
@@ -218,23 +505,6 @@ struct sunode* coaphandler::findNode(QHostAddress addr){
     }
 
     return 0;
-}
-
-void coaphandler::send(QHostAddress addr, uint8_t* pduptr, int len){
-    qDebug() << "Send pdu to: " << addr.toString();
-    udpSocket->writeDatagram((char*)pduptr, len, addr, 5683);
-}
-
-
-void coaphandler::initSocket()
-{
-    udpSocket = new QUdpSocket(this);
-    if(udpSocket->bind(QHostAddress::AnyIPv6, 5683)){
-        qDebug() << "Successfully bound to Localhost port 5683";
-    }
-
-    connect(udpSocket, SIGNAL(readyRead()),
-            this, SLOT(readPendingDatagrams()));
 }
 
 //Returns 0 if the option is not found,
@@ -271,7 +541,7 @@ int coaphandler::parseBlockOption(CoapPDU::CoapOption* blockoption, uint8_t* mor
     return 0;
 }
 
-int coaphandler::calc_block_option(uint8_t more, uint32_t num, uint32_t msgsize, uint8_t* blockval, uint8_t* len){
+int coaphandler::calc_block_option(uint8_t more, uint32_t num, uint32_t msgsize, uint8_t* blockval, uint16_t* len){
     /*
         We store in little, and let cantcoap send it big endian
         Illustration is in big endian.
@@ -319,9 +589,29 @@ int coaphandler::calc_block_option(uint8_t more, uint32_t num, uint32_t msgsize,
     return 0;
 }
 
+void coaphandler::removePDU(uint16_t token){
+    for(int i=0; i<activePDUs.count(); i++){
+        if(activePDUs[i]->token == token){
+            delete activePDUs[i]->lastPDU;
+            delete activePDUs[i];
+            activePDUs.remove(i);
+            break;
+        }
+    }
+}
+
+struct coapMessageStore* coaphandler::findPDU(CoapPDU* pdu){
+    uint16_t token;
+    memcpy(&token, pdu->getTokenPointer(), pdu->getTokenLength());
+
+    for(int i=0; i<activePDUs.count(); i++){
+        if(activePDUs[i]->token == token) return activePDUs[i];
+    }
+    return 0;
+}
 
 void coaphandler::printPDU(CoapPDU* pdu){
-#if 0
+#ifdef DEBUG
     QByteArray uribuf;
     uribuf.resize(100);
     int outlen;
@@ -335,11 +625,9 @@ void coaphandler::printPDU(CoapPDU* pdu){
     QByteArray tokenbuf;
     tokenbuf.resize(100);
 
-    uint8_t* tokenptr = pdu->getTokenPointer();
-    int tokenlen = pdu->getTokenLength();
-    memcpy(tokenbuf.data(), tokenptr, tokenlen);
-    tokenbuf.resize(tokenlen);
-    qDebug() << "Token: " << QString(tokenbuf);
+    uint16_t token;
+    memcpy(&token, pdu->getTokenPointer(), pdu->getTokenLength());
+    qDebug() << "Token: " << token;
     qDebug() << "MessageID: " << pdu->getMessageID();
 
     CoapPDU::CoapOption* options = pdu->getOptions();
@@ -351,283 +639,17 @@ void coaphandler::printPDU(CoapPDU* pdu){
         qDebug() << "Optionval: " << QString(opt);
 
         if((options+i)->optionNumber == CoapPDU::COAP_OPTION_BLOCK2){
-            uint32_t offset;
+            uint8_t szx;
             uint8_t more;
             uint32_t num;
-            getBlockOffset((options+i), &offset, &more, &num );
-            qDebug() << "Offset=" << offset << " more=" << more << " num=" << num;
+            parseBlockOption((options+i), &more, &num, &szx);
+            qDebug() << "szx=" << szx << " more=" << more << " num=" << num;
         }
     }
 
+    qDebug() << "Payload length: " << pdu->getPayloadLength();
     qDebug() << "--------------------";
+#else
+    Q_UNUSED(pdu);
 #endif
 }
-void coaphandler::removePDU(uint16_t token){
-    for(int i=0; i<activePDUs.count(); i++){
-        if(activePDUs[i]->token == token){
-            activePDUs.remove(i);
-            break;
-        }
-    }
-}
-
-struct coapMessageStore* coaphandler::findPDU(CoapPDU* pdu){
-    uint16_t token;
-    memcpy(&token, pdu->getTokenPointer(), pdu->getTokenLength());
-    qDebug() << "Token = " << token;
-
-    for(int i=0; i<activePDUs.count(); i++){
-        if(activePDUs[i]->token == token) return activePDUs[i];
-    }
-    return 0;
-}
-
-void coaphandler::readPendingDatagrams()
-{
-    while (udpSocket->hasPendingDatagrams()) {
-        QByteArray datagram;
-        datagram.resize(udpSocket->pendingDatagramSize());
-        QHostAddress sender;
-        quint16 senderPort;
-        int dotx = 0;
-
-        udpSocket->readDatagram(datagram.data(), datagram.size(),
-                                &sender, &senderPort);
-
-
-        qDebug() << "Message received";
-        //processTheDatagram(datagram);
-        CoapPDU *recvPDU = new CoapPDU((uint8_t*)datagram.data(),datagram.length());
-        CoapPDU *txPDU; //Assign this pdu to the next pdu to send, and switch out with the one in the store
-        CoapPDU::CoapOption* options = 0;
-        if(recvPDU->validate()) {
-            printPDU(recvPDU);
-
-            struct coapMessageStore* storedPDUdata = findPDU(recvPDU);
-
-            //We expected this message - handle it
-            if(storedPDUdata != 0){
-                options = coap_check_option(recvPDU, CoapPDU::COAP_OPTION_CONTENT_FORMAT);
-                if(options){
-                    if(options->optionValueLength > 0){
-                        storedPDUdata->ct = (enum CoapPDU::ContentFormat)*options->optionValuePointer;
-                    }
-                }
-
-                CoapPDU::Code code = recvPDU->getCode();
-                qDebug() << "Code: " << code;
-
-                /* Handle block1 - response from a put/post (Send more money) */
-                options = coap_check_option(recvPDU, CoapPDU::COAP_OPTION_BLOCK1);
-                if(options != 0){
-                    uint8_t more;
-                    uint32_t num;
-                    uint8_t szx;
-                    uint32_t prefsize;
-                    uint32_t bytesleft = storedPDUdata->tx_payload.length() - storedPDUdata->tx_next_index;
-
-
-                    //Print all options in our pdu
-                    CoapPDU::CoapOption* testoptions = coap_check_option(storedPDUdata->lastPDU, CoapPDU::COAP_OPTION_BLOCK1);
-                    qDebug() << testoptions->optionValueLength;
-
-                    //Sender send us some options to use from now on
-                    if(parseBlockOption(options, &more, &num, &szx) == 0){
-                        prefsize = 1 << (szx + 4);
-                    }
-                    else{   //We continue with whatever options we started with
-                        num = storedPDUdata->num;
-                        prefsize = prefMsgSize;
-                    }
-
-                    if(bytesleft){
-                        //We need to send yet another block
-                        //txPDU = new CoapPDU();
-
-
-                        uint8_t buf[3];
-                        uint8_t len;
-                        uint8_t* bufptr = &buf[0];
-
-                        more = bytesleft > prefsize;
-                        calc_block_option(more, ++num, prefsize, bufptr, &len);
-
-                        storedPDUdata->lastPDU->addOption(CoapPDU::COAP_OPTION_BLOCK1, len, bufptr);
-                        storedPDUdata->num = num;
-                        if(more){
-                            storedPDUdata->lastPDU->setPayload((uint8_t*)(storedPDUdata->tx_payload.data()+storedPDUdata->tx_next_index), prefsize);
-                            storedPDUdata->tx_next_index += prefsize;
-
-                        }
-                        else{
-                            storedPDUdata->lastPDU->setPayload((uint8_t*)(storedPDUdata->tx_payload.data()+storedPDUdata->tx_next_index), bytesleft);
-                            storedPDUdata->tx_next_index += bytesleft;
-                        }
-
-//                        storedPDU->initialPDU->validate();
-//                        //Print all options in our pdu
-//                        CoapPDU::CoapOption* testoptions = coap_check_option(storedPDU->initialPDU, CoapPDU::COAP_OPTION_BLOCK1);
-//                        parseBlockOption(testoptions, &more, &num, &szx);
-
-                        dotx = 1;
-                    }
-                    else{
-                        qDebug() << "ACK - Finished transmitting large message";
-                    }
-
-                }
-
-                //Handle block2 - response to a get
-                options = coap_check_option(recvPDU, CoapPDU::COAP_OPTION_BLOCK2);
-                if(options != 0){
-                    uint8_t more;
-                    uint32_t num;
-                    uint8_t szx;
-                    if(parseBlockOption(options, &more, &num, &szx) == 0){
-                        uint32_t offset = num << (szx + 4);
-
-                        uint8_t* pl = recvPDU->getPayloadPointer();
-                        for(int i=0; i<recvPDU->getPayloadLength(); i++){
-                            storedPDUdata->rx_payload[offset + i] = *(pl+i);
-                        }
-                        if(more){
-                            qDebug() << "Received " << num + 1 << "messages, so far";
-                            uint8_t* value = options->optionValuePointer;
-                            uint8_t valuelen = options->optionValueLength;
-                            ++num;
-
-                            *value &= 0x7;
-                            *value |= num << 4;
-                            //Clear all but the SXZ part
-                            for(int i=1; i<valuelen; i++){
-                                *(value+i)= 0;
-                                *value |= (num << (i * 8 + 4));
-                            }
-                            storedPDUdata->lastPDU->addOption(CoapPDU::COAP_OPTION_BLOCK2, valuelen, value);
-                            dotx = 1;
-                        }
-                        else{
-                            parseMessage(sender, storedPDUdata);
-                            removePDU(storedPDUdata->token);
-                        }
-                    }
-                }   //Block2 handling
-                else{
-                    if(recvPDU->getPayloadLength()){
-                        uint8_t* pl = recvPDU->getPayloadPointer();
-                        for(int i=0; i<recvPDU->getPayloadLength(); i++){
-                            storedPDUdata->rx_payload[i] = *(pl+i);
-                        }
-                        //Handle single messages
-                        parseMessage(sender, storedPDUdata);
-                        removePDU(storedPDUdata->token);
-                    }
-                }
-
-                if(dotx){
-                    storedPDUdata->messageid++;
-                    storedPDUdata->lastPDU->setMessageID(storedPDUdata->messageid);
-
-                    printPDU(storedPDUdata->lastPDU);
-                    send(sender, storedPDUdata->lastPDU->getPDUPointer(), storedPDUdata->lastPDU->getPDULength());
-                }
-            }
-        }
-        delete recvPDU;
-    }
-}
-
-void coaphandler::timeout(){
-    qint64 nexttimeout = -1;
-
-    for(int i=0; i<activePDUs.count(); i++){
-        if(activePDUs[i]->txtime.hasExpired(ackTimeout)){
-            if(activePDUs[i]->retranscount >= retransmissions){ //Give up trying
-                qDebug() << "Giving up on message";
-                //Delete pdu
-            }
-            else{   //Try again
-                if(activePDUs[i]->lastPDU->getType() == CoapPDU::COAP_CONFIRMABLE){
-                    send(activePDUs[i]->addr, activePDUs[i]->lastPDU->getPDUPointer(), activePDUs[i]->lastPDU->getPDULength());
-                    activePDUs[i]->retranscount++;
-                    //reset timeout
-                    activePDUs[i]->txtime.start();
-                    if(nexttimeout == -1){
-                        nexttimeout = ackTimeout;
-                    }
-                }
-                else{
-                    //It was a COAP_NON_CONFIRMABLE pdu. Remove it now
-
-                }
-            }
-        }
-        else    //Not yet expired. Find next timeout - Wait at least 100ms
-        {
-            qint64 elabsed = activePDUs[i]->txtime.elapsed();
-            nexttimeout = nexttimeout < elabsed ? elabsed : nexttimeout;
-            nexttimeout = nexttimeout < 100 ? 100 : nexttimeout;
-        }
-    }
-
-    if(nexttimeout > 0){
-        acktimer->start(nexttimeout);
-    }
-}
-
-
-void coaphandler::parseMessage(QHostAddress sender, coapMessageStore* message){
-
-    //QMap parsingOutput;
-    QVariant ret;
-    struct sunode* node = findNode(sender);
-
-    switch(message->ct){
-    case CoapPDU::COAP_CONTENT_FORMAT_TEXT_PLAIN:
-        qDebug() << "Parse Plain text format";
-        node->recvMessage = QString(message->rx_payload);
-        qDebug() << node->recvMessage.toString();
-        emit coapMessageRdy(QVariant(message->token));
-        break;
-    case CoapPDU::COAP_CONTENT_FORMAT_APP_LINK:
-        qDebug() << "Parse APP Link message";
-        ret = parseAppLinkFormat(message->rx_payload);
-        node->links = ret.toMap();
-
-        qDebug() << "Event AppLinkListRdy fired! id:" << message->token;
-        emit coapMessageRdy(QVariant(message->token));
-        break;
-    case CoapPDU::COAP_CONTENT_FORMAT_APP_XML:
-        break;
-    case CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET:
-        break;
-    case CoapPDU::COAP_CONTENT_FORMAT_APP_EXI:
-        break;
-    case CoapPDU::COAP_CONTENT_FORMAT_APP_JSON:
-        break;
-    }
-}
-
-QVariant coaphandler::parseAppLinkFormat(QByteArray payload){
-    QVariantMap linklist;
-
-    QString pl = QString(payload);
-    //All resources are separeted by a ','
-    QStringList rlist = pl.split(',', QString::SkipEmptyParts);
-    //qDebug() << rlist;
-    for(int i=0; i<rlist.count(); i++){
-        QStringList slist = rlist.at(i).split(';', QString::SkipEmptyParts);
-        QString root;
-
-        //For now index 0 is always the uri
-        root = slist.at(0);
-        root.remove(QRegExp("[<>]"));
-        if( root.at(0) == '/' ) root.remove( 0, 1 );    //Remove leading "/"
-        slist.removeAt(0);
-        linklist.insert(root, slist);
-    }
-
-    return linklist;
-}
-
-
