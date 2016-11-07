@@ -55,8 +55,8 @@ void testdecode(uint8_t* buffer){
     uint8_t string[30];
     uint32_t len;
 
-    cp_decodeID(buffer, &id, &len);
-    cp_decodeReadings(buffer+len, &string[0], &len);
+    cp_decodeU8(buffer, &id, &len);
+    cp_convMsgPackToString(buffer+len, &string[0], &len);
     qDebug() << "ID: " << id;
     qDebug() << "Value: " << QString::fromLatin1((const char*)string);
 
@@ -69,8 +69,8 @@ int proto1::frameandtx(uint8_t id, cmp_object_t* value, enum req_cmd cmd, uint8_
 
     obj.type = CMP_TYPE_POSITIVE_FIXNUM;
     obj.as.u8 = id;
-    len += cp_encodereading(&buf[0], &obj);
-    len += cp_encodereading(&buf[len], value);
+    len += cp_encodeObject(&buf[0], &obj);
+    len += cp_encodeObject(&buf[len], value);
 
     frameandtx(&buf[0], len, cmd, seqno);
     testdecode(&buf[0]);

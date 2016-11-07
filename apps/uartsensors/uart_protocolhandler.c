@@ -104,14 +104,6 @@ uint32_t cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer){
 	return (uint32_t)(((void*)cmp.buf) - ((void*)buffer));
 }
 
-//Returns the length of the written data
-uint32_t cp_encodereading(uint8_t* buffer, cmp_object_t *obj){
-	cmp_ctx_t cmp;
-	cmp_init(&cmp, buffer, 0, buf_writer);
-	cmp_write_object(&cmp, obj);
-	return (uint32_t)((void*)cmp.buf - (void*)buffer);
-}
-
 /* Returns:
  *  0 for OK
  *  1 for err
@@ -159,6 +151,58 @@ int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* str
 	len = 100;	//How long can we allow it to be
 	cmp_read_str(&cmp, strings, &len);
 	strings += len;	//Keep the \0
+
+	return 1;
+}
+
+//Returns the length of the written data
+uint32_t cp_encodeObject(uint8_t* buffer, cmp_object_t *obj){
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, buffer, 0, buf_writer);
+	cmp_write_object(&cmp, obj);
+	return (uint32_t)((void*)cmp.buf - (void*)buffer);
+}
+
+/*
+ * Read a cmp object
+ * Param:
+ * 	obj = result ID
+ * 	len = How far did we read into the buffer
+ *
+ * */
+int cp_decodeObject(uint8_t* buffer, cmp_object_t *obj, uint32_t* len){
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, buffer, buf_reader, 0);
+	if(cmp_read_object(&cmp, obj)){
+		*len = (void*)cmp.buf - (void*)buffer;
+		return 0;
+	}
+
+	return 1;
+}
+
+uint32_t cp_encodeU8(uint8_t* buffer, uint8_t val){
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, buffer, 0, buf_writer);
+	cmp_write_u8(&cmp, val);
+	return (uint32_t)((void*)cmp.buf - (void*)buffer);
+}
+
+/*
+ * Read the Message ID
+ * Param:
+ * 	x = result ID
+ * 	len = How far did we read into the buffer
+ *
+ * */
+int cp_decodeU8(uint8_t* buffer, uint8_t* x, uint32_t* len){
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, buffer, buf_reader, 0);
+
+	if(cmp_read_uchar(&cmp, x)){
+		*len = (void*)cmp.buf - (void*)buffer;
+		return 0;
+	}
 
 	return 1;
 }
@@ -249,7 +293,7 @@ int cp_cmp_to_string(cmp_object_t* obj, uint8_t* result, uint32_t* len){
  *  0 for OK
  *  1 for err
  */
-int cp_decodeReadings(uint8_t* buffer, uint8_t* conv, uint32_t* len){
+int cp_convMsgPackToString(uint8_t* buffer, uint8_t* conv, uint32_t* len){
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, buf_reader, 0);
 
@@ -260,24 +304,3 @@ int cp_decodeReadings(uint8_t* buffer, uint8_t* conv, uint32_t* len){
 
 	return cp_cmp_to_string(&obj, conv, len);
 }
-
-/*
- * Read the Message ID
- * Param:
- * 	x = result ID
- * 	len = How far did we read into the buffer
- *
- * */
-int cp_decodeID(uint8_t* buffer, uint8_t* x, uint32_t* len){
-	cmp_ctx_t cmp;
-	cmp_init(&cmp, buffer, buf_reader, 0);
-
-	if(cmp_read_uchar(&cmp, x)){
-		*len = (void*)cmp.buf - (void*)buffer;
-		return 0;
-	}
-
-	return 1;
-}
-
-

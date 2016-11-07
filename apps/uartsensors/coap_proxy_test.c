@@ -182,19 +182,19 @@ void tx_value(int id){
 	//first pack the ID
 	obj.type = CMP_TYPE_POSITIVE_FIXNUM;
 	obj.as.u8 = id;
-	plptr += cp_encodereading((uint8_t*)plptr, &obj);
+	plptr += cp_encodeObject((uint8_t*)plptr, &obj);
 
 	if(id == 0){
 		//Next the payload
 		obj.type = CMP_TYPE_POSITIVE_FIXNUM;
 		obj.as.u8 = 1;
-		plptr += cp_encodereading((uint8_t*)plptr, &obj);
+		plptr += cp_encodeObject((uint8_t*)plptr, &obj);
 	}
 	else if(id == 1){
 		//Next the payload
 		obj.type = CMP_TYPE_UINT64;
 		obj.as.u64 = clock_seconds();
-		plptr += cp_encodereading((uint8_t*)plptr, &obj);
+		plptr += cp_encodeObject((uint8_t*)plptr, &obj);
 	}
 
 	frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(255, resource_value_update, (char*)&pl[0], (char)((unsigned long)plptr - (unsigned long)&pl[0]), (uint8_t*)&inputbuffer[0]));

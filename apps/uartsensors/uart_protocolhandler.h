@@ -14,11 +14,19 @@
 enum req_cmd {
 	resource_count = 1,		//Get the total no of resources
 	resource_config,
-	resource_get,			//Get the data for a specific resource
 	resource_value_update,	//A resource autonomously postes its value
-	resource_req_updateAll,	//Request that the device updates us with the last values from all resources (Happens automatically after init)
+	resource_req_updateAll,	//Request that the device updates us with the last values from all resources (Happens automatically after init/wake)
 	resource_event,			//Post an event, whether its above or below can be verified by the subscribers.
+	resource_reset,			//Ask the device to reset
+	resource_setval,		//Set the data for a specific resource
+	resource_updateval,		//Update a data value for a specific resource
 	debugstring,
+};
+
+enum up_parameter{
+	ChangeEventValue,
+	AboveEventValue,
+	BelowEventValue
 };
 
 //This struct contains the raw messages.
@@ -76,12 +84,15 @@ struct resourceconf{
 int cp_decodemessage(char* source, int len, rx_msg* destination);
 uint32_t cp_encodemessage(uint8_t msgid, enum req_cmd cmd, void* payload, char len, uint8_t* buffer);
 
-//Msgpack encode the configuration
 uint32_t cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer);
-uint32_t cp_encodereading(uint8_t* buffer, cmp_object_t *obj);
+uint32_t cp_encodeObject(uint8_t* buffer, cmp_object_t *obj);
+uint32_t cp_encodeU8(uint8_t* buffer, uint8_t val);
+
 int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* strings);
+int cp_decodeU8(uint8_t* buffer, uint8_t* x, uint32_t* len);
+int cp_decodeObject(uint8_t* buffer, cmp_object_t *obj, uint32_t* len);
+
 int cp_cmp_to_string(cmp_object_t* obj, uint8_t* result, uint32_t* len);
-int cp_decodeReadings(uint8_t* buffer, uint8_t* conv, uint32_t* len);
-int cp_decodeID(uint8_t* buffer, uint8_t* x, uint32_t* len);
+int cp_convMsgPackToString(uint8_t* buffer, uint8_t* conv, uint32_t* len);
 
 #endif /* COAP_UART_DEVICE_HANDLER_COAP_PROXY_PROTOCOLHANDLER_H_ */
