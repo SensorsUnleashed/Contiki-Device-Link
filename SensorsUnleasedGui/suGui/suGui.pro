@@ -7,8 +7,10 @@ SOURCES += main.cpp \
     cantcoap/cantcoap.cpp \
     coaphandler.cpp \
     sensorsunleashed.cpp \
-    cmp/cmp.c \
-    database.cpp
+    database.cpp \
+    ../../apps/uartsensors/cmp.c \
+    ../../contiki/core/lib/crc16.c \
+    ../../apps/uartsensors/uart_protocolhandler.c
 
 RESOURCES += \
     pages.qrc \
@@ -30,8 +32,9 @@ HEADERS += \
     coaphandler.h \
     sensorsunleashed.h \
     cantcoap/sysdep.h \
-    cmp/cmp.h \
-    database.h
+    database.h \
+    ../../apps/uartsensors/cmp.h \
+    ../../contiki/core/lib/crc16.h
 
 copydata.commands = $(COPY_DIR) $$PWD/Database/setup.db $$OUT_PWD/Database/setup.db
 first.depends = $(first) copydata

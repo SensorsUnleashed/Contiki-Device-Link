@@ -189,7 +189,10 @@ QVariant coaphandler::reqGet(QVariant nodeaddr, QVariant uri, QVariant options, 
         storedPDU->token = ret;
         storedPDU->ct = ct;
         storedPDU->addr = addr;
+        storedPDU->retranscount = 0;
         activePDUs.append(storedPDU);
+
+        emit coapRetrans(QVariant(storedPDU->token), QVariant(storedPDU->retranscount), QVariant(retransmissions));
     }
     else{
         qDebug() << "Error in IPv6 address" << nodeaddr.toString();
@@ -250,7 +253,7 @@ void coaphandler::readPendingDatagrams()
                     }
                 }
 
-                //CoapPDU::Code code = recvPDU->getCode();
+                CoapPDU::Code code = recvPDU->getCode();
 
                 /* Handle block1 - response from a put/post (Send more money) */
                 options = coap_check_option(recvPDU, CoapPDU::COAP_OPTION_BLOCK1);
@@ -298,6 +301,7 @@ void coaphandler::readPendingDatagrams()
                     }
                     else{
                         qDebug() << "ACK - Finished transmitting large message";
+                        emit coapCode(QVariant(storedPDUdata->token), codeTostring(code));
                         removePDU(storedPDUdata->token);
                     }
                 }
@@ -335,6 +339,7 @@ void coaphandler::readPendingDatagrams()
                         }
                         else{
                             parseMessage(sender, storedPDUdata);
+                            emit coapCode(QVariant(storedPDUdata->token), codeTostring(code));
                             removePDU(storedPDUdata->token);
                         }
                     }
@@ -347,6 +352,7 @@ void coaphandler::readPendingDatagrams()
                         }
                         //Handle single messages
                         parseMessage(sender, storedPDUdata);
+                        emit coapCode(QVariant(storedPDUdata->token), codeTostring(code));
                         removePDU(storedPDUdata->token);
                     }
                 }
@@ -450,6 +456,7 @@ void coaphandler::timeout(){
                     if(nexttimeout == -1){
                         nexttimeout = ackTimeout;
                     }
+                    emit coapRetrans(QVariant(activePDUs[i]->token), QVariant(activePDUs[i]->retranscount), QVariant(retransmissions));
                 }
                 else{
                     //It was a COAP_NON_CONFIRMABLE pdu. Remove it now
@@ -612,6 +619,15 @@ struct coapMessageStore* coaphandler::findPDU(CoapPDU* pdu){
         if(activePDUs[i]->token == token) return activePDUs[i];
     }
     return 0;
+}
+
+QString coaphandler::codeTostring(enum CoapPDU::Code code){
+    for(unsigned int i=0; i<sizeof(statusstr); i++){
+        if(code == statusstr[i].code){
+            return QString(statusstr[i].string);
+        }
+    }
+    return "Unknown code " + QString::number((uint8_t)code);
 }
 
 void coaphandler::printPDU(CoapPDU* pdu){

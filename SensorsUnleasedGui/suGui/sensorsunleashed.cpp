@@ -1,5 +1,5 @@
 #include "sensorsunleashed.h"
-#include "cmp/cmp.h"
+#include "../../apps/uartsensors/uart_protocolhandler.h"
 
 typedef union uip_ip6addr_t {
     uint8_t  u8[16];                      /* Initializer, must come first. */
@@ -12,6 +12,7 @@ int uiplib_ip6addrconv(const char *addrstr, uip_ip6addr_t *ipaddr);
 
 sensorsunleashed::sensorsunleashed(database *db, coaphandler *coap)
 {
+    Q_UNUSED(db);
     nodecomm = coap;
 }
 
@@ -36,7 +37,6 @@ QVariant sensorsunleashed::pair(QVariant nodeaddr, QVariant uri, QVariant option
     cmp_ctx_t cmp;
     cmp_init(&cmp, payload.data(), buf_reader, buf_writer);
 
-
     cmp_write_array(&cmp, sizeof(pairaddr));
     for(int i=0; i<8; i++){
         cmp_write_u16(&cmp, pairaddr.u16[i]);
@@ -49,20 +49,32 @@ QVariant sensorsunleashed::pair(QVariant nodeaddr, QVariant uri, QVariant option
     return nodecomm->reqGet(nodeaddr, uri, options, oldtoken, payload);
 }
 
-
-//Used to read from msgpacked buffer
 static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit) {
+
+    uint8_t* dataptr = (uint8_t*)data;
+    uint8_t* bufptr = (uint8_t*)ctx->buf;
+
     for(uint32_t i=0; i<limit; i++){
-        *((char*)data++) = *((char*)ctx->buf++);
+        *dataptr++ = *bufptr++;
     }
+
+    data = dataptr;
+    ctx->buf = bufptr;
+
     return true;
 }
 
-
 static uint32_t buf_writer(cmp_ctx_t* ctx, const void *data, uint32_t count){
+
+    uint8_t* dataptr = (uint8_t*)data;
+    uint8_t* bufptr = (uint8_t*)ctx->buf;
+
     for(uint32_t i=0; i<count; i++){
-        *((uint8_t*)ctx->buf++) = *((char*)data++);
+        *bufptr++ = *dataptr++;
     }
+    data = dataptr;
+    ctx->buf = bufptr;
+
     return count;
 }
 
@@ -125,4 +137,6 @@ int uiplib_ip6addrconv(const char *addrstr, uip_ip6addr_t *ipaddr)
 
     return 1;
 }
+
+
 

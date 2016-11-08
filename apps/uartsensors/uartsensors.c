@@ -84,13 +84,19 @@ void uartsensors_updateVal(uartsensors_device_t* this, enum up_parameter paramet
 
 /*
  * Set an event parameter value to the device
+ * return 0 if ok
+ * retrun 1 if error
  * */
-void uartsensors_setEventVal(uartsensors_device_t* this, enum up_parameter parameter, cmp_object_t val){
+int uartsensors_setEventVal(uartsensors_device_t* this, enum up_parameter parameter, cmp_object_t val){
 	int len = 0;
+
+	if(parameter > BelowEventValue ) return 1;
+
 	len += cp_encodeU8((uint8_t*)rx_reply.payload + len, this->conf.id);
 	len += cp_encodeU8((uint8_t*)rx_reply.payload + len, parameter);
 	len += cp_encodeObject((uint8_t*)rx_reply.payload + len, &val);
 	frameandsend(&txbuf[0], cp_encodemessage(++msgid, resource_setval, rx_reply.payload, len, &txbuf[0]));
+	return 0;
 }
 
 /*

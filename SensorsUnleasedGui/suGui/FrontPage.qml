@@ -26,6 +26,13 @@ Item {
                 text: "PAIR";
 
                 onClicked: {
+
+//                    dstnode.activeip = "fe80::797c:1223:5f1f:e7fb";
+//                    srcnode.activeip = "fe80::797c:1223:5f1f:e7fb";
+
+//                    dstnode.activeurl = "test/test2";
+//                    srcnode.activeurl = "test/test2";
+
                     if(!dstnode.activeip || !dstnode.activeurl) return;
                     if(!srcnode.activeip || !srcnode.activeurl) return;
 
@@ -37,7 +44,7 @@ Item {
                     options['ct'] = 42;  //COAP_CONTENT_FORMAT_APP_OCTET
                     options['type'] = 0; //COAP_CONFIRMABLE
                     options['code'] = 3; //COAP_PUT
-                    acceptid = su.pair(srcnode.activeip, srcnode.activeurl, options, pairdata, acceptid);
+                    acceptid = su.pair(srcnode.activeip, srcnode.activeurl+"?join", options, pairdata, acceptid);
                 }
             }
             ResourceDir{

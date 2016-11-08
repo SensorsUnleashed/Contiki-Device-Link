@@ -153,9 +153,25 @@ static void res_proxy_post_handler(void *request, void *response, uint8_t *buffe
 }
 
 /* Called when a devices should be updated
- *  eventstatus:	Events enabled/disabled (0/1)
- * 	eventsetup:		AE=AboveEvent, BE=BelowEvent, CE=ChangeEvent *
+ *
+ * A put request has always its query as a string, and its payload msgpack encoded.
+ * Content type APPLICATION_OCTET_STREAM "
+ *
+ *  eventstatus:	Events enabled/disabled
+ *  		Payload: 1 nipple
+ * 				enabled  = 1
+ * 			 	disabled = 0
+ * 	eventsetup:
+ * 			Payload: enum up_parameter, val
+ *
+ * 	pair:	//Can be split of more than 1 message (block1 transfer)
+ * 			Payload: uip_ip6addr_t destip, String uri
+ * 			destip stored as an 8 words array of 16bit values
  * */
+
+static uint8_t large_update_store[200] = { 0 };
+static int32_t large_update_size = 0;
+
 static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	leds_toggle(LEDS_YELLOW);
 
@@ -167,7 +183,6 @@ static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer
 	unsigned int ct = -1;
 	REST.get_header_content_type(request, &ct);
 
-	//if(!REST.get_header_content_type(request, REST.type.APPLICATION_OCTET_STREAM)) {
 	if(ct != REST.type.APPLICATION_OCTET_STREAM) {
 		REST.set_response_status(response, REST.status.BAD_REQUEST);
 		const char *error_msg = "msgPacked, octet-stream only";
@@ -179,113 +194,93 @@ static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer
 	uartsensors_device_t *resource = uartsensors_find((char*)url, url_len);
 	if(resource == NULL){
 		REST.set_response_status(response, REST.status.BAD_REQUEST);
+		const char *error_msg = "Unknown resource";
+		REST.set_response_payload(response, error_msg, strlen(error_msg));
 		return;
 	}
 
+	coap_packet_t *const coap_req = (coap_packet_t *)request;
 	int len = REST.get_query(request, &query);
 	if(len > 0){
 		if(strncmp(query, "eventsetup", len) == 0){	//Emit the raw value, which can be cheaper for the receiver to use
 			len = REST.get_request_payload(request, &payload);
 			if(len <= 0){
 				REST.set_response_status(response, REST.status.BAD_REQUEST);
+				const char *error_msg = "no payload in query";
+				REST.set_response_payload(response, error_msg, strlen(error_msg));
 				return;
 			}
 
-			char key[20];
-			char* keyptr = &key[0];
-			int val;
-			int templen = 0, buflen = 0;
-			cmp_object_t newval;
-			for(int i=0; i<4; i++){
-				sscanf((char*)payload + buflen, "%20[^=]=%d %n", &key[0], &val, &templen);
-				buflen += templen;
-
-				if(strcmp(keyptr, "AE") == 0){
-					newval = resource->conf.AboveEventAt;
-					newval.as.s32 = val;
-					uartsensors_setEventVal(resource, AboveEventValue, newval);
-					REST.set_response_status(response, REST.status.CHANGED);
+			uint32_t bufindex;
+			do{
+				enum up_parameter param;
+				cmp_object_t newval;
+				if(cp_decodeU8((uint8_t*)payload, (uint8_t*)&param, &bufindex) == 0){
+					if(cp_decodeObject((uint8_t*)payload+len, &newval, &bufindex) == 0){
+						if(uartsensors_setEventVal(resource, param, newval) != 0){
+							//Something wrong with the encoding
+							REST.set_response_status(response, REST.status.CHANGED);
+						}
+					}
+					else{
+						//Something wrong with the encoding
+						REST.set_response_status(response, REST.status.BAD_REQUEST);
+					}
 				}
-				else if(strcmp(keyptr, "BE") == 0){
-					newval = resource->conf.BelowEventAt;
-					newval.as.s32 = val;
-					uartsensors_setEventVal(resource, BelowEventValue, newval);
-					REST.set_response_status(response, REST.status.CHANGED);
+				else{
+					//Something wrong with the encoding
+					REST.set_response_status(response, REST.status.BAD_REQUEST);
 				}
-				else if(strcmp(keyptr, "CE") == 0){
-					newval = resource->conf.ChangeEvent;
-					newval.as.s32 = val;
-					uartsensors_setEventVal(resource, ChangeEventValue, newval);
-					REST.set_response_status(response, REST.status.CHANGED);
-				}
-
-				if(buflen >= len){
-					break;
-				}
-			}
+			}while(bufindex < len);
 		}
 		if(strncmp(query, "join", len) == 0){
-			len = REST.get_request_payload(request, &payload);
-			if(len <= 0){
+			if((len = REST.get_request_payload(request, (const uint8_t **)&payload))) {
+				if(coap_req->block1_num * coap_req->block1_size + len <= sizeof(large_update_store)) {
+					memcpy(large_update_store + coap_req->block1_num * coap_req->block1_size, payload, len);
+					large_update_size = coap_req->block1_num * coap_req->block1_size + len;
+
+					REST.set_response_status(response, REST.status.CHANGED);
+					coap_set_header_block1(response, coap_req->block1_num, 0, coap_req->block1_size);
+
+					if(coap_req->block1_more == 0){
+						//We're finished receiving the payload, now parse it.
+
+						uip_ipaddr_t server_ipaddr;
+						uint32_t bufindex = 0;
+						uint32_t maxlen = 100;
+						char stringbuf[100];
+						payload = &large_update_store[0];
+
+						if(cp_decodeU16Array((uint8_t*) payload + bufindex, (uint16_t*)&server_ipaddr, &bufindex) != 0){
+							REST.set_response_status(response, REST.status.BAD_REQUEST);
+							const char *error_msg = "IPAdress wrong";
+							REST.set_response_payload(response, error_msg, strlen(error_msg));
+							return;
+						}
+
+						if(cp_decode_string((uint8_t*) payload + bufindex, &stringbuf[0], &maxlen, &bufindex) != 0){
+							REST.set_response_status(response, REST.status.BAD_REQUEST);
+							const char *error_msg = "URI wrong";
+							REST.set_response_payload(response, error_msg, strlen(error_msg));
+							return;
+						}
+
+						REST.set_response_payload(response, (uint8_t*)&server_ipaddr, 16);
+					}
+				}
+				else {
+					REST.set_response_status(response, REST.status.REQUEST_ENTITY_TOO_LARGE);
+					//REST.set_response_payload(response, buffer, snprintf((char *)buffer, 200, "%uB max.", sizeof(large_update_store)));
+					return;
+				}
+			}
+			else{
 				REST.set_response_status(response, REST.status.BAD_REQUEST);
+				const char *error_msg = "no payload in query";
+				REST.set_response_payload(response, error_msg, strlen(error_msg));
 				return;
 			}
-//			static uip_ipaddr_t server_ipaddr[1];
-//			uip_ip6addr(ipaddr, 0xfd81, 0x3daa, 0xfb4a, 0xf7ae, 0x0212, 0x4b00, 0x5af, 0x8323);
-
-			/* The payload will look like this:
-			 *
-			 * A IP6 address is made up of a prefix and a suffix - the suffix is the only unique part.
-			 * IP6 address: fd81:3daa:fb4a:f7ae:0212:4b00:5af:8323
-			 * Prefix: fd81:3daa:fb4a:f7ae
-			 * Suffix: 0212:4b00:5af:8323
-			 *
-			 * :: means that all number from start to here, is 0
-			 *
-			 * ::0212:4b00:5af:8323
-			 * button/actuator
-			 * Line 1 is the ip of the respource to observe and will be prefixed with what we already know
-			 * Note: The IP address will need to be prefixed with :: to immitate all zeroes
-			 * Line 2 is the url to observe
-			 * */
-			const char* ip6 = strtok((char*)payload, "\n");
-			if(ip6 == 0){
-				REST.set_response_status(response, REST.status.BAD_REQUEST);
-				return;
-			}
-			char* uri = strtok(NULL, "\n");
-			if(uri == 0){
-				REST.set_response_status(response, REST.status.BAD_REQUEST);
-				return;
-			}
-
-			uip_ip6addr_t destaddr;
-			uip_ip6addr_t hostaddr;
-			if( uiplib_ip6addrconv(ip6, &destaddr)){
-				//destaddr will miss the prefix part - add it now
-				//uip_gethostaddr(&hostaddr);
-				destaddr.u16[0] = hostaddr.u16[0];
-				destaddr.u16[1] = hostaddr.u16[1];
-				destaddr.u16[2] = hostaddr.u16[2];
-				destaddr.u16[3] = hostaddr.u16[3];
-//TODO: Place the address in the global memory
-				coap_obs_request_registration(&destaddr, REMOTE_PORT, uri, notification_callback, NULL);
-
-				//uiplib_ip6addrconv
-				//uip_debug_ipaddr_print
-			}
-
-//			if(uiplib_ip6addrconv(ip6, &ipaddr)){
-//				joinpair_t pair;
-//				pair.url = resource->conf.type;
-//				pair.deviceptr = resource;
-//				pair.devicetype = uartsensor;
-//				pair.destip = uiplib_ip6addrconv(ip6, &ipaddr);
-//			}
 		}
-//		REST.set_response_payload(response, (uint8_t *)query, len);
-//		return;
-
 	}
 }
 

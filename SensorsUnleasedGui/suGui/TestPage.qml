@@ -66,15 +66,16 @@ Item {
                 payload: "Dette er en test for at se om vi kan sende en lang tekst";
             }
         }
-        Row{
+        Column{
             id: row3;
             width: parent.width;
             anchors.topMargin: 20;
-            height: 50;
+            height: 100;
             anchors.top: row2.bottom;
             spacing: 5;
 
             CoapCustomUrl{
+                height: 50;
                 requrl: nodesdir.activeurl;
                 ipaddr: nodesdir.activeip;
                 options: {
@@ -83,6 +84,44 @@ Item {
                     'code': 1,  //COAP_GET
                 }
             }
+            Row{
+                width: parent.width;
+                height: 30;
+                spacing: 5;
+                Label{
+                    id: retranscount;
+                    height: parent.height;
+                    width: 100;
+                    text: "Retranscount";
+
+                    Connections {
+                        target: coap
+                        onCoapRetrans: {
+                            retranscount.text = count + "(" + outof + ")";
+                        }
+                    }
+                }
+                Label{
+                    id: coapcode;
+                    height: parent.height;
+                    width: 100;
+                    text: "Code";
+                    Connections {
+                        target: coap
+                        onCoapCode: {
+                            coapcode.text = code;
+                        }
+                    }
+                }
+                Label{
+                    height: parent.height;
+                    width: 100;
+                    text: "Processcount";
+                }
+
+            }
+
+
         }
     }
 }

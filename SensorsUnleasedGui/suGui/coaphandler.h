@@ -44,6 +44,12 @@ typedef enum {
     CA_BLOCK_SIZE_1_KBYTE = 6      /**< 1 Kbyte */
 } CABlockSize_t;
 
+struct s_statusstr{
+    enum CoapPDU::Code code;
+    const char* string;
+};
+
+
 class coaphandler : public QObject
 {
     Q_OBJECT
@@ -86,6 +92,39 @@ private:
     void parseMessage(QHostAddress sender, struct coapMessageStore* message);
     QVariant parseAppLinkFormat(QByteArray payload);
 
+    QString codeTostring(enum CoapPDU::Code code);
+
+    struct s_statusstr statusstr[28] = {
+        {CoapPDU::COAP_EMPTY,                       "COAP_EMPTY"},
+        {CoapPDU::COAP_GET,                         "COAP_GET"},
+        {CoapPDU::COAP_POST,                        "COAP_POST"},
+        {CoapPDU::COAP_PUT,                         "COAP_PUT"},
+        {CoapPDU::COAP_DELETE,                      "COAP_DELETE"},
+        {CoapPDU::COAP_LASTMETHOD,                  "COAP_LASTMETHOD"},
+        {CoapPDU::COAP_CREATED,                     "COAP_CREATED"},
+        {CoapPDU::COAP_DELETED,                     "COAP_DELETED"},
+        {CoapPDU::COAP_VALID,                       "COAP_VALID"},
+        {CoapPDU::COAP_CHANGED,                     "COAP_CHANGED"},
+        {CoapPDU::COAP_CONTENT,                     "COAP_CONTENT"},
+        {CoapPDU::COAP_BAD_REQUEST,                 "COAP_BAD_REQUEST"},
+        {CoapPDU::COAP_UNAUTHORIZED,                "COAP_UNAUTHORIZED"},
+        {CoapPDU::COAP_BAD_OPTION,                  "COAP_BAD_OPTION"},
+        {CoapPDU::COAP_FORBIDDEN,                   "COAP_FORBIDDEN"},
+        {CoapPDU::COAP_NOT_FOUND,                   "COAP_NOT_FOUND"},
+        {CoapPDU::COAP_METHOD_NOT_ALLOWED,          "COAP_METHOD_NOT_ALLOWED"},
+        {CoapPDU::COAP_NOT_ACCEPTABLE,              "COAP_NOT_ACCEPTABLE"},
+        {CoapPDU::COAP_PRECONDITION_FAILED,         "COAP_PRECONDITION_FAILED"},
+        {CoapPDU::COAP_REQUEST_ENTITY_TOO_LARGE,    "COAP_REQUEST_ENTITY_TOO_LARGE"},
+        {CoapPDU::COAP_UNSUPPORTED_CONTENT_FORMAT,  "COAP_UNSUPPORTED_CONTENT_FORMAT"},
+        {CoapPDU::COAP_INTERNAL_SERVER_ERROR,       "COAP_INTERNAL_SERVER_ERROR"},
+        {CoapPDU::COAP_NOT_IMPLEMENTED,             "COAP_NOT_IMPLEMENTED"},
+        {CoapPDU::COAP_BAD_GATEWAY,                 "COAP_BAD_GATEWAY"},
+        {CoapPDU::COAP_SERVICE_UNAVAILABLE,         "COAP_SERVICE_UNAVAILABLE"},
+        {CoapPDU::COAP_GATEWAY_TIMEOUT,             "COAP_GATEWAY_TIMEOUT"},
+        {CoapPDU::COAP_PROXYING_NOT_SUPPORTED,      "COAP_PROXYING_NOT_SUPPORTED"},
+        {CoapPDU::COAP_UNDEFINED_CODE,              "COAP_UNDEFINED_CODE"}
+    };
+
 private slots:
     void readPendingDatagrams();
     void timeout();
@@ -94,6 +133,8 @@ public slots:
 
 signals:
     void coapMessageRdy(QVariant messageid);
+    void coapRetrans(QVariant token, QVariant count, QVariant outof);
+    void coapCode(QVariant token, QString code);
 };
 
 #endif // COAPHANDLER_H

@@ -80,19 +80,23 @@ struct resourceconf{
 	//uint8_t notation;		//Qm.f => MMMM.FFFF	eg. Q1.29 = int32_t with 1 integer bit and 29 fraction bits, Q32 = uint32_t = 32 positive integer bits. Q31 is a int32_t
 };
 
-
 int cp_decodemessage(char* source, int len, rx_msg* destination);
 uint32_t cp_encodemessage(uint8_t msgid, enum req_cmd cmd, void* payload, char len, uint8_t* buffer);
 
 uint32_t cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer);
 uint32_t cp_encodeObject(uint8_t* buffer, cmp_object_t *obj);
 uint32_t cp_encodeU8(uint8_t* buffer, uint8_t val);
+uint32_t cp_encodeU16Array(uint8_t* buffer, uint16_t* data, uint32_t size, uint32_t* len);
 
 int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* strings);
 int cp_decodeU8(uint8_t* buffer, uint8_t* x, uint32_t* len);
+int cp_decodeU16Array(uint8_t* buffer, uint16_t* arr, uint32_t* len);
+int cp_decode_string(uint8_t* buffer, char* string, uint32_t* stringlen, uint32_t* len);
 int cp_decodeObject(uint8_t* buffer, cmp_object_t *obj, uint32_t* len);
 
 int cp_cmp_to_string(cmp_object_t* obj, uint8_t* result, uint32_t* len);
 int cp_convMsgPackToString(uint8_t* buffer, uint8_t* conv, uint32_t* len);
+
+
 
 #endif /* COAP_UART_DEVICE_HANDLER_COAP_PROXY_PROTOCOLHANDLER_H_ */

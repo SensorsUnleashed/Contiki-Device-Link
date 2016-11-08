@@ -188,6 +188,18 @@ uint32_t cp_encodeU8(uint8_t* buffer, uint8_t val){
 	return (uint32_t)((void*)cmp.buf - (void*)buffer);
 }
 
+uint32_t cp_encodeU16Array(uint8_t* buffer, uint16_t* data, uint32_t size, uint32_t* len){
+    cmp_ctx_t cmp;
+    cmp_init(&cmp, buffer, 0, buf_writer);
+
+    cmp_write_array(&cmp, size);
+    for(int i=0; i<8; i++){
+        cmp_write_u16(&cmp, *(data+i));
+    }
+    *len += (uint8_t*)cmp.buf - buffer;
+    return 0;
+}
+
 /*
  * Read the Message ID
  * Param:
@@ -205,6 +217,48 @@ int cp_decodeU8(uint8_t* buffer, uint8_t* x, uint32_t* len){
 	}
 
 	return 1;
+}
+
+//Return 1 for error
+//Return 0 for success
+int cp_decodeU16Array(uint8_t* buffer, uint16_t* arr, uint32_t* len){
+    cmp_ctx_t cmp;
+    cmp_init(&cmp, buffer, buf_reader, 0);
+    uint32_t size;
+    int ret = 0;
+
+    if(cmp_read_array(&cmp, &size)){    //Returns the number of single bytes in the array
+        while(size){
+            if(cmp_read_u16(&cmp, arr++)){
+                size -= 2;
+            }
+            else{
+                ret = 1;
+                break;
+            }
+        }
+    }
+
+   *len += (uint8_t*)cmp.buf - buffer;
+   return ret;
+}
+
+
+//stringlen should contain the maximum available bytes in the buffer "string"
+//The stringlen will contain the actual stringlen if parsing is a success
+//len will be the index of where we read to
+//Returns 0 if success
+//Returns 1 if success
+int cp_decode_string(uint8_t* buffer, char* string, uint32_t* stringlen, uint32_t* len){
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, buffer, buf_reader, 0);
+	int ret = 1;
+	if(cmp_read_str(&cmp, string, stringlen)){
+
+		ret = 0;
+	}
+	*len += (uint8_t*)cmp.buf - buffer;
+	return ret;
 }
 
 /*
@@ -304,3 +358,4 @@ int cp_convMsgPackToString(uint8_t* buffer, uint8_t* conv, uint32_t* len){
 
 	return cp_cmp_to_string(&obj, conv, len);
 }
+
