@@ -37,87 +37,75 @@
  */
 
 #include "contiki.h"
-
-
-
-#include <string.h>
-#include "contiki.h"
 #include "rest-engine.h"
 #include "dev/leds.h"
-#include <stdlib.h>
 #include "er-coap-engine.h"
-
-static coap_observee_t *obs;
+#include "uart_protocolhandler.h"
 
 static void res_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 
 /* A simple actuator example. Toggles the red led */
 RESOURCE(res_ledtoggle,
-         "title=\"Toggle LEDs\";rt=\"Control\"",
-		 NULL,
-		 NULL,
-		 res_put_handler,
-         NULL);
+		"title=\"Toggle LEDs\";rt=\"Control\"",
+		NULL,
+		NULL,
+		res_put_handler,
+		NULL);
 
 static void toggleled(int id){
 	switch(id){
 	case 1:
-		leds_set(LEDS_GREEN);
+		leds_toggle(LEDS_GREEN);
 		break;
 	case 2:
-		leds_set(LEDS_RED);
+		leds_toggle(LEDS_RED);
 		break;
 	case 3:
-		leds_set(LEDS_YELLOW);
+		leds_toggle(LEDS_YELLOW);
 		break;
 	case 4:
-#ifndef NATIVE
-		leds_set(LEDS_ORANGE);
-#endif
+		leds_toggle(LEDS_ORANGE);
 		break;
-	}
-}
-
-static void
-notification_callback(coap_observee_t *obs, void *notification,
-		coap_notification_flag_t flag){
-	int len = 0;
-	const uint8_t *payload = NULL;
-	if(notification) {
-		len = coap_get_payload(notification, &payload);
-		if(len > 0){
-			int id = strtol((char*)payload, 0, 0);
-			toggleled(id);
-		}
 	}
 }
 
 static void
 res_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
-	const char* str;
 	const uint8_t* payload;
-	int len = REST.get_query(request, &str);
+
+	unsigned int ct = -1;
+	REST.get_header_content_type(request, &ct);
+	if(ct != REST.type.APPLICATION_OCTET_STREAM) {
+		REST.set_response_status(response, REST.status.BAD_REQUEST);
+		const char *error_msg = "msgPacked, octet-stream only";
+		REST.set_response_payload(response, error_msg, strlen(error_msg));
+		return;
+	}
+
+	uint32_t len = REST.get_request_payload(request, &payload);
 	if(len > 0){
-		int id = strtol(str, 0, 0);
-		if(id >= 0 && id <= 4){
-			REST.set_response_status(response, REST.status.CHANGED);
-		}
-		else{
-			toggleled(id);
-		}
+		uint8_t id;
+		if(cp_decodeU8(payload, &id, &len) == 0){
+			if(id > 0 && id <= 4){
+				toggleled(id);
+				REST.set_response_status(response, REST.status.CHANGED);
+				const char *error_msg = "toggled led";
+				REST.set_response_payload(response, error_msg, strlen(error_msg));
+				return;
 
-		/*
-		 * Payload:
-		 * url\n
-		 * ip6 address to join\n
-		 * obs or poll=interval
-		 * */
-		if(strncmp(str, "join", len) == 0){
-			REST.get_request_payload(request, &payload);
-
-
+			}
+			else{
+				REST.set_response_status(response, REST.status.BAD_REQUEST);
+				const char *error_msg = "Accepting values from 1 - 4";
+				REST.set_response_payload(response, error_msg, strlen(error_msg));
+			}
 		}
+	}
+	else{
+		REST.set_response_status(response, REST.status.BAD_REQUEST);
+		const char *error_msg = "Missing payload";
+		REST.set_response_payload(response, error_msg, strlen(error_msg));
 	}
 }
 

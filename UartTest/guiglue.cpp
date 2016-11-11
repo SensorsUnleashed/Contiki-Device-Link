@@ -32,7 +32,7 @@ guiglue::guiglue(proto1 *protohandler)
     di.conf.ChangeEvent.type = CMP_TYPE_UINT8;
     di.conf.ChangeEvent.as.u8 = 1;
     di.conf.eventsActive = 1;
-    di.lastval.type = CMP_TYPE_POSITIVE_FIXNUM;
+    di.lastval.type = CMP_TYPE_UINT8;
     di.lastval.as.u8 = 1;
     devinfo.append(di);
 
@@ -62,11 +62,11 @@ guiglue::guiglue(proto1 *protohandler)
     di2.conf.ChangeEvent.type = CMP_TYPE_UINT8;
     di2.conf.ChangeEvent.as.u8 = 10;    //event every 10 sec
     di2.conf.eventsActive = 1;
-    devinfo.append(di2);
+    //devinfo.append(di2);
 
     QTimer* tick = new QTimer;
     tick->setInterval(1000);
-    tick->start();
+    //tick->start();
     connect(tick, SIGNAL(timeout()), this, SLOT(updateTimerValue()));
     connect(interface, SIGNAL(reqResourceCount(rx_msg*)), this, SLOT(reqResourceCount(rx_msg*)));
     connect(interface, SIGNAL(reqConfig(rx_msg*)), this, SLOT(reqConfig(rx_msg*)));

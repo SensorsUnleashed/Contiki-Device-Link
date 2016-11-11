@@ -49,6 +49,58 @@ QVariant sensorsunleashed::pair(QVariant nodeaddr, QVariant uri, QVariant option
     return nodecomm->reqGet(nodeaddr, uri, options, oldtoken, payload);
 }
 
+QVariant sensorsunleashed::put(QVariant nodeaddr, QVariant uri, QVariant options, QVariant data, QVariant oldtoken){
+
+    QByteArray payload;
+    QVariantMap map = data.toMap();
+    payload.resize(20);
+
+    //Find out if all neccessary informations is available
+    if(!map.contains("value")) return QVariant(-1);
+    if(!map.contains("format")) return QVariant(-1);
+
+    cmp_object_t obj;
+    obj.type = map["format"].toUInt();
+
+    switch(obj.type){
+    case CMP_TYPE_BOOLEAN:
+        obj.as.boolean = map["value"].toBool();
+        break;
+    case CMP_TYPE_FLOAT:
+        obj.as.flt = map["value"].toFloat();
+        break;
+    case CMP_TYPE_DOUBLE:
+        obj.as.dbl = map["value"].toDouble();
+        break;
+    case CMP_TYPE_UINT8:
+        obj.as.u8 = (uint8_t)map["value"].toUInt();
+        break;
+    case CMP_TYPE_UINT16:
+        obj.as.u16 = (uint16_t)map["value"].toUInt();
+        break;
+    case CMP_TYPE_UINT32:
+        obj.as.u32 = (uint32_t)map["value"].toUInt();
+        break;
+    case CMP_TYPE_SINT8:
+        obj.as.s8 = (int8_t)map["value"].toInt();
+        break;
+    case CMP_TYPE_SINT16:
+        obj.as.s16 = (int16_t)map["value"].toInt();
+        break;
+    case CMP_TYPE_SINT32:
+        obj.as.s32 = (int32_t)map["value"].toInt();
+        break;
+    }
+
+    cmp_ctx_t cmp;
+    cmp_init(&cmp, payload.data(), buf_reader, buf_writer);
+    cmp_write_object(&cmp, &obj);
+    payload.resize((uint8_t*)cmp.buf - (uint8_t*)payload.data());
+
+    return nodecomm->reqGet(nodeaddr, uri, options, oldtoken, payload);
+}
+
+
 static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit) {
 
     uint8_t* dataptr = (uint8_t*)data;

@@ -16,23 +16,13 @@
 #include "er-coap-observe-client.h"
 #include "net/rime/rime.h"
 #include <stdlib.h>
+#include "res-uartsensor.h"
 
 MEMB(coap_resources, resource_t, MAX_RESOURCES);
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 
-//We need to have a way to keep track of which sensor a notification belongs to
-enum datatype_e{
-	uartsensor,
-	sensor
-};
-struct joinpair_s{
-	char* url;
-	enum datatype_e devicetype;
-	void* deviceptr;
-	uip_ip6addr_t destip;
-
-};
-typedef struct joinpair_s joinpair_t;
+joinpair_t pairs[5];
+int pairscount = 0;
 
 #define DEBUG 1
 #if DEBUG
@@ -45,39 +35,6 @@ typedef struct joinpair_s joinpair_t;
 #define PRINT6ADDR(addr)
 #define PRINTLLADDR(addr)
 #endif
-
-static void toggleled(int id){
-	switch(id){
-	case 1:
-		leds_set(LEDS_GREEN);
-		break;
-	case 2:
-		leds_set(LEDS_RED);
-		break;
-	case 3:
-		leds_set(LEDS_YELLOW);
-		break;
-	case 4:
-#ifndef NATIVE
-		leds_set(LEDS_ORANGE);
-#endif
-		break;
-	}
-}
-
-static void
-notification_callback(coap_observee_t *obs, void *notification,
-		coap_notification_flag_t flag){
-	int len = 0;
-	const uint8_t *payload = NULL;
-	if(notification) {
-		len = coap_get_payload(notification, &payload);
-		if(len > 0){
-			int id = strtol((char*)payload, 0, 0);
-			toggleled(id);
-		}
-	}
-}
 
 /*
  * Called when someone asks for the last value available
@@ -245,9 +202,9 @@ static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer
 					if(coap_req->block1_more == 0){
 						//We're finished receiving the payload, now parse it.
 
-						uip_ipaddr_t server_ipaddr;
+						uip_ip6addr_t server_ipaddr;
 						uint32_t bufindex = 0;
-						uint32_t maxlen = 100;
+						uint32_t stringlen = 100;
 						char stringbuf[100];
 						payload = &large_update_store[0];
 
@@ -258,14 +215,24 @@ static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer
 							return;
 						}
 
-						if(cp_decode_string((uint8_t*) payload + bufindex, &stringbuf[0], &maxlen, &bufindex) != 0){
+						if(cp_decode_string((uint8_t*) payload + bufindex, &stringbuf[0], &stringlen, &bufindex) != 0){
 							REST.set_response_status(response, REST.status.BAD_REQUEST);
 							const char *error_msg = "URI wrong";
 							REST.set_response_payload(response, error_msg, strlen(error_msg));
 							return;
 						}
 
-						REST.set_response_payload(response, (uint8_t*)&server_ipaddr, 16);
+						//Store the pairing pointer
+						mmem_alloc(pairs[pairscount].url, stringlen);
+						memcpy(&pairs[pairscount].destip, &server_ipaddr, sizeof(uip_ip6addr_t));
+						memcpy(pairs[pairscount].url, &stringbuf[0], stringlen);
+						pairs[pairscount].devicetype = uartsensor;
+						pairs[pairscount].deviceptr = resource;
+						pairscount++;
+
+						const char *status_msg = "Pairing done!";
+						REST.set_response_payload(response, status_msg, strlen(status_msg));
+						REST.set_response_status(response, REST.status.CREATED);
 					}
 				}
 				else {
@@ -284,11 +251,6 @@ static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer
 	}
 }
 
-//uip_ipaddr_t parseIP6addr(uint8_t* addr, int len){
-//	uip_ipaddr_t ip;
-//	sscanf((char*)addr, "%20[^=]=%d %n", &ip.u16[0], &val, &templen);
-//}
-
 static void res_proxy_delete_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	leds_toggle(LEDS_RED);
 
@@ -296,28 +258,25 @@ static void res_proxy_delete_handler(void *request, void *response, uint8_t *buf
 	REST.set_response_payload(response, (uint8_t *)buffer, strlen((char *)buffer));
 }
 
-static void res_proxy_trigger_handler(void){
+joinpair_t test;
 
-	//	uartsensors_device_t* resource;
-	//	for(resource = (uartsensors_device_t *)list_head(proxy_resource_list);
-	//			resource; resource = resource->next) {
-	//		if(resource->hasEvent == 1){
-	//			/* Notify the registered observers which will trigger the res_get_handler to create the response. */
-	//			REST.notify_subscribers(resource->resourceptr);
-	//			resource->hasEvent = 0;
-	//		}
-	//	}
-}
+/* For now we can only pair with 1 at a time*/
+joinpair_t* getUartSensorPair(uartsensors_device_t* p){
 
-void res_uartsensors_event(uartsensors_device_t* p){
-	resource_t *resource = NULL;
-	for(resource = (resource_t *)list_head(rest_get_resources()); resource;
-			resource = resource->next) {
-		if(strcmp(resource->url, p->conf.type) == 0){
-			/* Notify the registered observers which will trigger the res_get_handler to create the response. */
-			REST.notify_subscribers(resource);
+//	if(test.deviceptr == p){
+//		return &test;
+//	}
+//	return 0;
+
+
+	joinpair_t* pair = 0;
+	for(int i=0; i<pairscount; i++){
+		if(pairs[i].deviceptr == (void*)p){
+			pair = &pairs[pairscount];
+			break;
 		}
 	}
+	return pair;
 }
 
 void res_uartsensors_activate(uartsensors_device_t* p){
@@ -330,7 +289,6 @@ void res_uartsensors_activate(uartsensors_device_t* p){
 
 		if(r->flags & METHOD_GET){
 			r->get_handler = res_proxy_get_handler;
-			r->trigger = res_proxy_trigger_handler;
 		}else r->get_handler = NULL;
 		if(r->flags & METHOD_POST){
 			r->post_handler = res_proxy_post_handler;
@@ -345,6 +303,21 @@ void res_uartsensors_activate(uartsensors_device_t* p){
 		//Finally activate the resource with the rest coap
 		rest_activate_resource(r, (char*)r->url);
 		PRINTF("Activated resource: %s Attributes: %s - Spec: %s, Unit: %s\n", r->url, r->attributes, p->conf.spec, p->conf.unit );
+
+		joinpair_t* pair = &test;
+		pair->destip.u16[0] = 33277;
+		pair->destip.u16[1] = 43581;
+		pair->destip.u16[2] = 19195;
+		pair->destip.u16[3] = 44791;
+		pair->destip.u16[4] = 4610;
+		pair->destip.u16[5] = 75;
+		pair->destip.u16[6] = 44805;
+		pair->destip.u16[7] = 15235;
+		pair->deviceptr = p;
+
+		const char* url = "SU/ledtoggle";
+		mmem_alloc(pair->url, strlen(url)+1);
+		memcpy(pair->url, &url, strlen(url)+1);
 	}
 }
 

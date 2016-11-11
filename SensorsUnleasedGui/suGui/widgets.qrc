@@ -8,5 +8,6 @@
         <file>Overlaybox.qml</file>
         <file>CoapSetupContent.qml</file>
         <file>SettingSlider.qml</file>
+        <file>SUPutValue.qml</file>
     </qresource>
 </RCC>

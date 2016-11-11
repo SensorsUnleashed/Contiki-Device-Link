@@ -207,7 +207,7 @@ uint32_t cp_encodeU16Array(uint8_t* buffer, uint16_t* data, uint32_t size, uint3
  * 	len = How far did we read into the buffer
  *
  * */
-int cp_decodeU8(uint8_t* buffer, uint8_t* x, uint32_t* len){
+int cp_decodeU8(const uint8_t* buffer, uint8_t* x, uint32_t* len){
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, buf_reader, 0);
 

@@ -51,37 +51,32 @@
 #ifndef NATIVE
 extern resource_t res_sysinfo;
 #endif
-extern resource_t res_ledtoggle;
+
+extern  resource_t  res_large_update, res_ledtoggle;
 
 PROCESS(er_uart_server, "Erbium Uart Server");
 AUTOSTART_PROCESSES(&er_uart_server);
 
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 #define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xfd81, 0x3daa, 0xfb4a, 0xf7ae, 0x0212, 0x4b00, 0x5af, 0x8323)
-static uip_ipaddr_t server_ipaddr[1]; /* holds the server ip address */
 
 #include "dev/button-sensor.h"
 
+uint8_t tx[200];
 PROCESS_THREAD(er_uart_server, ev, data)
 {
 	PROCESS_BEGIN();
-
+	static coap_packet_t request[1];      /* This way the packet can be treated as pointer as usual. */
+	static joinpair_t* coappair = 0;
 	/* Initialize the REST engine. */
 	rest_init_engine();
+	coap_init_engine();
 #ifndef NATIVE
 	rest_activate_resource(&res_sysinfo, "SU/SystemInfo");
 #endif
-	rest_activate_resource(&res_ledtoggle, "SU/ledtoggle");
+	  rest_activate_resource(&res_large_update, "large-update");
+	  rest_activate_resource(&res_ledtoggle, "SU/ledtoggle");
 	//	rest_activate_resource(&res_mirror, "debug/mirror");
-
-	/* store server address in server_ipaddr */
-//	SERVER_NODE(server_ipaddr);
-//	/* receives all CoAP messages */
-//	coap_init_engine();
-//
-//	coap_obs_request_registration(server_ipaddr, REMOTE_PORT,
-//			"actuator/button", notification_callback, NULL);
-
 
 	uartsensors_init();
 	while(1) {	//Wait until uartsensors has been initialized
@@ -94,10 +89,28 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	}
 	leds_on(LEDS_RED);
 	while(1) {
-		PROCESS_WAIT_EVENT_UNTIL(ev == uartsensors_event/* || ev == sensors_event*/);
-		res_uartsensors_event((uartsensors_device_t*)data);
-		//Sync the current observed resources
-		leds_toggle(LEDS_YELLOW);
+		//PROCESS_WAIT_EVENT_UNTIL(ev == uartsensors_event/* || ev == sensors_event*/);
+		PROCESS_YIELD();
+
+		if(ev == uartsensors_event){
+			uartsensors_device_t* p = (uartsensors_device_t*)data;
+			coappair = getUartSensorPair(p);
+
+			if(coappair != 0){
+				//Found a pair, now send the reading to the subscriber
+				coap_init_message(request, COAP_TYPE_NON, COAP_PUT, coap_get_mid());
+				coap_set_header_uri_path(request, "SU/ledtoggle");
+				//coap_set_header_uri_path(request, coappair->url->ptr);
+				REST.set_header_content_type(request, APPLICATION_OCTET_STREAM);
+				coap_set_payload(request, p->lastval, p->vallen);	//Its already msgpack encoded.
+				uint16_t len = coap_serialize_message(request, &tx[0]);
+				coap_send_message(&coappair->destip, REMOTE_PORT, &tx[0], len);
+
+			    //COAP_BLOCKING_REQUEST(&coappair->destip, REMOTE_PORT, request, 0/*client_chunk_handler*/);
+				leds_toggle(LEDS_YELLOW);
+			}
+		}
+
 	}
 
 	PROCESS_END();

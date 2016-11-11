@@ -33,23 +33,32 @@ Item {
             anchors.top: row1.bottom;
             spacing: 5;
 
+            ComboBox {
+                id: content;
+                width: 150;
+                height: parent.height;
+                model: ListModel {
+                    id: formatitems;
+                    ListElement { format: "Text Plain"; formatindex: 0 }
+                    ListElement { format: "MsgPack"; formatindex: 42 }
+                }
+                delegate: ItemDelegate {
+                    width: content.width
+                    text: format
+                    font.weight: content.currentIndex === index ? Font.DemiBold : Font.Normal
+                    highlighted: content.highlightedIndex == index
+                }
+
+                textRole: "format"
+            }
+
             CoapButton{
                 id: reqbutton;
                 text: "Get";
                 requrl: nodesdir.activeurl;
                 ipaddr: nodesdir.activeip;
                 options: {
-                    'ct': 0,    //COAP_CONTENT_FORMAT_TEXT_PLAIN
-                    'type': 0,  //COAP_CONFIRMABLE
-                    'code': 1,  //COAP_GET
-                }
-            }
-            CoapButton{
-                text: "Get raw";
-                requrl: nodesdir.activeurl + "?raw";
-                ipaddr: nodesdir.activeip;
-                options: {
-                    'ct': 0,    //COAP_CONTENT_FORMAT_TEXT_PLAIN
+                    'ct': formatitems.get(content.currentIndex).formatindex,
                     'type': 0,  //COAP_CONFIRMABLE
                     'code': 1,  //COAP_GET
                 }
@@ -84,6 +93,13 @@ Item {
                     'code': 1,  //COAP_GET
                 }
             }
+            SUPutValue{
+                height: 50;
+                width: 400;
+                requrl: nodesdir.activeurl;
+                ipaddr: nodesdir.activeip;
+            }
+
             Row{
                 width: parent.width;
                 height: 30;
