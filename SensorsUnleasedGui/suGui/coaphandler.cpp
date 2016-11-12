@@ -302,7 +302,7 @@ void coaphandler::readPendingDatagrams()
                     else{
                         qDebug() << "ACK - Finished transmitting large message";
                         emit coapCode(QVariant(storedPDUdata->token), codeTostring(code));
-                        removePDU(storedPDUdata->token);
+                        //removePDU(storedPDUdata->token);
                     }
                 }
 
@@ -355,6 +355,7 @@ void coaphandler::readPendingDatagrams()
                         emit coapCode(QVariant(storedPDUdata->token), codeTostring(code));
                         removePDU(storedPDUdata->token);
                     }
+
                 }
 
                 if(dotx){
@@ -385,6 +386,8 @@ void coaphandler::parseMessage(QHostAddress sender, coapMessageStore* message){
     QVariant ret;
     struct sunode* node = findNode(sender);
 
+    qDebug() << message->rx_payload;
+
     switch(message->ct){
     case CoapPDU::COAP_CONTENT_FORMAT_TEXT_PLAIN:
         node->recvMessage = QString(message->rx_payload);
@@ -399,6 +402,8 @@ void coaphandler::parseMessage(QHostAddress sender, coapMessageStore* message){
         qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_XML";
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET:
+        //This is the content format Sensors Unleashed uses for its data
+        //emit coapSUMessageRdy(message->token, )
         qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET";
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_EXI:

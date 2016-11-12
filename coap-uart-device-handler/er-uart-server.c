@@ -68,6 +68,10 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	PROCESS_BEGIN();
 	static coap_packet_t request[1];      /* This way the packet can be treated as pointer as usual. */
 	static joinpair_t* coappair = 0;
+
+	//Init dynamic memory	(Default 4096Kb)
+	mmem_init();
+
 	/* Initialize the REST engine. */
 	rest_init_engine();
 	coap_init_engine();
@@ -97,16 +101,19 @@ PROCESS_THREAD(er_uart_server, ev, data)
 			coappair = getUartSensorPair(p);
 
 			if(coappair != 0){
+				coap_message_type_t type = COAP_TYPE_NON;
 				//Found a pair, now send the reading to the subscriber
-				coap_init_message(request, COAP_TYPE_NON, COAP_PUT, coap_get_mid());
-				coap_set_header_uri_path(request, "SU/ledtoggle");
-				//coap_set_header_uri_path(request, coappair->url->ptr);
+				coap_init_message(request, type, COAP_PUT, coap_get_mid());
+				coap_set_header_uri_path(request, MMEM_PTR(&coappair->url));
 				REST.set_header_content_type(request, APPLICATION_OCTET_STREAM);
 				coap_set_payload(request, p->lastval, p->vallen);	//Its already msgpack encoded.
 				uint16_t len = coap_serialize_message(request, &tx[0]);
-				coap_send_message(&coappair->destip, REMOTE_PORT, &tx[0], len);
 
-			    //COAP_BLOCKING_REQUEST(&coappair->destip, REMOTE_PORT, request, 0/*client_chunk_handler*/);
+				if(type == COAP_TYPE_NON)
+					coap_send_message(&coappair->destip, REMOTE_PORT, &tx[0], len);
+				else
+					COAP_BLOCKING_REQUEST(&coappair->destip, REMOTE_PORT, request, 0/*client_chunk_handler*/);
+
 				leds_toggle(LEDS_YELLOW);
 			}
 		}

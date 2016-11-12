@@ -129,7 +129,7 @@ static void res_proxy_post_handler(void *request, void *response, uint8_t *buffe
 static uint8_t large_update_store[200] = { 0 };
 static int32_t large_update_size = 0;
 
-static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
+	static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	leds_toggle(LEDS_YELLOW);
 
 	const char *url = NULL;
@@ -222,17 +222,21 @@ static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer
 							return;
 						}
 
-						//Store the pairing pointer
-						mmem_alloc(pairs[pairscount].url, stringlen);
-						memcpy(&pairs[pairscount].destip, &server_ipaddr, sizeof(uip_ip6addr_t));
-						memcpy(pairs[pairscount].url, &stringbuf[0], stringlen);
-						pairs[pairscount].devicetype = uartsensor;
-						pairs[pairscount].deviceptr = resource;
-						pairscount++;
+						stringlen++;	//We need the /0 also
 
-						const char *status_msg = "Pairing done!";
-						REST.set_response_payload(response, status_msg, strlen(status_msg));
-						REST.set_response_status(response, REST.status.CREATED);
+						//Store the pairing pointer
+						if(mmem_alloc(&pairs[pairscount].url, stringlen) == 0){
+							REST.set_response_status(response, REST.status.INTERNAL_SERVER_ERROR);
+						}
+						else{
+							memcpy(&pairs[pairscount].destip, &server_ipaddr, sizeof(uip_ip6addr_t));
+							memcpy(MMEM_PTR(&pairs[pairscount].url), stringbuf, stringlen);
+							pairs[pairscount].devicetype = uartsensor;
+							pairs[pairscount].deviceptr = resource;
+
+							REST.set_response_status(response, REST.status.CREATED);
+							pairscount++;
+						}
 					}
 				}
 				else {
@@ -258,21 +262,12 @@ static void res_proxy_delete_handler(void *request, void *response, uint8_t *buf
 	REST.set_response_payload(response, (uint8_t *)buffer, strlen((char *)buffer));
 }
 
-joinpair_t test;
-
 /* For now we can only pair with 1 at a time*/
 joinpair_t* getUartSensorPair(uartsensors_device_t* p){
-
-//	if(test.deviceptr == p){
-//		return &test;
-//	}
-//	return 0;
-
-
 	joinpair_t* pair = 0;
 	for(int i=0; i<pairscount; i++){
 		if(pairs[i].deviceptr == (void*)p){
-			pair = &pairs[pairscount];
+			pair = &pairs[i];
 			break;
 		}
 	}
@@ -304,20 +299,22 @@ void res_uartsensors_activate(uartsensors_device_t* p){
 		rest_activate_resource(r, (char*)r->url);
 		PRINTF("Activated resource: %s Attributes: %s - Spec: %s, Unit: %s\n", r->url, r->attributes, p->conf.spec, p->conf.unit );
 
-		joinpair_t* pair = &test;
-		pair->destip.u16[0] = 33277;
-		pair->destip.u16[1] = 43581;
-		pair->destip.u16[2] = 19195;
-		pair->destip.u16[3] = 44791;
-		pair->destip.u16[4] = 4610;
-		pair->destip.u16[5] = 75;
-		pair->destip.u16[6] = 44805;
-		pair->destip.u16[7] = 15235;
-		pair->deviceptr = p;
-
-		const char* url = "SU/ledtoggle";
-		mmem_alloc(pair->url, strlen(url)+1);
-		memcpy(pair->url, &url, strlen(url)+1);
+		//To be deleted
+		//		joinpair_t* pair = &pairs[pairscount];
+		//		pair->destip.u16[0] = 33277;
+		//		pair->destip.u16[1] = 43581;
+		//		pair->destip.u16[2] = 19195;
+		//		pair->destip.u16[3] = 44791;
+		//		pair->destip.u16[4] = 4610;
+		//		pair->destip.u16[5] = 75;
+		//		pair->destip.u16[6] = 44805;
+		//		pair->destip.u16[7] = 15235;
+		//		pair->deviceptr = p;
+		//
+		//		const char* url = "SU/ledtoggle";
+		//		mmem_alloc(pair->url, strlen(url)+1);
+		//		memcpy(pair->url, &url, strlen(url)+1);
+		//		pairscount++;
 	}
 }
 

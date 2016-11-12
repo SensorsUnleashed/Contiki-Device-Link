@@ -16,7 +16,7 @@ enum datatype_e{
 	sensor
 };
 struct joinpair_s{
-	struct mmem* url;
+	struct mmem url;
 	enum datatype_e devicetype;
 	void* deviceptr;
 	uip_ip6addr_t destip;
