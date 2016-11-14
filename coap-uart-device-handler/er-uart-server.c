@@ -43,6 +43,7 @@
 #include "dev/leds.h"
 #include <stdlib.h>
 
+#include "storage.h"
 #include "uartsensors.h"
 /*
  * Resources to be activated need to be imported through the extern keyword.
@@ -61,8 +62,47 @@ AUTOSTART_PROCESSES(&er_uart_server);
 #define SERVER_NODE(ipaddr)   uip_ip6addr(ipaddr, 0xfd81, 0x3daa, 0xfb4a, 0xf7ae, 0x0212, 0x4b00, 0x5af, 0x8323)
 
 #include "dev/button-sensor.h"
-
-uint8_t tx[200];
+uint8_t rx[200];
+uint8_t tx[] = {
+		0xdc,
+		0x00,
+		0x10,
+		0xcd,
+		0x80,
+		0xfe,
+		0xcd,
+		0x00,
+		0x00,
+		0xcd,
+		0x00,
+		0x00,
+		0xcd,
+		0x00,
+		0x00,
+		0xcd,
+		0x7c,
+		0x79,
+		0xcd,
+		0x23,
+		0x12,
+		0xcd,
+		0x1f,
+		0x5f,
+		0xcd,
+		0xfb,
+		0xe7,
+		0xaa,
+		0x74,
+		0x65,
+		0x73,
+		0x74,
+		0x2f,
+		0x74,
+		0x65,
+		0x73,
+		0x74,
+		0x32
+};
 PROCESS_THREAD(er_uart_server, ev, data)
 {
 	PROCESS_BEGIN();
@@ -71,6 +111,13 @@ PROCESS_THREAD(er_uart_server, ev, data)
 
 	//Init dynamic memory	(Default 4096Kb)
 	mmem_init();
+
+	//const char* teststr = "Dette er en streng der skal gemmes i flash";
+	uint32_t txlen = sizeof(tx);
+	store_SensorPair((uint8_t*)tx, txlen);
+	store_SensorPair((uint8_t*)tx, txlen);
+//	memset(tx, 0, txlen);
+	read_SensorPairs(rx, &txlen);
 
 	/* Initialize the REST engine. */
 	rest_init_engine();
@@ -104,7 +151,7 @@ PROCESS_THREAD(er_uart_server, ev, data)
 				coap_message_type_t type = COAP_TYPE_NON;
 				//Found a pair, now send the reading to the subscriber
 				coap_init_message(request, type, COAP_PUT, coap_get_mid());
-				coap_set_header_uri_path(request, MMEM_PTR(&coappair->url));
+				coap_set_header_uri_path(request, MMEM_PTR(&coappair->dsturl));
 				REST.set_header_content_type(request, APPLICATION_OCTET_STREAM);
 				coap_set_payload(request, p->lastval, p->vallen);	//Its already msgpack encoded.
 				uint16_t len = coap_serialize_message(request, &tx[0]);

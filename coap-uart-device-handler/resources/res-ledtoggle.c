@@ -63,9 +63,11 @@ static void toggleled(int id){
 	case 3:
 		leds_toggle(LEDS_YELLOW);
 		break;
+#ifndef NATIVE
 	case 4:
 		leds_toggle(LEDS_ORANGE);
 		break;
+#endif
 	}
 }
 

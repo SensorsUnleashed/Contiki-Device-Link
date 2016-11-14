@@ -87,6 +87,7 @@ uint32_t cp_encoderesource_conf(struct resourceconf* data, uint8_t* buffer);
 uint32_t cp_encodeObject(uint8_t* buffer, cmp_object_t *obj);
 uint32_t cp_encodeU8(uint8_t* buffer, uint8_t val);
 uint32_t cp_encodeU16Array(uint8_t* buffer, uint16_t* data, uint32_t size, uint32_t* len);
+uint32_t cp_encodeString(uint8_t* buffer, char* str, uint32_t size, uint32_t* len);
 
 int cp_decoderesource_conf(struct resourceconf* data, uint8_t* buffer, char* strings);
 int cp_decodeU8(const uint8_t* buffer, uint8_t* x, uint32_t* len);

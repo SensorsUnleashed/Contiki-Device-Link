@@ -64,15 +64,15 @@ uint32_t cp_encodemessage(uint8_t msgid, enum req_cmd cmd, void* payload, char l
 
 //Used to read from msgpacked buffer
 static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit) {
-    for(uint32_t i=0; i<limit; i++){
-		 *((char*)data++) = *((char*)ctx->buf++);
+	for(uint32_t i=0; i<limit; i++){
+		*((char*)data++) = *((char*)ctx->buf++);
 	}
 	return true;
 }
 
 
 static uint32_t buf_writer(cmp_ctx_t* ctx, const void *data, uint32_t count){
-    for(uint32_t i=0; i<count; i++){
+	for(uint32_t i=0; i<count; i++){
 		*((uint8_t*)ctx->buf++) = *((char*)data++);
 	}
 	return count;
@@ -189,15 +189,26 @@ uint32_t cp_encodeU8(uint8_t* buffer, uint8_t val){
 }
 
 uint32_t cp_encodeU16Array(uint8_t* buffer, uint16_t* data, uint32_t size, uint32_t* len){
-    cmp_ctx_t cmp;
-    cmp_init(&cmp, buffer, 0, buf_writer);
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, buffer, 0, buf_writer);
 
-    cmp_write_array(&cmp, size);
-    for(int i=0; i<8; i++){
-        cmp_write_u16(&cmp, *(data+i));
-    }
-    *len += (uint8_t*)cmp.buf - buffer;
-    return 0;
+	cmp_write_array(&cmp, size);
+	for(int i=0; i<8; i++){
+		cmp_write_u16(&cmp, *(data+i));
+	}
+	*len += (uint8_t*)cmp.buf - buffer;
+	return 0;
+}
+
+
+uint32_t cp_encodeString(uint8_t* buffer, char* str, uint32_t size, uint32_t* len){
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, buffer, 0, buf_writer);
+
+	cmp_write_str(&cmp, str, size);
+
+	*len += (uint8_t*)cmp.buf - buffer;
+	return 0;
 }
 
 /*
@@ -222,25 +233,25 @@ int cp_decodeU8(const uint8_t* buffer, uint8_t* x, uint32_t* len){
 //Return 1 for error
 //Return 0 for success
 int cp_decodeU16Array(uint8_t* buffer, uint16_t* arr, uint32_t* len){
-    cmp_ctx_t cmp;
-    cmp_init(&cmp, buffer, buf_reader, 0);
-    uint32_t size;
-    int ret = 0;
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, buffer, buf_reader, 0);
+	uint32_t size;
+	int ret = 0;
 
-    if(cmp_read_array(&cmp, &size)){    //Returns the number of single bytes in the array
-        while(size){
-            if(cmp_read_u16(&cmp, arr++)){
-                size -= 2;
-            }
-            else{
-                ret = 1;
-                break;
-            }
-        }
-    }
+	if(cmp_read_array(&cmp, &size)){    //Returns the number of single bytes in the array
+		while(size){
+			if(cmp_read_u16(&cmp, arr++)){
+				size -= 2;
+			}
+			else{
+				ret = 1;
+				break;
+			}
+		}
+	}
 
-   *len += (uint8_t*)cmp.buf - buffer;
-   return ret;
+	*len += (uint8_t*)cmp.buf - buffer;
+	return ret;
 }
 
 
@@ -276,63 +287,63 @@ int cp_decode_string(uint8_t* buffer, char* string, uint32_t* stringlen, uint32_
 int cp_cmp_to_string(cmp_object_t* obj, uint8_t* result, uint32_t* len){
 
 	switch(obj->type){
-		case CMP_TYPE_POSITIVE_FIXNUM:
-		case CMP_TYPE_NIL:	// NULL = 0
-		case CMP_TYPE_UINT8:
-			*len += sprintf((char*)result, "%u", obj->as.u8);
-			break;
-		case CMP_TYPE_BOOLEAN:
-			*len += sprintf((char*)result, "%u", obj->as.boolean);
-			break;
-		case CMP_TYPE_FLOAT:
-		case CMP_TYPE_DOUBLE:
-			*len += sprintf((char*)result, "%f", obj->as.dbl);
-			break;
-		case CMP_TYPE_UINT16:
-			*len += sprintf((char*)result, "%u", obj->as.u16);
-			break;
-		case CMP_TYPE_UINT32:
-			*len += sprintf((char*)result, "%lu", obj->as.u32);
-			break;
-		case CMP_TYPE_UINT64:
-			*len += sprintf((char*)result, "%Lu", obj->as.u64);
-			break;
-		case CMP_TYPE_SINT8:
-		case CMP_TYPE_NEGATIVE_FIXNUM:
-			*len += sprintf((char*)result, "%d", obj->as.s8);
-			break;
-		case CMP_TYPE_SINT16:
-			*len += sprintf((char*)result, "%d", obj->as.s16);
-			break;
-		case CMP_TYPE_SINT32:
-			*len = sprintf((char*)result, "%ld", obj->as.s32);
-			break;
-		case CMP_TYPE_SINT64:
-			*len += sprintf((char*)result, "%Ld", obj->as.s64);
-			break;
-		case CMP_TYPE_FIXMAP:
-		case CMP_TYPE_FIXARRAY:
-		case CMP_TYPE_FIXSTR:
-		case CMP_TYPE_BIN8:
-		case CMP_TYPE_BIN16:
-		case CMP_TYPE_BIN32:
-		case CMP_TYPE_EXT8:
-		case CMP_TYPE_EXT16:
-		case CMP_TYPE_EXT32:
-		case CMP_TYPE_FIXEXT1:
-		case CMP_TYPE_FIXEXT2:
-		case CMP_TYPE_FIXEXT4:
-		case CMP_TYPE_FIXEXT8:
-		case CMP_TYPE_FIXEXT16:
-		case CMP_TYPE_STR8:
-		case CMP_TYPE_STR16:
-		case CMP_TYPE_STR32:
-		case CMP_TYPE_ARRAY16:
-		case CMP_TYPE_ARRAY32:
-		case CMP_TYPE_MAP16:
-		case CMP_TYPE_MAP32:
-			return 1;
-		}
+	case CMP_TYPE_POSITIVE_FIXNUM:
+	case CMP_TYPE_NIL:	// NULL = 0
+	case CMP_TYPE_UINT8:
+		*len += sprintf((char*)result, "%u", obj->as.u8);
+		break;
+	case CMP_TYPE_BOOLEAN:
+		*len += sprintf((char*)result, "%u", obj->as.boolean);
+		break;
+	case CMP_TYPE_FLOAT:
+	case CMP_TYPE_DOUBLE:
+		*len += sprintf((char*)result, "%f", obj->as.dbl);
+		break;
+	case CMP_TYPE_UINT16:
+		*len += sprintf((char*)result, "%u", obj->as.u16);
+		break;
+	case CMP_TYPE_UINT32:
+		*len += sprintf((char*)result, "%lu", obj->as.u32);
+		break;
+	case CMP_TYPE_UINT64:
+		*len += sprintf((char*)result, "%Lu", obj->as.u64);
+		break;
+	case CMP_TYPE_SINT8:
+	case CMP_TYPE_NEGATIVE_FIXNUM:
+		*len += sprintf((char*)result, "%d", obj->as.s8);
+		break;
+	case CMP_TYPE_SINT16:
+		*len += sprintf((char*)result, "%d", obj->as.s16);
+		break;
+	case CMP_TYPE_SINT32:
+		*len = sprintf((char*)result, "%ld", obj->as.s32);
+		break;
+	case CMP_TYPE_SINT64:
+		*len += sprintf((char*)result, "%Ld", obj->as.s64);
+		break;
+	case CMP_TYPE_FIXMAP:
+	case CMP_TYPE_FIXARRAY:
+	case CMP_TYPE_FIXSTR:
+	case CMP_TYPE_BIN8:
+	case CMP_TYPE_BIN16:
+	case CMP_TYPE_BIN32:
+	case CMP_TYPE_EXT8:
+	case CMP_TYPE_EXT16:
+	case CMP_TYPE_EXT32:
+	case CMP_TYPE_FIXEXT1:
+	case CMP_TYPE_FIXEXT2:
+	case CMP_TYPE_FIXEXT4:
+	case CMP_TYPE_FIXEXT8:
+	case CMP_TYPE_FIXEXT16:
+	case CMP_TYPE_STR8:
+	case CMP_TYPE_STR16:
+	case CMP_TYPE_STR32:
+	case CMP_TYPE_ARRAY16:
+	case CMP_TYPE_ARRAY32:
+	case CMP_TYPE_MAP16:
+	case CMP_TYPE_MAP32:
+		return 1;
+	}
 	return 0;
 }
 

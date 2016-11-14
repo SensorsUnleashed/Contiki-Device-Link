@@ -17,6 +17,7 @@
 #include "net/rime/rime.h"
 #include <stdlib.h>
 #include "res-uartsensor.h"
+#include "storage.h"
 
 MEMB(coap_resources, resource_t, MAX_RESOURCES);
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
@@ -225,14 +226,19 @@ static int32_t large_update_size = 0;
 						stringlen++;	//We need the /0 also
 
 						//Store the pairing pointer
-						if(mmem_alloc(&pairs[pairscount].url, stringlen) == 0){
+						if(mmem_alloc(&pairs[pairscount].dsturl, stringlen) == 0){
 							REST.set_response_status(response, REST.status.INTERNAL_SERVER_ERROR);
 						}
 						else{
 							memcpy(&pairs[pairscount].destip, &server_ipaddr, sizeof(uip_ip6addr_t));
-							memcpy(MMEM_PTR(&pairs[pairscount].url), stringbuf, stringlen);
+							memcpy(MMEM_PTR(&pairs[pairscount].dsturl), stringbuf, stringlen);
 							pairs[pairscount].devicetype = uartsensor;
 							pairs[pairscount].deviceptr = resource;
+
+							//Append the srcurl to the message, this way, when we later
+							//retrieve the message from flash, we will know
+							cp_encodeString((uint8_t*) payload + bufindex, resource->conf.attr, strlen(resource->conf.attr), &bufindex);
+							store_SensorPair((uint8_t*) payload, bufindex);
 
 							REST.set_response_status(response, REST.status.CREATED);
 							pairscount++;
