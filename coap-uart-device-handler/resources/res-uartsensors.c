@@ -9,21 +9,20 @@
 #include "rest-engine.h"
 #include "dev/leds.h"
 #include "contiki-net.h"
-#include "net/ip/uip.h"
-#include "net/ip/uiplib.h"
+//#include "net/ip/uip.h"
+//#include "net/ip/uiplib.h"
 #include <string.h>
 #include "er-coap-constants.h"
 #include "er-coap-observe-client.h"
 #include "net/rime/rime.h"
 #include <stdlib.h>
+
+#include "../pairing.h"
 #include "res-uartsensor.h"
-#include "storage.h"
+#include "pairing.h"
 
 MEMB(coap_resources, resource_t, MAX_RESOURCES);
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
-
-joinpair_t pairs[5];
-int pairscount = 0;
 
 #define DEBUG 1
 #if DEBUG
@@ -194,54 +193,40 @@ static int32_t large_update_size = 0;
 		if(strncmp(query, "join", len) == 0){
 			if((len = REST.get_request_payload(request, (const uint8_t **)&payload))) {
 				if(coap_req->block1_num * coap_req->block1_size + len <= sizeof(large_update_store)) {
-					memcpy(large_update_store + coap_req->block1_num * coap_req->block1_size, payload, len);
-					large_update_size = coap_req->block1_num * coap_req->block1_size + len;
 
-					REST.set_response_status(response, REST.status.CHANGED);
-					coap_set_header_block1(response, coap_req->block1_num, 0, coap_req->block1_size);
+					if(pairing_assembleMessage(payload, len) == 0){
+						REST.set_response_status(response, REST.status.CHANGED);
+						coap_set_header_block1(response, coap_req->block1_num, 0, coap_req->block1_size);
+					}
 
 					if(coap_req->block1_more == 0){
 						//We're finished receiving the payload, now parse it.
+						int res = pairing_handle(resource, uartsensor);
 
-						uip_ip6addr_t server_ipaddr;
-						uint32_t bufindex = 0;
-						uint32_t stringlen = 100;
-						char stringbuf[100];
-						payload = &large_update_store[0];
-
-						if(cp_decodeU16Array((uint8_t*) payload + bufindex, (uint16_t*)&server_ipaddr, &bufindex) != 0){
-							REST.set_response_status(response, REST.status.BAD_REQUEST);
-							const char *error_msg = "IPAdress wrong";
-							REST.set_response_payload(response, error_msg, strlen(error_msg));
-							return;
-						}
-
-						if(cp_decode_string((uint8_t*) payload + bufindex, &stringbuf[0], &stringlen, &bufindex) != 0){
-							REST.set_response_status(response, REST.status.BAD_REQUEST);
-							const char *error_msg = "URI wrong";
-							REST.set_response_payload(response, error_msg, strlen(error_msg));
-							return;
-						}
-
-						stringlen++;	//We need the /0 also
-
-						//Store the pairing pointer
-						if(mmem_alloc(&pairs[pairscount].dsturl, stringlen) == 0){
-							REST.set_response_status(response, REST.status.INTERNAL_SERVER_ERROR);
-						}
-						else{
-							memcpy(&pairs[pairscount].destip, &server_ipaddr, sizeof(uip_ip6addr_t));
-							memcpy(MMEM_PTR(&pairs[pairscount].dsturl), stringbuf, stringlen);
-							pairs[pairscount].devicetype = uartsensor;
-							pairs[pairscount].deviceptr = resource;
-
-							//Append the srcurl to the message, this way, when we later
-							//retrieve the message from flash, we will know
-							cp_encodeString((uint8_t*) payload + bufindex, resource->conf.attr, strlen(resource->conf.attr), &bufindex);
-							store_SensorPair((uint8_t*) payload, bufindex);
-
+						switch(res){
+						case 0:
+							//All is good
 							REST.set_response_status(response, REST.status.CREATED);
-							pairscount++;
+							break;
+						case 1:
+							REST.set_response_status(response, REST.status.BAD_REQUEST);
+							const char *error_msg1 = "IPAdress wrong";
+							REST.set_response_payload(response, error_msg1, strlen(error_msg1));
+							return;
+							break;
+						case 2:
+							REST.set_response_status(response, REST.status.BAD_REQUEST);
+							const char *error_msg2 = "URI wrong";
+							REST.set_response_payload(response, error_msg2, strlen(error_msg2));
+							return;
+							break;
+						case 3:	//Already paired
+							REST.set_response_status(response, REST.status.NOT_MODIFIED);
+							break;
+						case 4:
+						case 5:
+							REST.set_response_status(response, REST.status.INTERNAL_SERVER_ERROR);
+							break;
 						}
 					}
 				}
@@ -266,18 +251,6 @@ static void res_proxy_delete_handler(void *request, void *response, uint8_t *buf
 
 	snprintf((char *)buffer, REST_MAX_CHUNK_SIZE, "Du har kaldt res_proxy_delete_handler");
 	REST.set_response_payload(response, (uint8_t *)buffer, strlen((char *)buffer));
-}
-
-/* For now we can only pair with 1 at a time*/
-joinpair_t* getUartSensorPair(uartsensors_device_t* p){
-	joinpair_t* pair = 0;
-	for(int i=0; i<pairscount; i++){
-		if(pairs[i].deviceptr == (void*)p){
-			pair = &pairs[i];
-			break;
-		}
-	}
-	return pair;
 }
 
 void res_uartsensors_activate(uartsensors_device_t* p){
