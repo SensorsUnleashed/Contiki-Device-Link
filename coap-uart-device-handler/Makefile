@@ -1,5 +1,5 @@
 CONTIKI_PROJECT = er-uart-server
-PROJECT_SOURCEFILES += storage.c 
+PROJECT_SOURCEFILES += pairing.c 
 
 all: $(CONTIKI_PROJECT)
 

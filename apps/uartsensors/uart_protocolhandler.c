@@ -259,13 +259,12 @@ int cp_decodeU16Array(uint8_t* buffer, uint16_t* arr, uint32_t* len){
 //The stringlen will contain the actual stringlen if parsing is a success
 //len will be the index of where we read to
 //Returns 0 if success
-//Returns 1 if success
+//Returns 1 if error
 int cp_decode_string(uint8_t* buffer, char* string, uint32_t* stringlen, uint32_t* len){
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, buf_reader, 0);
 	int ret = 1;
 	if(cmp_read_str(&cmp, string, stringlen)){
-
 		ret = 0;
 	}
 	*len += (uint8_t*)cmp.buf - buffer;

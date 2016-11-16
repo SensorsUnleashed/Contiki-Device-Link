@@ -6,4 +6,6 @@
 *.bin
 *.map
 *.log
-
+/pairs
+/coap-uart-device-handler/symbols.c
+/coap-uart-device-handler/symbols.h

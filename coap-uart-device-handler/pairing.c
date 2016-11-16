@@ -12,8 +12,9 @@
 #include "uartsensors.h"
 #include <string.h>
 #include "net/ip/uip.h"
+#include "lib/memb.h"
 
-#define DEBUG 1
+//#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -37,65 +38,31 @@ static uint32_t file_writer(cmp_ctx_t* ctx, const void *data, uint32_t count);
 static uint8_t buffer[BUFFERSIZE] = { 0 };
 static uint32_t bufsize = 0;
 
-joinpair_t pairs[20];
-int pairscount = 0;
+LIST(pairings_list);
+MEMB(pairings, joinpair_t, 20);
 
-/*
- * Get a list of destinations connected to the resource p
- * TODO: Make this a list of pairs, instead of a single one
- * */
-joinpair_t* getUartSensorPair(uartsensors_device_t* p){
-	joinpair_t* pair = 0;
-	for(int i=0; i<pairscount; i++){
-		if(pairs[i].deviceptr == p){	//Is it the right device?
-			pair = &pairs[i];
-			break;
-		}
-	}
-	return pair;
+list_t pairing_get_pairs(void)
+{
+  return pairings_list;
 }
 
 /*
  *	Restore pairing
  * */
 void activateUartSensorPairing(uartsensors_device_t* p){
-	for(int i=0; i<pairscount; i++){
+
+	joinpair_t *pair = NULL;
+
+	for(pair = (joinpair_t *)list_head(pairings_list);
+			pair; pair = pair->next) {
 		int urllen = strlen(p->conf.attr);
-		if(urllen == strlen(MMEM_PTR(&pairs[i].srcurl))){
-			if(strncmp(MMEM_PTR(&pairs[i].srcurl), p->conf.attr, urllen) == 0){
-				pairs[i].devicetype = uartsensor;
-				pairs[i].deviceptr = p;
+		if(urllen == strlen((char*)MMEM_PTR(&pair->srcurl))){
+			if(strncmp((char*)MMEM_PTR(&pair->srcurl), p->conf.attr, urllen) == 0){
+				pair->devicetype = uartsensor;
+				pair->deviceptr = p;
 			}
 		}
 	}
-}
-
-
-//Return 0 if success
-//Return 1 if memory could not be allocated
-uint8_t createPairing(uip_ip6addr_t* dst_ipaddr, char* dst_uri, char* src_uri, enum datatype_e type, void* deviceptr){
-
-	//Store the pairing pointer
-	if(mmem_alloc(&pairs[pairscount].dsturl, strlen(dst_uri)) == 0){
-		//Blink red light, if pairing has errors
-		//REST.set_response_status(response, REST.status.INTERNAL_SERVER_ERROR);
-		return 1;
-	}
-	if(mmem_alloc(&pairs[pairscount].srcurl, strlen(src_uri)) == 0){
-		//Blink red light, if pairing has errors
-		//REST.set_response_status(response, REST.status.INTERNAL_SERVER_ERROR);
-		return 1;
-	}
-
-	memcpy(&pairs[pairscount].destip, &dst_ipaddr, sizeof(uip_ip6addr_t));
-	memcpy(MMEM_PTR(&pairs[pairscount].dsturl), dst_uri, strlen(dst_uri));
-	memcpy(MMEM_PTR(&pairs[pairscount].srcurl), src_uri, strlen(src_uri));
-	pairs[pairscount].devicetype = type;
-	pairs[pairscount].deviceptr = deviceptr;
-
-	pairscount++;
-
-	return 0;
 }
 
 uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len){
@@ -152,56 +119,52 @@ uint8_t parseMessage(enum datatype_e restype, joinpair_t* pair){
 //Return 0 if success
 //Return >0 if error:
 // 1 = IP address can not be parsed
-// 2 = Src uri could not be parsed
-// 3 = devices already paired
-// 4 = Sensortype unknown
-// 5 = Memory allocation failed
+// 2 = dst_uri could not be parsed
+// 3 = Unable to allocate enough dynamic memory
+// 4 = src_uri could not be parsed
+//5 = device already paired
+
 uint8_t pairing_handle(void* resource, enum datatype_e restype){
 
-	uip_ip6addr_t dst_ipaddr;
-	uint32_t bufindex = 0;
-	uint32_t stringlen = 100;
-	char stringbuf[100];
+	uint32_t bufindex = bufsize;
 	uint8_t* payload = &buffer[0];
-	char* src_uri;
 
-	if(cp_decodeU16Array((uint8_t*) payload + bufindex, (uint16_t*)&dst_ipaddr, &bufindex) != 0){
-		return 1;
-	}
-
-	if(cp_decode_string((uint8_t*) payload + bufindex, &stringbuf[0], &stringlen, &bufindex) != 0){
-		return 2;
-	}
-
-	stringlen++;	//We need the /0 also
-
-	//Check if the pairing is already done
-	if(getUartSensorPair(resource) != 0){	//THIS IS NOT ENOUGH!!!
-		//Ok we know that a pairing exists.
-
-		return 3;
-	}
-
-
-
+	//Append the src uri to the message.
 	if(restype == uartsensor){
 		uartsensors_device_t* resptr = (uartsensors_device_t*)resource;
-		//Append the srcurl to the message
 		cp_encodeString((uint8_t*) payload + bufindex, resptr->conf.attr, strlen(resptr->conf.attr), &bufindex);
-		src_uri = resptr->conf.attr;
-	}
-	else{
-		//Ups - not implemented this kind of resource yet
-		return 4;
 	}
 
-	//Store pairing info into flash
+	joinpair_t p;
+
+	int ret = parseMessage(restype, &p);
+
+	if(ret != 0) return ret;
+
+	p.deviceptr = resource;
+
+	//Check if the pairing is already done
+	joinpair_t* pair;
+	uartsensors_device_t* r = (uartsensors_device_t*) resource;
+	for(pair = (joinpair_t *)list_head(pairings_list);
+			pair; pair = pair->next) {
+		int urllen = strlen(r->conf.attr);
+		if(urllen == strlen((char*)MMEM_PTR(&pair->srcurl))){
+			if(strncmp((char*)MMEM_PTR(&pair->srcurl), r->conf.attr, urllen) == 0){
+				return 3;
+			}
+		}
+	}
+
+	pair = (joinpair_t*)memb_alloc(&pairings);
+	if(pair == 0) return 3;
+
+	//Add pair to the list of pairs
+	memcpy(pair, &p, sizeof(joinpair_t));
+	list_add(pairings_list, pair);
+
+	//Finally store pairing info into flash
 	store_SensorPair(payload, bufindex);
-
-	//Next create the pair, to make it work without a reboot (TODO: Do this from flash, to verify the pairing)
-	if(createPairing(&dst_ipaddr, stringbuf, src_uri, restype, resource) != 0){
-		return 5;
-	}
 
 	bufsize = 0;	//Ready for next pairing
 	return 0;
@@ -240,10 +203,14 @@ void restore_SensorPairs(void){
 	cmp_init(&cmp, &read, file_reader, file_writer);
 	bufsize = BUFFERSIZE;
 	while(cmp_read_bin(&cmp, buffer, &bufsize)){
-		if(parseMessage(uartsensor, &pairs[pairscount]) == 0){
-			PRINTF("SrcUri: %s -> DstUri: %s\n", (char*)MMEM_PTR(&pairs[pairscount].srcurl), (char*)MMEM_PTR(&pairs[pairscount].dsturl));
-			pairscount++;
-
+		joinpair_t pair;
+		if(parseMessage(uartsensor, &pair) == 0){
+			PRINTF("SrcUri: %s -> DstUri: %s\n", (char*)MMEM_PTR(&pair.srcurl), (char*)MMEM_PTR(&pair.dsturl));
+			joinpair_t* p = (joinpair_t*)memb_alloc(&pairings);
+			memcpy(p, &pair, sizeof(joinpair_t));
+			if(p != 0){
+				list_add(pairings_list, p);
+			}
 		}
 		bufsize = BUFFERSIZE;
 	}

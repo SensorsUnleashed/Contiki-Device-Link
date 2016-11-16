@@ -22,9 +22,8 @@
 #include "pairing.h"
 
 MEMB(coap_resources, resource_t, MAX_RESOURCES);
-#define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 
-#define DEBUG 1
+//#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)

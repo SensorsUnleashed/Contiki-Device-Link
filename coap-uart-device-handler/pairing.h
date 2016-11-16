@@ -12,6 +12,7 @@
 #include "mmem.h"
 #include "net/ip/uiplib.h"
 #include "uartsensors.h"
+#include "lib/list.h"
 
 //We need to have a way to keep track of which sensor a notification belongs to
 enum datatype_e{
@@ -19,6 +20,8 @@ enum datatype_e{
 	sensor
 };
 struct joinpair_s{
+	struct joinpair_s *next;	/* for LIST, points to next resource defined */
+
 	struct mmem dsturl;
 	struct mmem srcurl;	//Used only to determine at boot, which resource we are a pair of.
 	enum datatype_e devicetype;
@@ -28,6 +31,7 @@ struct joinpair_s{
 
 typedef struct joinpair_s joinpair_t;
 
+list_t pairing_get_pairs(void);
 joinpair_t* getUartSensorPair(uartsensors_device_t* p);
 void activateUartSensorPairing(uartsensors_device_t* p);
 
