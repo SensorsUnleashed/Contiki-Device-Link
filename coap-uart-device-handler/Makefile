@@ -13,7 +13,14 @@ CFLAGS += -DPROJECT_CONF_H=\"project-conf.h\"
 ifeq ($(TARGET), native)
 CFLAGS += -DNATIVE=1
 PROJECT_SOURCEFILES += coap_proxy_test.c
-else
+endif
+
+ifeq ($(TARGET), minimal-net)
+CFLAGS += -DNATIVE=1
+PROJECT_SOURCEFILES += coap_proxy_test.c
+endif 
+
+ifeq ($(TARGET), su-cc2538-1)
 CFLAGS += -DNATIVE=0
 endif
 
@@ -49,10 +56,23 @@ include $(CONTIKI)/Makefile.include
 
 # minimal-net target is currently broken in Contiki
 ifeq ($(TARGET), minimal-net)
-CFLAGS += -DHARD_CODED_ADDRESS=\"fdfd::10\"
+CFLAGS += -DHARD_CODED_ADDRESS=\"fd81:3daa:fb4a:f7ae\" 
 ${info INFO: er-example compiling with large buffers}
 CFLAGS += -DUIP_CONF_BUFFER_SIZE=1300
 CFLAGS += -DREST_MAX_CHUNK_SIZE=1024
 CFLAGS += -DCOAP_MAX_HEADER_SIZE=176
+CFLAGS += -DUIP_CONF_RECEIVE_WINDOW=1000
+
 CONTIKI_WITH_RPL=0
+
+
+
+#CFLAGS += -DUIP_CONF_ND6_DEF_MAXDADNS=0
 endif
+
+#connect-minimal:
+#	sudo ip address add fdfd::1/64 dev tap0
+#  	#sudo ip address add fd81:3daa:fb4a:f7ae:a537:bb41:56f9:3020 dev tap0
+#  	sudo ip address add fe80::dead:beef/64 dev tap0
+  
+  
