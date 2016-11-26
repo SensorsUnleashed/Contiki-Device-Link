@@ -5,12 +5,19 @@
  *      Author: omn
  */
 #include "contiki.h"
-#include "uart_protocolhandler.h"
-#include <stdio.h>
-#include <string.h>
-#include "rest-engine.h"
+#include <stdio.h>      // standard input / output functions
+#include <stdlib.h>
+#include <string.h>     // string function definitions
+#include <unistd.h>     // UNIX standard function definitions
+#include <fcntl.h>      // File control definitions
+#include <errno.h>      // Error number definitions
+#include <termios.h>    // POSIX terminal control definitions
 
-#include "cmp.h"
+/*
+ * To use the QT sensor test app, start this command from the command line,
+ * and attach to the interface given.
+ * socat -d -d PTY PTY
+ * */
 
 #define END     0xC0
 #define ESC     0xDB
@@ -20,182 +27,111 @@
 #define ACK     0x06
 #define NAK     0x15
 
-#define RESOURCE_COUNT	2
-char* rs001_group = "button";
-char* rs001_type  = "actuator";
-char* rs001_att = "title=\"Green LED\" ;rt=\"Control\"";
-char* rs001_spec = "ON=1, OFF=0";
-char* rs001_unit = "";	//No unit
-
-char* rs002_group = "timer";
-char* rs002_type  = "counter";
-char* rs002_att = "title=\"Orange LED\";rt=\"Control\"";
-char* rs002_spec = "1 sec";
-char* rs002_unit = "Sec";
-
-static void tx_value(int id);
-static struct resourceconf rs[RESOURCE_COUNT];
-
-//When a message has been decoded, this is where it goes
-static rx_msg rx_req;
-
-char inputbuffer[1024];
-char* rd_ptr = &inputbuffer[0];
-char* wrt_ptr = &inputbuffer[0];
-
-static struct etimer et;
-
 process_event_t event_data_ready;
 PROCESS(coap_proxy_test, "Coap uart proxy test");
 
 static int (* input_handler)(unsigned char c);
+static int fd;
+
+int set_interface_attribs(int fd, int speed)
+{
+	struct termios tty;
+
+	if (tcgetattr(fd, &tty) < 0) {
+		printf("Error from tcgetattr: %s\n", strerror(errno));
+		return -1;
+	}
+
+	cfsetospeed(&tty, (speed_t)speed);
+	cfsetispeed(&tty, (speed_t)speed);
+
+	tty.c_cflag |= (CLOCAL | CREAD);    /* ignore modem controls */
+	tty.c_cflag &= ~CSIZE;
+	tty.c_cflag |= CS8;         /* 8-bit characters */
+	tty.c_cflag &= ~PARENB;     /* no parity bit */
+	tty.c_cflag &= ~CSTOPB;     /* only need 1 stop bit */
+	tty.c_cflag &= ~CRTSCTS;    /* no hardware flowcontrol */
+
+	/* setup for non-canonical mode */
+	tty.c_cc[VMIN]   =  0;                  // read doesn't block
+	tty.c_cc[VTIME]  =  0;                  // 0.5 seconds read timeout
+	tty.c_cflag     |=  CREAD | CLOCAL;     // turn on READ & ignore ctrl lines
+
+	/* Make raw */
+	cfmakeraw(&tty);
+
+
+	/* Flush Port, then applies attributes */
+	tcflush( fd, TCIFLUSH );
+
+	if (tcsetattr(fd, TCSANOW, &tty) != 0) {
+		printf("Error from tcsetattr: %s\n", strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+
 void uart_set_input(uint8_t uart, int (* input)(unsigned char c))
 {
 	input_handler = input;
 
-	//init the resources, that we would like to emulate
-	rs[0] = (struct resourceconf){
-		.id = 0,
-				.resolution = 100,
-				.flags = METHOD_GET | METHOD_PUT | IS_OBSERVABLE,
-				.max_pollinterval = 2000,
-				.version = 0001,
-				.unit = rs001_unit,
-				.spec = rs001_spec,
-				.group = rs001_group,
-				.type = rs001_type,
-				.attr = rs001_att,
-	};
-	rs[1] = (struct resourceconf){
-		.id = 1,
-				.resolution = 100,
-				.flags = METHOD_GET | METHOD_PUT | IS_OBSERVABLE,
-				.max_pollinterval = -1,
-				.version = 0001,
-				.unit = rs002_unit,
-				.spec = rs002_spec,
-				.group = rs002_group,
-				.type = rs002_type,
-				.attr = rs002_att,
-	};
+	//init uart
+	char *portname = "/dev/pts/2";
 
-	rx_req.payload = &inputbuffer[0];
+	int wlen;
 
+	fd = open(portname, O_RDWR | O_NOCTTY | O_SYNC | O_NONBLOCK);
+	if (fd < 0) {
+		printf("Error opening %s: %s\n", portname, strerror(errno));
+		return;
+	}
+	/*baudrate 115200, 8 bits, no parity, 1 stop bit */
+	set_interface_attribs(fd, B115200);
+
+    /* delay for output */
 	//Start the process from here
 	process_start(&coap_proxy_test, 0);
 }
 
-
-
-unsigned int frametx(const unsigned char *s, unsigned int len){
-	unsigned int i = 0;
-	char c;
-	while(len--){
-		c = *s++;
-		if(c == END){
-			input_handler(ESC);
-			input_handler(ESC_END);
-		}
-		else if(c == ESC){
-			input_handler(ESC);
-			input_handler(ESC_ESC);
-		}
-		else{
-			input_handler(c);
-		}
-	}
-	input_handler(END);
-	return i;
-}
-
-//This emulates a byte is received from the proxy
-void uart_emulate_rx(uint8_t c){
-	//Unstuff the message before storing it in the input buffer
-	static char last_c = 0;
-	if(c == END){	//Is it the last byte in a frame
-		process_post(&coap_proxy_test, event_data_ready, 0);
-	}
-	else if(c == ESC_ESC && last_c == ESC){
-		*wrt_ptr++ = last_c;
-	}
-	else if(c == ESC_END && last_c == ESC){
-		*wrt_ptr++ = END;
-	}
-	else{
-		*wrt_ptr++ = c;
-	}
-	last_c = c;
-}
 void uart_write_byte(uint8_t uart, uint8_t c)
 {
-	uart_emulate_rx(c);
-}
+	static char last_c = 0;
+	if(c == ESC_ESC && last_c == ESC){
+		write(fd, &last_c, 1);
+	}
+	else if(c == ESC_END && last_c == ESC){
+		write(fd, (char)END, 1);
+	}
+	else{
+		write(fd, &c, 1);
+	}
+	last_c = c;
 
+	tcdrain(fd);    /* delay for output */
+}
+char c;
 PROCESS_THREAD(coap_proxy_test, ev, data)
 {
+	static struct etimer et;
+
 	PROCESS_BEGIN();
+
 	printf("Coap proxy test started\n");
 
-	/* allocate the required event */
-	event_data_ready = process_alloc_event();
-
-	/* Send a new message every second */
-	etimer_set(&et, CLOCK_SECOND);
+	etimer_set(&et, CLOCK_SECOND/10);
 
 	while(1) {
-		PROCESS_WAIT_EVENT();
-		if(ev == event_data_ready){
-
-			if(cp_decodemessage(rd_ptr, wrt_ptr - rd_ptr, &rx_req) == 0){
-				if(rx_req.cmd == resource_count){
-					char c = RESOURCE_COUNT;
-					frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(rx_req.seqno, resource_count, &c, 1, (uint8_t*)&inputbuffer[0]));
-				}
-				else if(rx_req.cmd == resource_config){
-					int id = *((char*)rx_req.payload);
-					if(id < RESOURCE_COUNT){
-						int len = cp_encoderesource_conf(&rs[id], (uint8_t*)&inputbuffer[0]);
-						frametx((uint8_t*)&inputbuffer[len], cp_encodemessage(rx_req.seqno, resource_config, &inputbuffer[0], len, (uint8_t*)&inputbuffer[len]));
-					}
-					else
-						printf("Wrong Resource ID (resource_config)");
-				}
-				//Reset buffer to be ready to receive yet another message
-				wrt_ptr = &inputbuffer[0];
-			}
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+		while(read(fd, &c, 1) > 0){
+			input_handler(c);
 		}
-
-		else if(ev == PROCESS_EVENT_TIMER){
-			etimer_reset(&et);
-			tx_value(1);
-		}
+		etimer_reset(&et);
 	}
-
 	PROCESS_END();
 }
 
-void tx_value(int id){
-	char pl[20];
-	char* plptr = &pl[0];
-	cmp_object_t obj;
 
-	//first pack the ID
-	obj.type = CMP_TYPE_POSITIVE_FIXNUM;
-	obj.as.u8 = id;
-	plptr += cp_encodeObject((uint8_t*)plptr, &obj);
 
-	if(id == 0){
-		//Next the payload
-		obj.type = CMP_TYPE_POSITIVE_FIXNUM;
-		obj.as.u8 = 1;
-		plptr += cp_encodeObject((uint8_t*)plptr, &obj);
-	}
-	else if(id == 1){
-		//Next the payload
-		obj.type = CMP_TYPE_UINT64;
-		obj.as.u64 = clock_seconds();
-		plptr += cp_encodeObject((uint8_t*)plptr, &obj);
-	}
 
-	frametx((uint8_t*)&inputbuffer[0], cp_encodemessage(255, resource_value_update, (char*)&pl[0], (char)((unsigned long)plptr - (unsigned long)&pl[0]), (uint8_t*)&inputbuffer[0]));
-}
+
