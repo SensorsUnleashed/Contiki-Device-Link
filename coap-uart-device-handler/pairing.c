@@ -14,7 +14,7 @@
 #include "net/ip/uip.h"
 #include "lib/memb.h"
 
-//#define DEBUG 1
+#define DEBUG 0
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -34,7 +34,7 @@ struct file_s{
 static bool file_reader(cmp_ctx_t *ctx, void *data, uint32_t limit);
 static uint32_t file_writer(cmp_ctx_t* ctx, const void *data, uint32_t count);
 
-#define BUFFERSIZE	200
+#define BUFFERSIZE	300
 static uint8_t buffer[BUFFERSIZE] = { 0 };
 static uint32_t bufsize = 0;
 
@@ -43,7 +43,7 @@ MEMB(pairings, joinpair_t, 20);
 
 list_t pairing_get_pairs(void)
 {
-  return pairings_list;
+	return pairings_list;
 }
 
 /*
@@ -65,7 +65,12 @@ void activateUartSensorPairing(uartsensors_device_t* p){
 	}
 }
 
-uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len){
+//Return 0 if data was stored
+//Return 1 if there was no more space
+uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len, uint32_t num){
+
+	if(num == 0) bufsize = 0;	//Clear the buffer
+	if(bufsize + len > BUFFERSIZE) return 1;
 	//For now only one can pair at a time. There is a single buffer.
 	memcpy(buffer + bufsize, data, len);
 	bufsize += len;
@@ -122,51 +127,71 @@ uint8_t parseMessage(enum datatype_e restype, joinpair_t* pair){
 // 2 = dst_uri could not be parsed
 // 3 = Unable to allocate enough dynamic memory
 // 4 = src_uri could not be parsed
-//5 = device already paired
+// 5 = device already paired
 
 uint8_t pairing_handle(void* resource, enum datatype_e restype){
 
-	uint32_t bufindex = bufsize;
 	uint8_t* payload = &buffer[0];
 
 	//Append the src uri to the message.
 	if(restype == uartsensor){
 		uartsensors_device_t* resptr = (uartsensors_device_t*)resource;
-		cp_encodeString((uint8_t*) payload + bufindex, resptr->conf.attr, strlen(resptr->conf.attr), &bufindex);
+		if(strlen(resptr->conf.attr) + bufsize > BUFFERSIZE) return 3;
+		cp_encodeString((uint8_t*) payload + bufsize, resptr->conf.attr, strlen(resptr->conf.attr), &bufsize);
 	}
 
 	joinpair_t p;
 
 	int ret = parseMessage(restype, &p);
 
-	if(ret != 0) return ret;
+	if(ret != 0){
+		return ret;
+	}
 
 	p.deviceptr = resource;
 
+
+	//p now contains all pairing details.
+	//To avoid having redundant paring, check if we
+	//already has this pairing in store
+
 	//Check if the pairing is already done
-	joinpair_t* pair;
-	uartsensors_device_t* r = (uartsensors_device_t*) resource;
-	for(pair = (joinpair_t *)list_head(pairings_list);
-			pair; pair = pair->next) {
-		int urllen = strlen(r->conf.attr);
-		if(urllen == strlen((char*)MMEM_PTR(&pair->srcurl))){
-			if(strncmp((char*)MMEM_PTR(&pair->srcurl), r->conf.attr, urllen) == 0){
-				return 3;
+	joinpair_t* pair = NULL;
+
+	for(pair = (joinpair_t *)list_head(pairings_list); pair; pair = pair->next) {
+		if(pair->deviceptr == p.deviceptr){		//Is it the same sensor
+			if(pair->dsturl.size == p.dsturl.size){
+				if(strncmp((char*)MMEM_PTR(&pair->dsturl),(char*)MMEM_PTR(&p.dsturl), pair->dsturl.size) == 0){
+					return 5;
+				}
 			}
 		}
 	}
 
+
+//	uartsensors_device_t* r = (uartsensors_device_t*) resource;
+//
+//	/* This part has a flaw*/
+//	for(pair = (joinpair_t *)list_head(pairings_list);
+//			pair; pair = pair->next) {
+//		int urllen = strlen(r->conf.attr);
+//		if(urllen == strlen((char*)MMEM_PTR(&pair->srcurl))){
+//			if(strncmp((char*)MMEM_PTR(&pair->srcurl), r->conf.attr, urllen) == 0){
+//				return 5;
+//			}
+//		}
+//	}
+
 	pair = (joinpair_t*)memb_alloc(&pairings);
-	if(pair == 0) return 3;
+	if(pair == NULL) return 3;
 
 	//Add pair to the list of pairs
 	memcpy(pair, &p, sizeof(joinpair_t));
 	list_add(pairings_list, pair);
 
 	//Finally store pairing info into flash
-	store_SensorPair(payload, bufindex);
+	store_SensorPair(payload, bufsize);
 
-	bufsize = 0;	//Ready for next pairing
 	return 0;
 }
 

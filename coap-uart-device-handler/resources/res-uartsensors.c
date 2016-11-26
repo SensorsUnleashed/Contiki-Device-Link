@@ -9,8 +9,6 @@
 #include "rest-engine.h"
 #include "dev/leds.h"
 #include "contiki-net.h"
-//#include "net/ip/uip.h"
-//#include "net/ip/uiplib.h"
 #include <string.h>
 #include "er-coap-constants.h"
 #include "er-coap-observe-client.h"
@@ -126,9 +124,9 @@ static void res_proxy_post_handler(void *request, void *response, uint8_t *buffe
  * */
 
 static uint8_t large_update_store[200] = { 0 };
-static int32_t large_update_size = 0;
+//static int32_t large_update_size = 0;
 
-	static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
+static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	leds_toggle(LEDS_YELLOW);
 
 	const char *url = NULL;
@@ -193,7 +191,7 @@ static int32_t large_update_size = 0;
 			if((len = REST.get_request_payload(request, (const uint8_t **)&payload))) {
 				if(coap_req->block1_num * coap_req->block1_size + len <= sizeof(large_update_store)) {
 
-					if(pairing_assembleMessage(payload, len) == 0){
+					if(pairing_assembleMessage(payload, len, coap_req->block1_num) == 0){
 						REST.set_response_status(response, REST.status.CHANGED);
 						coap_set_header_block1(response, coap_req->block1_num, 0, coap_req->block1_size);
 					}
@@ -211,27 +209,28 @@ static int32_t large_update_size = 0;
 							REST.set_response_status(response, REST.status.BAD_REQUEST);
 							const char *error_msg1 = "IPAdress wrong";
 							REST.set_response_payload(response, error_msg1, strlen(error_msg1));
-							return;
 							break;
 						case 2:
 							REST.set_response_status(response, REST.status.BAD_REQUEST);
-							const char *error_msg2 = "URI wrong";
+							const char *error_msg2 = "Destination URI wrong";
 							REST.set_response_payload(response, error_msg2, strlen(error_msg2));
-							return;
 							break;
-						case 3:	//Already paired
-							REST.set_response_status(response, REST.status.NOT_MODIFIED);
+						case 3:
+							REST.set_response_status(response, REST.status.INTERNAL_SERVER_ERROR);
 							break;
 						case 4:
+							REST.set_response_status(response, REST.status.BAD_REQUEST);
+							const char *error_msg3 = "Source URI wrong";
+							REST.set_response_payload(response, error_msg3, strlen(error_msg3));
+							break;
 						case 5:
-							REST.set_response_status(response, REST.status.INTERNAL_SERVER_ERROR);
+							REST.set_response_status(response, REST.status.NOT_MODIFIED);
 							break;
 						}
 					}
 				}
 				else {
 					REST.set_response_status(response, REST.status.REQUEST_ENTITY_TOO_LARGE);
-					//REST.set_response_payload(response, buffer, snprintf((char *)buffer, 200, "%uB max.", sizeof(large_update_store)));
 					return;
 				}
 			}

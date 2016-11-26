@@ -35,7 +35,7 @@ list_t pairing_get_pairs(void);
 joinpair_t* getUartSensorPair(uartsensors_device_t* p);
 void activateUartSensorPairing(uartsensors_device_t* p);
 
-uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len);
+uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len, uint32_t num);
 uint8_t pairing_handle(void* resource, enum datatype_e restype);
 void store_SensorPair(uint8_t* data, uint32_t len);
 void restore_SensorPairs(void);
