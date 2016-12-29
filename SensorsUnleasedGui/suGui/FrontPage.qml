@@ -27,12 +27,6 @@ Item {
 
                 onClicked: {
 
-//                    dstnode.activeip = "fe80::797c:1223:5f1f:e7fb";
-//                    srcnode.activeip = "fe80::797c:1223:5f1f:e7fb";
-
-//                    dstnode.activeurl = "test/test2";
-//                    srcnode.activeurl = "test/test2";
-
                     if(!dstnode.activeip || !dstnode.activeurl) return;
                     if(!srcnode.activeip || !srcnode.activeurl) return;
 

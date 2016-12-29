@@ -91,6 +91,7 @@ private:
 
     void parseMessage(QHostAddress sender, struct coapMessageStore* message);
     QVariant parseAppLinkFormat(QByteArray payload);
+    QVariant parseAppOctetFormat(QByteArray payload);
 
     QString codeTostring(enum CoapPDU::Code code);
 

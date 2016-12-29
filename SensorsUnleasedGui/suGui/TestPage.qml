@@ -52,10 +52,31 @@ Item {
                 textRole: "format"
             }
 
+            ComboBox {
+                id: query;
+                width: 150;
+                height: parent.height;
+                model: ListModel {
+                    id: queryitems;
+                    ListElement { q_command: "Empty"; }
+                    ListElement { q_command: "AboveEventAt"; }
+                    ListElement { q_command: "BelowEventAt"; }
+                    ListElement { q_command: "ChangeEventAt"; }
+                }
+                delegate: ItemDelegate {
+                    width: query.width
+                    text: q_command
+                    font.weight: query.currentIndex === index ? Font.DemiBold : Font.Normal
+                    highlighted: query.highlightedIndex == index
+                }
+
+                textRole: "q_command"
+            }
+
             CoapButton{
                 id: reqbutton;
                 text: "Get";
-                requrl: nodesdir.activeurl;
+                requrl: queryitems.get(query.currentIndex).q_command === "Empty" ? nodesdir.activeurl : nodesdir.activeurl + "?" + queryitems.get(query.currentIndex).q_command;
                 ipaddr: nodesdir.activeip;
                 options: {
                     'ct': formatitems.get(content.currentIndex).formatindex,
@@ -74,6 +95,8 @@ Item {
                 }
                 payload: "Dette er en test for at se om vi kan sende en lang tekst";
             }
+
+
         }
         Column{
             id: row3;

@@ -42,7 +42,7 @@ coaphandler::coaphandler(database *db)
     acktimer = new QTimer();
     acktimer->setSingleShot(true);
     connect(acktimer, SIGNAL(timeout()), this, SLOT(timeout()));
-    initSocket();
+    //initSocket();
 }
 
 /**************************************************
@@ -218,7 +218,7 @@ void coaphandler::initSocket()
 }
 
 void coaphandler::send(QHostAddress addr, uint8_t* pduptr, int len){
-    qDebug() << "Send pdu to: " << addr.toString();
+    //qDebug() << "Send pdu to: " << addr.toString();
     udpSocket->writeDatagram((char*)pduptr, len, addr, 5683);
 }
 
@@ -234,7 +234,7 @@ void coaphandler::readPendingDatagrams()
         udpSocket->readDatagram(datagram.data(), datagram.size(),
                                 &sender, &senderPort);
 
-        //qDebug() << "Message received";
+        qDebug() << "Message received";
         //processTheDatagram(datagram);
         CoapPDU *recvPDU = new CoapPDU((uint8_t*)datagram.data(),datagram.length());
         CoapPDU *txPDU; //Assign this pdu to the next pdu to send, and switch out with the one in the store
@@ -254,6 +254,7 @@ void coaphandler::readPendingDatagrams()
                 }
 
                 CoapPDU::Code code = recvPDU->getCode();
+                qDebug() << code;
 
                 /* Handle block1 - response from a put/post (Send more money) */
                 options = coap_check_option(recvPDU, CoapPDU::COAP_OPTION_BLOCK1);
@@ -267,10 +268,12 @@ void coaphandler::readPendingDatagrams()
                     //Sender send us some options to use from now on
                     if(parseBlockOption(options, &more, &num, &szx) == 0){
                         prefsize = 1 << (szx + 4);
+                        qDebug() << "Block1: " << num << "/" << more << "/" << prefsize;
                     }
                     else{   //We continue with whatever options we started with
                         num = storedPDUdata->num;
                         prefsize = prefMsgSize;
+                        qDebug() << "Block1: " << num << "/" << more << "/" << prefsize << " else";
                     }
 
                     if(bytesleft){
@@ -302,7 +305,7 @@ void coaphandler::readPendingDatagrams()
                     else{
                         qDebug() << "ACK - Finished transmitting large message";
                         emit coapCode(QVariant(storedPDUdata->token), codeTostring(code));
-                        //removePDU(storedPDUdata->token);
+                        removePDU(storedPDUdata->token);
                     }
                 }
 
@@ -314,6 +317,8 @@ void coaphandler::readPendingDatagrams()
                     uint8_t szx;
                     if(parseBlockOption(options, &more, &num, &szx) == 0){
                         uint32_t offset = num << (szx + 4);
+
+                        qDebug() << "Block2: " << num << "/" << more << "/" << (1 << (szx + 4));
 
                         uint8_t* pl = recvPDU->getPayloadPointer();
                         for(int i=0; i<recvPDU->getPayloadLength(); i++){
@@ -405,6 +410,8 @@ void coaphandler::parseMessage(QHostAddress sender, coapMessageStore* message){
         //This is the content format Sensors Unleashed uses for its data
         //emit coapSUMessageRdy(message->token, )
         qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET";
+        node->recvMessage = parseAppOctetFormat(message->rx_payload);
+        emit coapMessageRdy(QVariant(message->token));
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_EXI:
         qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_EXI";
@@ -436,6 +443,20 @@ QVariant coaphandler::parseAppLinkFormat(QByteArray payload){
 
     return linklist;
 }
+
+#include "msgpack.h"
+QVariant coaphandler::parseAppOctetFormat(QByteArray payload){
+
+    msgunpack unpacker(payload);
+
+    cmp_object_t obj;
+    if(unpacker.getResult(&obj) == 0){
+        qDebug() << obj.type;
+    }
+
+    //int ret = cp_decodeObject((uint8_t*)payload.data(), &obj, &len);
+}
+
 
 /**************************************************
  * Private timeout handler functions used by the coaphandler

@@ -42,12 +42,16 @@ class CoapPDU {
 			COAP_PUT,
 			COAP_DELETE,
 			COAP_LASTMETHOD=0x1F,
-			COAP_CREATED=0x41,
-			COAP_DELETED,
-			COAP_VALID,
-			COAP_CHANGED,
-			COAP_CONTENT,
-			COAP_BAD_REQUEST=0x80,
+
+            COAP_CREATED=0x41,  //65
+            COAP_DELETED,       //66
+            COAP_VALID,         //67 (Not modified)
+            COAP_CHANGED,       //68
+            COAP_CONTENT,       //69 = OK
+
+            COAP_CONTINUE=0x5F,
+
+            COAP_BAD_REQUEST=0x80,  //128
 			COAP_UNAUTHORIZED,
 			COAP_BAD_OPTION,
 			COAP_FORBIDDEN,

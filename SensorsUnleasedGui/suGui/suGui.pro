@@ -10,12 +10,20 @@ SOURCES += main.cpp \
     database.cpp \
     ../../apps/uartsensors/cmp.c \
     ../../contiki/core/lib/crc16.c \
-    ../../apps/uartsensors/uart_protocolhandler.c
+    ../../apps/uartsensors/uart_protocolhandler.c \
+    msgpack.cpp \
+    node.cpp \
+    wsn.cpp \
+    socket.cpp \
+    helper.cpp \
+    sensor.cpp
 
 RESOURCES += \
     pages.qrc \
     widgets.qrc \
-    qml.qrc
+    qml.qrc \
+    setupscreens.qrc \
+    sensorwidgets.qrc
 
 # Additional import path used to resolve QML modules in Qt Creator's code model
 QML_IMPORT_PATH =
@@ -34,7 +42,13 @@ HEADERS += \
     cantcoap/sysdep.h \
     database.h \
     ../../apps/uartsensors/cmp.h \
-    ../../contiki/core/lib/crc16.h
+    ../../contiki/core/lib/crc16.h \
+    msgpack.h \
+    node.h \
+    wsn.h \
+    socket.h \
+    coapheaders.h \
+    helper.h
 
 copydata.commands = $(COPY_DIR) $$PWD/Database/setup.db $$OUT_PWD/Database/setup.db
 first.depends = $(first) copydata
