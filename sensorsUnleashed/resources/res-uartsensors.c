@@ -15,9 +15,8 @@
 #include "net/rime/rime.h"
 #include <stdlib.h>
 
-#include "../pairing.h"
-#include "res-uartsensor.h"
-#include "pairing.h"
+#include "../../sensorsUnleashed/pairing.h"
+#include "../../sensorsUnleashed/resources/res-uartsensor.h"
 
 MEMB(coap_resources, resource_t, MAX_RESOURCES);
 
@@ -275,23 +274,6 @@ void res_uartsensors_activate(uartsensors_device_t* p){
 		//Finally activate the resource with the rest coap
 		rest_activate_resource(r, (char*)r->url);
 		PRINTF("Activated resource: %s Attributes: %s - Spec: %s, Unit: %s\n", r->url, r->attributes, p->conf.spec, p->conf.unit );
-
-		//To be deleted
-		//		joinpair_t* pair = &pairs[pairscount];
-		//		pair->destip.u16[0] = 33277;
-		//		pair->destip.u16[1] = 43581;
-		//		pair->destip.u16[2] = 19195;
-		//		pair->destip.u16[3] = 44791;
-		//		pair->destip.u16[4] = 4610;
-		//		pair->destip.u16[5] = 75;
-		//		pair->destip.u16[6] = 44805;
-		//		pair->destip.u16[7] = 15235;
-		//		pair->deviceptr = p;
-		//
-		//		const char* url = "SU/ledtoggle";
-		//		mmem_alloc(pair->url, strlen(url)+1);
-		//		memcpy(pair->url, &url, strlen(url)+1);
-		//		pairscount++;
 	}
 }
 

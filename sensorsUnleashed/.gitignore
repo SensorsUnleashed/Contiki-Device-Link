@@ -4,3 +4,4 @@
 *.o
 *.d
 
+/obj_minimal-net/

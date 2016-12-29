@@ -179,10 +179,10 @@
  * These values configure which CC2538 pins to use for the I2C lines.
  * @{
  */
-//#define I2C_SCL_PORT             GPIO_B_NUM
-//#define I2C_SCL_PIN              3
-//#define I2C_SDA_PORT             GPIO_B_NUM
-//#define I2C_SDA_PIN              4
+#define I2C_SCL_PORT             GPIO_D_NUM
+#define I2C_SCL_PIN              4
+#define I2C_SDA_PORT             GPIO_D_NUM
+#define I2C_SDA_PIN              3
 /** @} */
 /*---------------------------------------------------------------------------*/
 
@@ -192,7 +192,7 @@
  * \name Device string used on startup
  * @{
  */
-#define BOARD_STRING "SensorsUnleased-CC2538"
+#define BOARD_STRING "SensorsUnleashed-CC2538"
 /** @} */
 /*---------------------------------------------------------------------------*/
 #endif /* BOARD_H_ */

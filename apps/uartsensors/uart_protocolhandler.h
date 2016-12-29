@@ -24,9 +24,15 @@ enum req_cmd {
 };
 
 enum up_parameter{
+	ActualValue,
 	ChangeEventValue,
 	AboveEventValue,
-	BelowEventValue
+	BelowEventValue,
+
+	RangeMinValue,
+	RangeMaxValue,
+
+	EventState,
 };
 
 //This struct contains the raw messages.
@@ -38,9 +44,10 @@ typedef struct  {
 }rx_msg;
 
 enum eventstate{
-	NoEventActive =    (1 << 0),
-	AboveEventActive = (1 << 1),
-	BelowEventActive = (1 << 2),
+	NoEventActive =     (1 << 0),
+	AboveEventActive =  (1 << 1),
+	BelowEventActive =  (1 << 2),
+	ChangeEventActive = (1 << 3),
 };
 
 //void* lastval;			//MsgPacked value. Actual SI value is calculated as: Value * 1/resolution = X [Unit].
@@ -70,6 +77,10 @@ struct resourceconf{
 	cmp_object_t AboveEventAt;	//When resource crosses this line from low to high give an event (>=)
 	cmp_object_t BelowEventAt;	//When resource crosses this line from high to low give an event (<=)
     cmp_object_t ChangeEvent;	//When value has changed more than changeEvent + lastevent value <>= value
+
+    cmp_object_t RangeMin;		//What is the minimum value this device can read
+    cmp_object_t RangeMax;		//What is the maximum value this device can read
+
 
 	char* unit;				//SI unit - can be preceeded with mC for 1/1000 of a C. In that case the resolution should be 1;
 	char* spec;				//Human readable spec of the sensor

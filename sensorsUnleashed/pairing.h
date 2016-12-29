@@ -5,8 +5,8 @@
  *      Author: omn
  */
 
-#ifndef COAP_UART_DEVICE_HANDLER_PAIRING_H_
-#define COAP_UART_DEVICE_HANDLER_PAIRING_H_
+#ifndef SENSORSUNLEASHED_PAIRING_H_
+#define SENSORSUNLEASHED_PAIRING_H_
 
 #include "contiki.h"
 #include "mmem.h"
@@ -42,4 +42,4 @@ void restore_SensorPairs(void);
 
 
 
-#endif /* COAP_UART_DEVICE_HANDLER_PAIRING_H_ */
+#endif /* SENSORSUNLEASHED_PAIRING_H_ */

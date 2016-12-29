@@ -173,7 +173,7 @@ main(void)
   usb_serial_set_input(serial_line_input_byte);
 #endif
 
-  //i2c_init(I2C_SDA_PORT, I2C_SDA_PIN, I2C_SCL_PORT, I2C_SCL_PIN, I2C_SCL_NORMAL_BUS_SPEED);
+  i2c_init(I2C_SDA_PORT, I2C_SDA_PIN, I2C_SCL_PORT, I2C_SCL_PIN, I2C_SCL_NORMAL_BUS_SPEED);
 
   serial_line_init();
 

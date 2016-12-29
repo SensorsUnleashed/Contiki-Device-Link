@@ -44,7 +44,7 @@
 #include "dev/nvic.h"
 #include "dev/ioc.h"
 #include "dev/gpio.h"
-#include "dev/button-sensor.h"
+#include "button-sensor.h"
 #include "sys/timer.h"
 #include "sys/ctimer.h"
 #include "sys/process.h"
@@ -83,7 +83,7 @@ duration_exceeded_callback(void *data)
  *             respectively
  */
 static int
-value(int type)
+value(int type, void* data)
 {
   switch(type) {
   case BUTTON_SENSOR_VALUE_TYPE_LEVEL:
@@ -113,7 +113,7 @@ btn_callback(uint8_t port, uint8_t pin)
 
   if(press_duration) {
     press_event_counter = 0;
-    if(value(BUTTON_SENSOR_VALUE_TYPE_LEVEL) == BUTTON_SENSOR_PRESSED_LEVEL) {
+    if(value(BUTTON_SENSOR_VALUE_TYPE_LEVEL, 0) == BUTTON_SENSOR_PRESSED_LEVEL) {
       ctimer_set(&press_counter, press_duration, duration_exceeded_callback,
                  NULL);
     } else {
@@ -174,6 +174,6 @@ config_user(int type, int value)
   return 1;
 }
 /*---------------------------------------------------------------------------*/
-SENSORS_SENSOR(button_sensor, BUTTON_SENSOR, value, config_user, NULL);
+SENSORS_SENSOR(button_sensor, BUTTON_SENSOR, value, config_user, NULL, NULL);
 /*---------------------------------------------------------------------------*/
 /** @} */

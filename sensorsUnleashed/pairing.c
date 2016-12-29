@@ -4,7 +4,7 @@
  *  Created on: 12/11/2016
  *      Author: omn
  */
-#include "pairing.h"
+#include "../sensorsUnleashed/pairing.h"
 
 #include "contiki.h"
 #include "cfs/cfs.h"
@@ -167,20 +167,6 @@ uint8_t pairing_handle(void* resource, enum datatype_e restype){
 			}
 		}
 	}
-
-
-//	uartsensors_device_t* r = (uartsensors_device_t*) resource;
-//
-//	/* This part has a flaw*/
-//	for(pair = (joinpair_t *)list_head(pairings_list);
-//			pair; pair = pair->next) {
-//		int urllen = strlen(r->conf.attr);
-//		if(urllen == strlen((char*)MMEM_PTR(&pair->srcurl))){
-//			if(strncmp((char*)MMEM_PTR(&pair->srcurl), r->conf.attr, urllen) == 0){
-//				return 5;
-//			}
-//		}
-//	}
 
 	pair = (joinpair_t*)memb_alloc(&pairings);
 	if(pair == NULL) return 3;

@@ -39,13 +39,21 @@
 #include "contiki.h"
 #include "rest-engine.h"
 #include "er-coap-engine.h"
-#include "res-uartsensor.h"
 #include "dev/leds.h"
+#include "dev/pulsesensor.h"
 #include <stdlib.h>
 
-#include "pairing.h"
 #include "uartsensors.h"
 #include "dev/button-sensor.h"
+#include "dev/relay.h"
+#ifndef NATIVE
+#include "dev/cc2538-sensors.h"
+#endif
+#include "dev/button-sensor.h"
+
+#include "../sensorsUnleashed/pairing.h"
+#include "resources/res-uartsensor.h"
+#include "resources/res-susensors.h"
 
 /*
  * Resources to be activated need to be imported through the extern keyword.
@@ -62,6 +70,13 @@ AUTOSTART_PROCESSES(&er_uart_server);
 
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 
+SENSORS(
+		&button_sensor,
+#ifndef NATIVE
+		&cc2538_temp_sensor,
+#endif
+		&pulse_sensor, &relay
+		);
 
 
 static coap_packet_t request[1];      /* This way the packet can be treated as pointer as usual. */
@@ -82,11 +97,18 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	rest_init_engine();
 	coap_init_engine();
 #ifndef NATIVE
+	process_start(&sensors_process, NULL);
 	rest_activate_resource(&res_sysinfo, "SU/SystemInfo");
 #endif
-	rest_activate_resource(&res_large_update, "large-update");
+	//rest_activate_resource(&res_large_update, "large-update");
 	rest_activate_resource(&res_ledtoggle, "SU/ledtoggle");
 	//	rest_activate_resource(&res_mirror, "debug/mirror");
+
+	//Activate all attached sensors
+	SENSORS_ACTIVATE(pulse_sensor);
+	res_susensor_activate(&pulse_sensor);
+	SENSORS_ACTIVATE(relay);
+	res_susensor_activate(&relay);
 
 	uartsensors_init();
 	while(1) {	//Wait until uartsensors has been initialized
