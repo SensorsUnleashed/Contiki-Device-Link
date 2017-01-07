@@ -410,7 +410,6 @@ void coaphandler::parseMessage(QHostAddress sender, coapMessageStore* message){
         //This is the content format Sensors Unleashed uses for its data
         //emit coapSUMessageRdy(message->token, )
         qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET";
-        node->recvMessage = parseAppOctetFormat(message->rx_payload);
         emit coapMessageRdy(QVariant(message->token));
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_EXI:
@@ -443,20 +442,6 @@ QVariant coaphandler::parseAppLinkFormat(QByteArray payload){
 
     return linklist;
 }
-
-#include "msgpack.h"
-QVariant coaphandler::parseAppOctetFormat(QByteArray payload){
-
-    msgunpack unpacker(payload);
-
-    cmp_object_t obj;
-    if(unpacker.getResult(&obj) == 0){
-        qDebug() << obj.type;
-    }
-
-    //int ret = cp_decodeObject((uint8_t*)payload.data(), &obj, &len);
-}
-
 
 /**************************************************
  * Private timeout handler functions used by the coaphandler

@@ -1,5 +1,7 @@
 #include "node.h"
 #include "socket.h"
+#include "helper.h"
+
 QVariant cmpobjectToVariant(cmp_object_t obj);
 int encode(char* buffer, cmp_object_t objTemplate, QVariant value);
 static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit);
@@ -66,6 +68,7 @@ QVariant sensor::getConfigValues(){
 
     return list;
 }
+
 
 //Return index of the token, -1 if not found
 int findToken(uint16_t token, QVector<msgid> tokenlist){
@@ -197,6 +200,45 @@ void sensor::updateConfig(QVariant updatevalues){
     put_request(pdu, req_updateEventsetup, payload);
 }
 
+QVariant sensor::pair(QVariant pairdata){
+
+    helper::uip_ip6addr_t pairaddr;
+    QVariantMap map = pairdata.toMap();
+
+    //Find out if all neccessary informations is available
+    if(!map.contains("addr")) return QVariant(-1);
+    if(!map.contains("url")) return QVariant(-1);
+
+    QByteArray pairaddrstr = map["addr"].toString().toLatin1();
+    if(!helper::uiplib_ip6addrconv(pairaddrstr.data(), &pairaddr)) return QVariant(-1);
+
+    QByteArray pairurlstr = map["url"].toString().toLatin1();
+    if(!pairurlstr.length()) return QVariant(-1);
+
+    QByteArray payload;
+    payload.resize(200);
+
+    cmp_ctx_t cmp;
+    cmp_init(&cmp, payload.data(), buf_reader, buf_writer);
+
+    cmp_write_array(&cmp, sizeof(pairaddr));
+    for(int i=0; i<8; i++){
+        cmp_write_u16(&cmp, pairaddr.u16[i]);
+    }
+
+    cmp_write_str(&cmp, pairurlstr.data(), pairurlstr.length());
+    payload.resize((uint8_t*)cmp.buf - (uint8_t*)payload.data());
+
+    const char* uristring = uri.toLatin1().data();
+    CoapPDU *pdu = new CoapPDU();
+    pdu->setURI((char*)uristring, strlen(uristring));
+    pdu->addURIQuery((char*)"join");
+
+    put_request(pdu, req_pairsensor, payload);
+
+    return QVariant(0);
+}
+
 /******** Sensor reply handlers ************/
 
 void sensor::nodeNotResponding(uint16_t token){
@@ -259,6 +301,16 @@ QVariant sensor::parseAppOctetFormat(uint16_t token, QByteArray payload) {
         case req_updateEventsetup:
             qDebug() << "req_updateEventsetup";
             qDebug() << payload;
+            break;
+        case req_pairsensor:
+            qDebug() << "req_pairsensor";
+            qDebug() << payload;
+            break;
+        //When we request a state change in the device, it always returns its current value
+        case req_setCommand:
+            LastValue = obj;
+            emit currentValueChanged(result);
+            qDebug() << "req_setCommand";
             break;
         }
     }

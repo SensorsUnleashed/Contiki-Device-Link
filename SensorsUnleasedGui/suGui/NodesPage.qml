@@ -79,6 +79,15 @@ Item{
                 nodepage.enabled = true;
         }
     }
+
+    Loader{
+        id: globalpopup;
+
+        width: parent.width;
+        height: parent.height;
+
+        anchors.centerIn: parent;
+    }
 }
 
 

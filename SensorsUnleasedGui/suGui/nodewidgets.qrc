@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>NewNodeScreen.qml</file>
+        <file>Node.qml</file>
+        <file>NodeInformation.qml</file>
+    </qresource>
+</RCC>

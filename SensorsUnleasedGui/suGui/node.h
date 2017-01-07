@@ -18,6 +18,12 @@ enum request{
 
     req_getEventSetup,
     req_updateEventsetup,
+
+    req_pairsensor,
+    /* Used to set a command for an actuator
+     * could be togglerelay or other
+    */
+    req_setCommand,
 };
 
 struct msgid_s{
@@ -48,15 +54,21 @@ public:
     Q_INVOKABLE void updateConfig(QVariant updatevalues);
     Q_INVOKABLE QVariant getConfigValues();   //Get last stored values without quering the sensor
 
+    /* Pair this sensor with another. */
+    Q_INVOKABLE QVariant pair(QVariant pairdata);
+
     void nodeNotResponding(uint16_t token);
     QVariant parseAppOctetFormat(uint16_t token, QByteArray payload);
 
-    /* Pair this sensor with another. */
-    QVariant pair(QVariant pairdata);
 
+
+    virtual QVariant getClassType(){ return "SensorInformation.qml"; }
 protected:
-private:
     QString uri;
+
+    void put_request(CoapPDU *pdu, enum request req, QByteArray payload);
+private:
+
     QVariantMap sensorinfo;
     QVector<msgid> token;
     QHostAddress ip;
@@ -71,7 +83,7 @@ private:
     cmp_object_t RangeMax;		//What is the maximum value this device can read
 
     void get_request(CoapPDU *pdu, enum request req, QByteArray payload=0);
-    void put_request(CoapPDU *pdu, enum request req, QByteArray payload);
+
 signals:
     void currentValueChanged(QVariant result);
     void aboveEventValueChanged(QVariant result);
@@ -85,11 +97,46 @@ signals:
 };
 
 class pulsecounter : public sensor {
+    Q_OBJECT
 public:
-    pulsecounter();
+    pulsecounter(node* parent, QString uri, QVariantMap attributes);
+    QVariant getClassType(){ return "PulseCounter.qml"; }
+
+    Q_INVOKABLE void startPoll(QVariant interval);
+
+private:
+    QTimer* polltimer;
+
+private slots:
+    void doPoll();
+
+};
+
+class powerrelay : public sensor {
+    Q_OBJECT
+public:
+    powerrelay(node* parent, QString uri, QVariantMap attributes);
+    QVariant getClassType(){ return "PowerRelay.qml"; }
+
+    Q_INVOKABLE void toggleRelay();
+    Q_INVOKABLE void setOn();
+    Q_INVOKABLE void setOff();
 
 private:
 };
+
+class ledindicator : public sensor {
+    Q_OBJECT
+public:
+    ledindicator(node *parent, QString uri, QVariantMap attributes);
+    QVariant getClassType(){ return "LedIndicator.qml"; }
+
+    Q_INVOKABLE void toggleRedLED();
+    Q_INVOKABLE void toggleGreenLED();
+    Q_INVOKABLE void toggleOrangeLED();
+    Q_INVOKABLE void toggleYellowLED();
+};
+
 
 
 class node : public wsn
@@ -105,6 +152,9 @@ public:
 
     Q_INVOKABLE void getSensorslist();
     Q_INVOKABLE void requestLinks();
+
+    QVector<sensor*> getSensorslistRaw(){ return sensors; }
+
 
     /* Virtual functions (wsn)*/
     void nodeNotResponding(uint16_t token);
@@ -122,7 +172,7 @@ private:
     QVector<sensor*> sensors;
 
 signals:
-    void sensorFound(QVariant sensorinfo);
+    void sensorFound(QVariant sensorinfo, QVariant source);
 
 public slots:
 };

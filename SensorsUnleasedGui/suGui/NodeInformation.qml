@@ -3,7 +3,7 @@ import QtQuick.Controls 2.0
 import QtQuick.Dialogs 1.2
 
 Item{
-    function addSensor(info){
+    function addSensor(info, source){
         var sensorComponent = Qt.createComponent("Sensor.qml");
         if(sensorComponent.status === Component.Ready) {
             var sensor = sensorComponent.createObject(layout);
@@ -11,7 +11,7 @@ Item{
             sensor.identification = info;
             sensor.parentnode = nodeaddr;
             sensor.loader = sensorpopover;
-            sensor.source = "SensorInformation.qml";
+            sensor.source = source;
         }
     }
 
@@ -72,6 +72,9 @@ Item{
                 spacing: 10
             }
 
+            CoapCommStatus{
+                deviceptr: activeNode;
+            }
         }
 
         Component.onCompleted: {
@@ -82,7 +85,7 @@ Item{
         Connections{
             target: activeNode;
             onSensorFound:{
-                addSensor(sensorinfo);
+                addSensor(sensorinfo, source);
             }
         }
     }

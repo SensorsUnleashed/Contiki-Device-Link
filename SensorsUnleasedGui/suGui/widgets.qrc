@@ -9,7 +9,7 @@
         <file>CoapSetupContent.qml</file>
         <file>SettingSlider.qml</file>
         <file>SUPutValue.qml</file>
-        <file>Node.qml</file>
         <file>SUButton.qml</file>
+        <file>CoapCommStatus.qml</file>
     </qresource>
 </RCC>

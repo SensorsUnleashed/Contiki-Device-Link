@@ -19,7 +19,7 @@ sensor* node::getSensor(QString addr){
 
 void node::getSensorslist(){
     for(int i=0; i<sensors.count(); i++){
-        emit sensorFound(sensors.at(i)->getUri());
+        emit sensorFound(sensors.at(i)->getUri(), sensors.at(i)->getClassType());
     }
 }
 
@@ -51,6 +51,7 @@ void node::nodeNotResponding(uint16_t token){
 
 /* Parse the list of published sensors from this node */
 QVariant node::parseAppLinkFormat(uint16_t token, QByteArray payload){
+    Q_UNUSED(token);
     qDebug() << "node: parseAppLinkFormat";
 
     QString pl = QString(payload);
@@ -78,9 +79,22 @@ QVariant node::parseAppLinkFormat(uint16_t token, QByteArray payload){
         }
 
         if(uri.compare(".well-known/core") != 0){
-            sensor* s = new sensor(this, uri, attributes);
+            sensor* s;
+            if(uri.compare("su/powerrelay") == 0){
+                s = new powerrelay(this, uri, attributes);
+            }
+            else if(uri.compare("su/pulsecounter") == 0){
+                s = new pulsecounter(this, uri, attributes);
+            }
+            else if(uri.compare("su/ledindicator") == 0){
+                s = new ledindicator(this, uri, attributes);
+            }
+            else{
+                s = new sensor(this, uri, attributes);
+            }
+
             sensors.append(s);
-            emit sensorFound(uri);
+            emit sensorFound(uri, s->getClassType());
         }
     }
     this->token = 0;
@@ -88,5 +102,8 @@ QVariant node::parseAppLinkFormat(uint16_t token, QByteArray payload){
 }
 
 QVariant node::parseAppOctetFormat(uint16_t token, QByteArray payload){
+    Q_UNUSED(token);
+    Q_UNUSED(payload);
     qDebug() << "node: parseAppOctetFormat";
+    return QVariant(0);
 }

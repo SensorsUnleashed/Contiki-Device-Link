@@ -50,6 +50,9 @@ void wsn::send(CoapPDU *pdu, uint16_t token, QByteArray payload){
     storedPDU->token = token;
     storedPDU->retranscount = 0;
     activePDUs.append(storedPDU);
+
+    /* Reset the progressbar */
+    emit timeoutinfo(0, retransmissions);
 }
 
 void wsn::stopListening(){
@@ -89,6 +92,7 @@ void wsn::timeout(){
                     delindex.append(activePDUs[i]->token);
                 }
             }
+            emit timeoutinfo(activePDUs[i]->retranscount, retransmissions);
         }
         else    //Not yet expired. Find next timeout - Wait at least 100ms
         {
@@ -329,12 +333,13 @@ void wsn::parseData(QByteArray datagram){
             if(dotx){
 
                 //Request the same content format, as it sends us
-                options = coap_check_option(recvPDU, CoapPDU::COAP_OPTION_CONTENT_FORMAT);
+                options = coap_check_option(storedPDUdata->lastPDU, CoapPDU::COAP_OPTION_CONTENT_FORMAT);
                 if(options){
                     if(options->optionValueLength > 0){
                         txPDU->setContentFormat((enum CoapPDU::ContentFormat)*options->optionValuePointer);
                     }
                 }
+
                 txPDU->setMessageID(recvPDU->getMessageID() + 1);
                 txPDU->setToken(storedPDUdata->lastPDU->getTokenPointer(), storedPDUdata->lastPDU->getTokenLength());
                 txPDU->setType(storedPDUdata->lastPDU->getType());

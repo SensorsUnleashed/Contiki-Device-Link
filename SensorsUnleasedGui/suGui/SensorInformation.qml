@@ -2,25 +2,36 @@ import QtQuick 2.3
 import QtQuick.Controls 2.0
 import QtQuick.Dialogs 1.2
 
-Rectangle {
-    id: sensorinfoscreen;
-    color: suPalette.window;
-    anchors.margins: 20;
-
-    border.color: suPalette.buttonText;
+Item{
+    height: sensorinfoscreen.height;
+    width: parent.width;
 
     property string nodeaddr: "";
     property var nodeinfo;  //As received from the database
 
+    SUButton{
+        id: backbutton;
+        anchors.right: parent.right;
+        text: qsTr("Back");
+        onClicked: {
+            activeSensor.stopListening();
+            sensorpopover.source = "";
+        }
+    }
+
+    CoapCommStatus{
+        anchors.right: backbutton.left;
+        deviceptr: activeSensor;
+    }
+
     Column{
-        width: 600;
-        anchors.top: parent.top;
-        anchors.left: parent.left;
-        anchors.margins: 20;
+        id: sensorinfoscreen;
+
         spacing: 15;
         Label{
             id: namefield;
-            width: parent.width;
+            anchors.left: parent.left;
+            //width: parent.width;
             font.pointSize: 14;
             text: nodeaddr;
         }
@@ -54,54 +65,33 @@ Rectangle {
             }
         }
 
-        SensorConfig{
-            id: configwidget;
-            width: parent.width;
-        }
-
         Row{
-            spacing: 30;
-
-//            SUButton{
-//                text: qsTr("Refresh min/max");
-//                width: 150;
-//                onClicked: {
-//                    activeSensor.requestRangeMin();
-//                    activeSensor.requestRangeMax();
-//                }
-//            }
-
-            SUButton{
-                text: qsTr("Read sensor");
-                width: 150;
-                onClicked: {
-                    activeSensor.req_eventSetup();
-                }
+            spacing: 20;
+            width: parent.width;
+            SensorConfig{
+                id: configwidget;
             }
-            SUButton{
-                text: qsTr("Back");
-                onClicked: {
-                    activeSensor.stopListening();
-                    sensorpopover.source = "";
-                }
+            SensorPairing{
+                id: pairingwidget;
+                height: configwidget.height;
             }
         }
-    }
 
-    Component{
-        id: valuebox;
-        GroupBox{
-            width: 150;
-            height: 100;
-            title: qsTr("Value");
-            Label{
-                width: parent.width;
-                height: parent.height;
-                horizontalAlignment: Text.AlignHCenter;
-                verticalAlignment: Text.AlignVCenter;
-                text: value;
-                font.pointSize: 16;
+        Component{
+            id: valuebox;
+            GroupBox{
+                width: 150;
+                height: 100;
+                title: qsTr("Value");
+                Label{
+                    width: parent.width;
+                    height: parent.height;
+                    horizontalAlignment: Text.AlignHCenter;
+                    verticalAlignment: Text.AlignVCenter;
+                    text: value;
+                    font.pointSize: 16;
 
+                }
             }
         }
     }

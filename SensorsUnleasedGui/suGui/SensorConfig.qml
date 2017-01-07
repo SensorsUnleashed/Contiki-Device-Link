@@ -54,12 +54,10 @@ GroupBox{
     property real change;
     property int eventsActive;
 
-    width: parent.width;
     title: qsTr("Event setup:");
     font.pointSize: 10;
 
     Column{
-        width: parent.width;
         Row{
             spacing: 20;
             SettingSlider{
@@ -136,19 +134,29 @@ GroupBox{
                 }
             }
         }
-        SUButton{
-            id: submitbutton;
-            text: qsTr("Submit to sensor");
-            width: 150;
-            onClicked: {
-                var updatevalues = {
-                    AboveEventAt: aboveeventslider.value,
-                    BelowEventAt: beloweventslider.value,
-                    ChangeEvent: changeventslider.value,
-                    eventsActive: eventsActive,
+        Row{
+            spacing: 20;
+            SUButton{
+                text: qsTr("Read config");
+                width: 150;
+                onClicked: {
+                    activeSensor.req_eventSetup();
                 }
+            }
+            SUButton{
+                id: submitbutton;
+                text: qsTr("Submit");
+                width: 100;
+                onClicked: {
+                    var updatevalues = {
+                        AboveEventAt: aboveeventslider.value,
+                        BelowEventAt: beloweventslider.value,
+                        ChangeEvent: changeventslider.value,
+                        eventsActive: eventsActive,
+                    }
 
-                activeSensor.updateConfig(updatevalues);
+                    activeSensor.updateConfig(updatevalues);
+                }
             }
         }
     }

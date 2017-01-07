@@ -43,7 +43,6 @@ Button {
             sensor: identification,
         }
         su.changeActiveSensor(sensorinfo);
-
         loader.setSource(source, {nodeaddr: identification, nodeinfo: nodeinfo});
     }
 }

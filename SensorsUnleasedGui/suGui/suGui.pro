@@ -11,19 +11,21 @@ SOURCES += main.cpp \
     ../../apps/uartsensors/cmp.c \
     ../../contiki/core/lib/crc16.c \
     ../../apps/uartsensors/uart_protocolhandler.c \
-    msgpack.cpp \
     node.cpp \
     wsn.cpp \
     socket.cpp \
     helper.cpp \
-    sensor.cpp
+    sensor.cpp \
+    powerrelay.cpp \
+    pulsecounter.cpp \
+    ledindicator.cpp
 
 RESOURCES += \
     pages.qrc \
     widgets.qrc \
     qml.qrc \
-    setupscreens.qrc \
-    sensorwidgets.qrc
+    sensorwidgets.qrc \
+    nodewidgets.qrc
 
 # Additional import path used to resolve QML modules in Qt Creator's code model
 QML_IMPORT_PATH =
@@ -43,7 +45,6 @@ HEADERS += \
     database.h \
     ../../apps/uartsensors/cmp.h \
     ../../contiki/core/lib/crc16.h \
-    msgpack.h \
     node.h \
     wsn.h \
     socket.h \

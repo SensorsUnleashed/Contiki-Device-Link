@@ -26,10 +26,7 @@ public:
     node* findNode(QString nodeid);
     Q_INVOKABLE QVariant createNode(QVariant nodeinfo);
 
-
-
-    Q_INVOKABLE QVariant pair(QVariant nodeaddr, QVariant uri, QVariant options, QVariant pairdata, QVariant oldtoken);
-    Q_INVOKABLE QVariant put(QVariant nodeaddr, QVariant uri, QVariant options, QVariant data, QVariant oldtoken);
+    Q_INVOKABLE QVariantList getAllSensorsList();
 
 private:
     database *db;

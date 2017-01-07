@@ -56,7 +56,7 @@ private:
 
     QVector<struct coapMessageStore_*> activePDUs;
 signals:
-
+    void timeoutinfo(QVariant retransnumber, QVariant maxretries);
 public slots:
 
 private slots:
