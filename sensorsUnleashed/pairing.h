@@ -17,7 +17,7 @@
 //We need to have a way to keep track of which sensor a notification belongs to
 enum datatype_e{
 	uartsensor,
-	sensor
+	susensor
 };
 struct joinpair_s{
 	struct joinpair_s *next;	/* for LIST, points to next resource defined */

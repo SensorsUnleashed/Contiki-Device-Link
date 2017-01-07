@@ -39,22 +39,31 @@
 #include "contiki.h"
 #include "relay.h"
 #include "lib/sensors.h"
-#ifndef NATIVE
 #include "dev/gpio.h"
 #include "dev/ioc.h"
-
-
 
 /*---------------------------------------------------------------------------*/
 #define RELAY_PORT_BASE          GPIO_PORT_TO_BASE(RELAY_PORT)
 #define RELAY_PIN_MASK           GPIO_PIN_MASK(RELAY_PIN)
-#endif
 
 #include "../../apps/uartsensors/uart_protocolhandler.h"
 #include "rest-engine.h"
+#include "susensorcommon.h"
 
 const struct sensors_sensor relay;
 /*---------------------------------------------------------------------------*/
+struct relayRuntime {
+	uint8_t enabled;
+	cmp_object_t LastEventValue;
+};
+static struct relayRuntime data = {
+		.enabled = 0,
+		.LastEventValue = {
+				.type = CMP_TYPE_UINT8,
+				.as.u8 = 0
+		},
+};
+
 static struct resourceconf config = {
 		.resolution = 1,
 		.version = 1,
@@ -63,11 +72,11 @@ static struct resourceconf config = {
 		.eventsActive = 0,
 		.AboveEventAt = {
 				.type = CMP_TYPE_UINT8,
-		     	.as.u8 = 1
+				.as.u8 = 1
 		},
 		.BelowEventAt = {
 				.type = CMP_TYPE_UINT8,
-		     	.as.u8 = 0
+				.as.u8 = 0
 		},
 		.ChangeEvent = {
 				.type = CMP_TYPE_UINT8,
@@ -88,85 +97,95 @@ static struct resourceconf config = {
 		.attr = "title=\"Relay output\" ;rt=\"Control\"",
 };
 
-static uint8_t enabled;
 /*---------------------------------------------------------------------------*/
+
 static int
 relay_on(void)
 {
-  if(enabled) {
-#ifndef NATIVE
-    GPIO_SET_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK);
-#endif
-    return RELAY_SUCCESS;
-  }
-  return RELAY_ERROR;
+	if(enabled) {
+		GPIO_SET_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK);
+		return RELAY_SUCCESS;
+	}
+	return RELAY_ERROR;
 }
 /*---------------------------------------------------------------------------*/
 static int
 relay_off(void)
 {
-  if(enabled) {
-#ifndef NATIVE
-	GPIO_CLR_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK);
-#endif
-    return RELAY_SUCCESS;
-  }
-  return RELAY_ERROR;
+	if(enabled) {
+		GPIO_CLR_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK);
+		return RELAY_SUCCESS;
+	}
+	return RELAY_ERROR;
+
 }
 /*---------------------------------------------------------------------------*/
 static int
-status(int type)
+status(int type, void* data)
 {
-  switch(type) {
-  case SENSORS_ACTIVE:
-    return GPIO_READ_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK);
-  case SENSORS_READY:
-    return enabled;
-  }
-  return RELAY_ERROR;
+	int ret = 1;
+	cmp_object_t* obj = (cmp_object_t*)data;
+
+	if((enum up_parameter) type == EventStatus){
+
+	}
+	else if((enum up_parameter) type == ActualValue){
+		obj->type = CMP_TYPE_UINT8;
+		obj->as.u8 = (uint8_t) GPIO_READ_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK) > 0;
+		ret = 0;
+	}
+	else if(type >= (int)ChangeEventConfigValue){
+		ret = su_sensorvalue(type, obj, &config);
+	}
+	return ret;
 }
 /*---------------------------------------------------------------------------*/
 static int
 value(int type, void* data)
 {
-  switch(type) {
-    case RELAY_OFF:
-      return relay_on();
-    case RELAY_ON:
-      return relay_off();
-    case RELAY_TOGGLE:
-      if(status(SENSORS_ACTIVE)) {
-        return relay_off();
-      } else {
-        return relay_on();
-      }
-    default:
-      return RELAY_ERROR;
-  }
+	int ret = 1;
+	if((enum suactions)type == setRelay_off){
+		ret = relay_off();
+	}
+	else if((enum suactions)type == setRelay_on){
+		ret = relay_on();
+	}
+	else if((enum suactions)type == setRelay_toggle){
+		if(GPIO_READ_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK) > 0){
+			ret = relay_off();
+		}
+		else{
+			ret = relay_on();
+		}
+	}
+
+	//Just signal that we have an event. Let the event logic handle if it should be fired or not
+	if(ret == 0 && config.eventsActive != 0){
+		sensors_changed(&relay);
+	}
+
+	return ret;
 }
+
 /*---------------------------------------------------------------------------*/
 static int
 configure(int type, int value)
 {
-  if(type != SENSORS_ACTIVE) {
-    return RELAY_ERROR;
-  }
+	if(type != SENSORS_ACTIVE) {
+		return RELAY_ERROR;
+	}
 
-  if(value) {
-#ifndef NATIVE
-    GPIO_SOFTWARE_CONTROL(RELAY_PORT_BASE, RELAY_PIN_MASK);
-    GPIO_SET_OUTPUT(RELAY_PORT_BASE, RELAY_PIN_MASK);
-    ioc_set_over(RELAY_PORT, RELAY_PIN, IOC_OVERRIDE_OE);
-    GPIO_CLR_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK);
-#endif
-    enabled = 1;
-    return RELAY_SUCCESS;
-  }
-#ifndef NATIVE
-  GPIO_SET_INPUT(RELAY_PORT_BASE, RELAY_PIN_MASK);
-#endif
-  enabled = 0;
-  return RELAY_SUCCESS;
+	if(value) {
+		GPIO_SOFTWARE_CONTROL(RELAY_PORT_BASE, RELAY_PIN_MASK);
+		GPIO_SET_OUTPUT(RELAY_PORT_BASE, RELAY_PIN_MASK);
+		ioc_set_over(RELAY_PORT, RELAY_PIN, IOC_OVERRIDE_OE);
+		GPIO_CLR_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK);
+		enabled = 1;
+		return RELAY_SUCCESS;
+	}
+	GPIO_SET_INPUT(RELAY_PORT_BASE, RELAY_PIN_MASK);
+	enabled = 0;
+	return RELAY_SUCCESS;
 }
 
 

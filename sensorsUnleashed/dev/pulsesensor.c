@@ -12,6 +12,8 @@
 #include "dev/ioc.h"
 #include "../../apps/uartsensors/uart_protocolhandler.h"
 #include "rest-engine.h"
+#include "dev/gptimer.h"
+#include "dev/gpio.h"
 
 #include "susensorcommon.h"
 
@@ -62,41 +64,28 @@ static struct resourceconf config = {
 //Return 0 for success
 //Return 1 for invalid request
 static int
-value(int type, void* data)
+get(int type, void* data)
 {
 	int ret = 1;
 	cmp_object_t* obj = (cmp_object_t*)data;
-	switch((enum up_parameter) type){
-	case ActualValue:
+
+	if((enum up_parameter) type == ActualValue){
 		obj->type = CMP_TYPE_UINT16;
 		obj->as.u16 = (uint16_t) REG(GPT_1_BASE + GPTIMER_TAR);
-		ret = 1;
-		break;
-	case ChangeEventValue:
-		*obj = config.ChangeEvent;
-		ret = 1;
-		break;
-	case AboveEventValue:
-		*obj = config.AboveEventAt;
-		ret = 1;
-		break;
-	case BelowEventValue:
-		*obj = config.BelowEventAt;
-		ret = 1;
-		break;
-	case RangeMinValue:
-		*obj = config.RangeMin;
-		ret = 1;
-		break;
-	case RangeMaxValue:
-		*obj = config.RangeMax;
-		ret = 1;
-		break;
-	case EventState:
-		obj->type = CMP_TYPE_UINT8;
-		obj->as.u8 = config.eventsActive;
-		break;
+		ret = 0;
 	}
+	else if(type >= (int)ChangeEventConfigValue){
+		ret = su_sensorvalue(type, obj, &config);
+	}
+	return ret;
+}
+
+//Return 0 for success
+//Return 1 for invalid request
+static int
+set(int type, void* data)
+{
+	int ret = 1;
 	return ret;
 }
 
@@ -176,4 +165,4 @@ config_user(int type, int value)
 }
 
 static struct extras extra = { .type = 1, .data = (void*)&config };
-SENSORS_SENSOR(pulse_sensor, PULSE_SENSOR, value, config_user, NULL, &extra);
+SENSORS_SENSOR(pulse_sensor, PULSE_SENSOR, set, config_user, get, &extra);

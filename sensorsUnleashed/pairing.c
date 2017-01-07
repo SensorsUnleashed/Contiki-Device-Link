@@ -13,6 +13,7 @@
 #include <string.h>
 #include "net/ip/uip.h"
 #include "lib/memb.h"
+#include "lib/sensors.h"
 
 #define DEBUG 0
 #if DEBUG
@@ -139,6 +140,12 @@ uint8_t pairing_handle(void* resource, enum datatype_e restype){
 		if(strlen(resptr->conf.attr) + bufsize > BUFFERSIZE) return 3;
 		cp_encodeString((uint8_t*) payload + bufsize, resptr->conf.attr, strlen(resptr->conf.attr), &bufsize);
 	}
+	else if(restype == susensor){
+		struct sensors_sensor *s = (struct sensors_sensor*)resource;
+		struct resourceconf* resptr = s->configuration->data;
+		if(strlen(resptr->type) + bufsize > BUFFERSIZE) return 3;
+		cp_encodeString((uint8_t*) payload + bufsize, resptr->type, strlen(resptr->type), &bufsize);
+	}
 
 	joinpair_t p;
 
@@ -215,7 +222,7 @@ void restore_SensorPairs(void){
 	bufsize = BUFFERSIZE;
 	while(cmp_read_bin(&cmp, buffer, &bufsize)){
 		joinpair_t pair;
-		if(parseMessage(uartsensor, &pair) == 0){
+		if(parseMessage(susensor, &pair) == 0){
 			PRINTF("SrcUri: %s -> DstUri: %s\n", (char*)MMEM_PTR(&pair.srcurl), (char*)MMEM_PTR(&pair.dsturl));
 			joinpair_t* p = (joinpair_t*)memb_alloc(&pairings);
 			memcpy(p, &pair, sizeof(joinpair_t));

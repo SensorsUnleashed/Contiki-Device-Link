@@ -90,7 +90,7 @@ void uartsensors_updateVal(uartsensors_device_t* this, enum up_parameter paramet
 int uartsensors_setEventVal(uartsensors_device_t* this, enum up_parameter parameter, cmp_object_t val){
 	int len = 0;
 
-	if(parameter > BelowEventValue ) return 1;
+	if(parameter > BelowEventConfigValue ) return 1;
 
 	len += cp_encodeU8((uint8_t*)rx_reply.payload + len, this->conf.id);
 	len += cp_encodeU8((uint8_t*)rx_reply.payload + len, parameter);
@@ -150,13 +150,13 @@ void handleSensorMessages(){
 			if(cp_decodeObject(rx_reply.payload + len, &temp, &len) != 0)
 				return;
 			switch(parameter){
-			case ChangeEventValue:	//Maybe we could handle regular value updates from here
+			case ChangeEventConfigValue:	//Maybe we could handle regular value updates from here
 				resource->conf.ChangeEvent = temp;
 				break;
-			case AboveEventValue:
+			case AboveEventConfigValue:
 				resource->conf.AboveEventAt = temp;
 				break;
-			case BelowEventValue:
+			case BelowEventConfigValue:
 				resource->conf.BelowEventAt = temp;
 				break;
 			}

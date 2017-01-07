@@ -9,6 +9,6 @@
 #define SENSORSUNLEASHED_DEV_SUSENSORCOMMON_H_
 
 //Used for getting configuration data
-int su_value(int type, void* data);
+int su_sensorvalue(int type, cmp_object_t* obj, struct resourceconf* config);
 
 #endif /* SENSORSUNLEASHED_DEV_SUSENSORCOMMON_H_ */

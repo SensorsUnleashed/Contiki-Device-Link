@@ -23,11 +23,29 @@ enum req_cmd {
 	debugstring,
 };
 
+enum suactions {
+	/* Relay */
+	setRelay_off = 1,
+	setRelay_on,
+	setRelay_toggle,
+
+	/* LED indicator */
+	toggleLED_RED = 10,
+	toggleLED_GREEN,
+	toggleLED_ORANGE,
+	toggleLED_YELLOW,
+};
 enum up_parameter{
+	/* Sensor specifics reading */
 	ActualValue,
-	ChangeEventValue,
-	AboveEventValue,
-	BelowEventValue,
+	EventStatus,	//Get the event fired
+
+
+
+	/* Common config */
+	ChangeEventConfigValue,
+	AboveEventConfigValue,
+	BelowEventConfigValue,
 
 	RangeMinValue,
 	RangeMaxValue,
@@ -73,7 +91,7 @@ struct resourceconf{
 	 * It is possible to have all event types enabled together, but its the subscriber that
 	 * will need to detect which event was fired. They are all alike.
 	 * */
-	uint8_t eventsActive;		//All events on or Off
+	uint8_t eventsActive;		//Events on or Off
 	cmp_object_t AboveEventAt;	//When resource crosses this line from low to high give an event (>=)
 	cmp_object_t BelowEventAt;	//When resource crosses this line from high to low give an event (<=)
     cmp_object_t ChangeEvent;	//When value has changed more than changeEvent + lastevent value <>= value
