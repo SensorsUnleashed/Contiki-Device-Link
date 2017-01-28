@@ -1,13 +1,14 @@
 #include "ledindicator.h"
 #include "contiki.h"
-#include "lib/sensors.h"
+#include "lib/susensors.h"
 #include "dev/leds.h"
 
 #include "../../apps/uartsensors/uart_protocolhandler.h"
 #include "rest-engine.h"
 #include "susensorcommon.h"
+#include "board.h"
 
-const struct sensors_sensor ledindicator;
+const struct susensors_sensor ledindicator;
 static struct resourceconf config = {
 		.resolution = 1,
 		.version = 1,
@@ -41,7 +42,7 @@ static struct resourceconf config = {
 		.attr = "title=\"LED indicator\" ;rt=\"Indicator\"",
 };
 
-static int set(int type, void* data){
+static int set(struct susensors_sensor* this, int type, void* data){
 	int ret = 1;
 
 	if(type == toggleLED_RED){
@@ -62,17 +63,17 @@ static int set(int type, void* data){
 	}
 
 	if(ret == 0){
-		sensors_changed(&ledindicator);
+		susensors_changed(this);
 	}
 
 	return ret;
 }
 
-static int configure(int type, int value){
+static int configure(struct susensors_sensor* this, int type, int value){
 	return 0;
 }
 
-int get(int type, void* data){
+int get(struct susensors_sensor* this, int type, void* data){
 	int ret = 1;
 	cmp_object_t* obj = (cmp_object_t*)data;
 
@@ -81,12 +82,33 @@ int get(int type, void* data){
 		obj->as.u8 = leds_get() & LEDS_CONF_ALL;
 		ret = 0;
 	}
-	else if(type >= (int)ChangeEventConfigValue){
-		ret = su_sensorvalue(type, obj, &config);
+	return ret;
+}
+
+/* An event was received from another device - now act on it */
+static int eventHandler(struct susensors_sensor* this, int type, int len, uint8_t* payload){
+	enum susensors_event_cmd cmd = (enum susensors_event_cmd)type;
+	int ret = 1;
+	switch(cmd){
+	case SUSENSORS_ABOVE_EVENT_SET:
+		this->value(this, toggleLED_RED, NULL);
+		ret = 0;
+		break;
+	case SUSENSORS_BELOW_EVENT_SET:
+		this->value(this, toggleLED_YELLOW, NULL);
+		ret = 0;
+		break;
+	case SUSENSORS_CHANGE_EVENT_SET:
+		this->value(this, toggleLED_ORANGE, NULL);
+		ret = 0;
+		break;
 	}
 	return ret;
 }
 
+static int getActiveEventMsg(struct susensors_sensor* this, const char** eventstr, uint8_t* payload){
 
-static struct extras extra = { .type = 1, .data = (void*)&config };
-SENSORS_SENSOR(ledindicator, LED_INDICATOR, set, configure, get, &extra);
+}
+
+static struct extras extra = { .type = 1, .config = (void*)&config, .runtime = (void*)0 };
+SUSENSORS_SENSOR(ledindicator, LED_INDICATOR, set, configure, get, eventHandler, getActiveEventMsg, &extra);

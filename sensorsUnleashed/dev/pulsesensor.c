@@ -7,7 +7,7 @@
 #include "pulsesensor.h"
 #include "contiki.h"
 
-#include "lib/sensors.h"
+#include "susensors.h"
 #include "dev/sys-ctrl.h"
 #include "dev/ioc.h"
 #include "../../apps/uartsensors/uart_protocolhandler.h"
@@ -17,7 +17,7 @@
 
 #include "susensorcommon.h"
 
-const struct sensors_sensor pulse_sensor;
+const struct susensors_sensor pulse_sensor;
 
 #define PULSE_PORT            GPIO_A_NUM
 #define PULSE_PIN             3
@@ -64,7 +64,7 @@ static struct resourceconf config = {
 //Return 0 for success
 //Return 1 for invalid request
 static int
-get(int type, void* data)
+get(struct susensors_sensor* this, int type, void* data)
 {
 	int ret = 1;
 	cmp_object_t* obj = (cmp_object_t*)data;
@@ -74,26 +74,23 @@ get(int type, void* data)
 		obj->as.u16 = (uint16_t) REG(GPT_1_BASE + GPTIMER_TAR);
 		ret = 0;
 	}
-	else if(type >= (int)ChangeEventConfigValue){
-		ret = su_sensorvalue(type, obj, &config);
-	}
 	return ret;
 }
 
 //Return 0 for success
 //Return 1 for invalid request
 static int
-set(int type, void* data)
+set(struct susensors_sensor* this, int type, void* data)
 {
 	int ret = 1;
 	return ret;
 }
 
 static int
-config_user(int type, int value)
+config_user(struct susensors_sensor* this, int type, int value)
 {
 	switch(type) {
-	case SENSORS_HW_INIT:
+	case SUSENSORS_HW_INIT:
 		/* We use Timer1A as a 16bit pulse counter */
 
 		/*
@@ -145,7 +142,7 @@ config_user(int type, int value)
 
 
 		break;
-	case SENSORS_ACTIVE:
+	case SUSENSORS_ACTIVE:
 		if(value){	//Activate
 			if(!REG(GPT_1_BASE + GPTIMER_CTL) & GPTIMER_CTL_TAEN){
 				REG(GPT_1_BASE + GPTIMER_CTL) |= GPTIMER_CTL_TAEN;	//Enable puls counter
@@ -157,12 +154,24 @@ config_user(int type, int value)
 			}
 		}
 		break;
-	case SENSORS_MAX_AGE:
+	case SUSENSORS_MAX_AGE:
 		return 30;	//Updated value every 30 sec.
 		break;
 	}
 	return 1;
 }
 
-static struct extras extra = { .type = 1, .data = (void*)&config };
-SENSORS_SENSOR(pulse_sensor, PULSE_SENSOR, set, config_user, get, &extra);
+/* An event was received from another device - now act on it */
+static int EventReceived(struct susensors_sensor* this, int type, void* data){
+	enum susensors_event_cmd cmd = (enum susensors_event_cmd)type;
+	int ret = 1;
+
+	return ret;
+}
+
+static int getActiveEventMsg(struct susensors_sensor* this, const char** eventstr, uint8_t* payload){
+
+}
+//TODO: Add runtime data
+static struct extras extra = { .type = 1, .config = (void*)&config, .runtime = (void*)0 };
+SUSENSORS_SENSOR(pulse_sensor, PULSE_SENSOR, set, config_user, get, EventReceived, getActiveEventMsg, &extra);

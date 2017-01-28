@@ -48,7 +48,7 @@
 #define OPENMOTE_SENSORS_H_
 /*---------------------------------------------------------------------------*/
 #include "lib/sensors.h"
-#include "dev/cc2538-sensors.h"
+//#include "dev/cc2538-sensors.h"
 #include "dev/button-sensor.h"
 /*---------------------------------------------------------------------------*/
 #endif /* OPENMOTE_SENSORS_H_ */

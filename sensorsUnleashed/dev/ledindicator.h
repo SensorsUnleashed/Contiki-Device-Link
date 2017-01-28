@@ -8,7 +8,7 @@
 #ifndef SENSORSUNLEASHED_DEV_LEDINDICATOR_H_
 #define SENSORSUNLEASHED_DEV_LEDINDICATOR_H_
 
-extern const struct sensors_sensor ledindicator;
+extern const struct susensors_sensor ledindicator;
 #define LED_INDICATOR "su/ledindicator"
 
 #endif /* SENSORSUNLEASHED_DEV_LEDINDICATOR_H_ */

@@ -35,10 +35,9 @@
  * \author
  *      Matthias Kovatsch <kovatsch@inf.ethz.ch>
  */
-
-#ifndef __PROJECT_ERBIUM_CONF_H__
-#define __PROJECT_ERBIUM_CONF_H__
-
+#undef PROJECT_CONF_H_	//TODO: Workaround to make eclipse show the defines right
+#ifndef PROJECT_CONF_H_
+#define PROJECT_CONF_H_
 
 //#define UART_CONF_ENABLE	0
 
@@ -59,6 +58,9 @@
    #undef UIP_CONF_BUFFER_SIZE
    #define UIP_CONF_BUFFER_SIZE           256
  */
+
+/* Pre-allocated memory for loadable modules heap space (in bytes)*/
+#define MMEM_CONF_SIZE 2048
 
 /* Disabling RDC and CSMA for demo purposes. Core updates often
    require more memory. */

@@ -8,11 +8,11 @@
 #ifndef SENSORSUNLEASHED_DEV_PULSESENSOR_H_
 #define SENSORSUNLEASHED_DEV_PULSESENSOR_H_
 
-#include "lib/sensors.h"
+#include "susensors.h"
 
 #define PULSE_SENSOR "su/pulsecounter"
 
-extern const struct sensors_sensor pulse_sensor;
+extern const struct susensors_sensor pulse_sensor;
 
 
 #endif /* SENSORSUNLEASHED_DEV_PULSESENSOR_H_ */

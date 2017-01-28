@@ -1,5 +1,5 @@
 CONTIKI_PROJECT = er-uart-server
-PROJECT_SOURCEFILES += pairing.c pulsesensor.c relay.c susensorcommon.c ledindicator.c
+PROJECT_SOURCEFILES += susensors.c pairing.c pulsesensor.c relay.c susensorcommon.c ledindicator.c
 
 all: $(CONTIKI_PROJECT)
 
@@ -37,7 +37,7 @@ REST_RESOURCES_FILES = $(notdir $(shell find $(REST_RESOURCES_DIR) -name '*.c' !
 endif
 endif
 
-PROJECTDIRS += $(REST_RESOURCES_DIR) ./dev
+PROJECTDIRS += $(REST_RESOURCES_DIR) ./dev ./lib
 PROJECT_SOURCEFILES += $(REST_RESOURCES_FILES)
 
 # linker optimizations

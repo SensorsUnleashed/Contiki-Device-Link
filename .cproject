@@ -24,27 +24,50 @@
 							<option id="cdt.managedbuild.option.gnu.cross.prefix.496617415" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix"/>
 							<option id="cdt.managedbuild.option.gnu.cross.path.1607221532" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.1374636133" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
-							<builder buildPath="${workspace_loc:/SensorsUnleased_radio/coap-uart-device-handler}" id="cdt.managedbuild.builder.gnu.cross.591395579" incrementalBuildTarget="all TARGET=su-cc2538-1" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
+							<builder buildPath="${workspace_loc:/SensorsUnleased_radio/sensorsUnleashed}" id="cdt.managedbuild.builder.gnu.cross.591395579" incrementalBuildTarget="all TARGET=su-cc2538-1" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross">
+								<outputEntries>
+									<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="outputPath" name="sensorsUnleashed"/>
+									<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="outputPath" name=""/>
+								</outputEntries>
+							</builder>
 							<tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.1660367990" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
 								<option id="gnu.c.compiler.option.include.paths.1275002001" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/sensorsUnleashed}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/targets/su-cc2538-1}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/targets/su-cc2538-1/dev}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc2538/usb}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc2538}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc2538/dev}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/core}&quot;"/>
+									<listOptionValue builtIn="false" value="/usr/include/stdint.h"/>
+								</option>
+								<option id="gnu.c.compiler.option.preprocessor.def.symbols.3063084" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="AUTOSTART_ENABLE=1"/>
+									<listOptionValue builtIn="false" value="REST=coap_rest_implementation"/>
+									<listOptionValue builtIn="false" value="NETSTACK_CONF_WITH_IPV6=1"/>
+									<listOptionValue builtIn="false" value="CONTIKI_WITH_IPV6=1"/>
+									<listOptionValue builtIn="false" value="NATIVE=0"/>
+								</option>
+								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1721034232" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
+							</tool>
+							<tool id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.433997893" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler">
+								<option id="gnu.cpp.compiler.option.include.paths.445831045" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/targets/su-cc2538-1}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/targets/su-cc2538-1/dev}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc2538}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc2538/dev}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc2538/usb}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/core}&quot;"/>
 								</option>
-								<option id="gnu.c.compiler.option.preprocessor.def.symbols.3063084" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
-									<listOptionValue builtIn="false" value="NATIVE=0"/>
+								<option id="gnu.cpp.compiler.option.preprocessor.def.1809177857" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="AUTOSTART_ENABLE=1"/>
 									<listOptionValue builtIn="false" value="REST=coap_rest_implementation"/>
 									<listOptionValue builtIn="false" value="NETSTACK_CONF_WITH_IPV6=1"/>
 									<listOptionValue builtIn="false" value="CONTIKI_WITH_IPV6=1"/>
+									<listOptionValue builtIn="false" value="NATIVE=0"/>
 								</option>
-								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1721034232" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
-							</tool>
-							<tool id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.433997893" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler">
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.690139649" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cross.c.linker.434910554" name="Cross GCC Linker" superClass="cdt.managedbuild.tool.gnu.cross.c.linker"/>
@@ -56,12 +79,13 @@
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cross.archiver.892267429" name="Cross GCC Archiver" superClass="cdt.managedbuild.tool.gnu.cross.archiver"/>
 							<tool id="cdt.managedbuild.tool.gnu.cross.assembler.1824869781" name="Cross GCC Assembler" superClass="cdt.managedbuild.tool.gnu.cross.assembler">
+								<option id="gnu.both.asm.option.include.paths.580130723" name="Include paths (-I)" superClass="gnu.both.asm.option.include.paths"/>
 								<inputType id="cdt.managedbuild.tool.gnu.assembler.input.1264006421" superClass="cdt.managedbuild.tool.gnu.assembler.input"/>
 							</tool>
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="contiki/apps/uartsensor|uartsensors" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="contiki/apps/uartsensor|uartsensors|dev|lib" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -86,7 +110,7 @@
 							<option id="cdt.managedbuild.option.gnu.cross.prefix.1196522496" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix"/>
 							<option id="cdt.managedbuild.option.gnu.cross.path.2091868174" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.342391759" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
-							<builder buildPath="${workspace_loc:/SensorsUnleased_radio/coap-uart-device-handler}" id="cdt.managedbuild.builder.gnu.cross.1226474165" incrementalBuildTarget="all TARGET=native" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
+							<builder buildPath="${workspace_loc:/SensorsUnleased_radio/sensorsUnleashed}" id="cdt.managedbuild.builder.gnu.cross.1226474165" incrementalBuildTarget="all TARGET=native" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
 							<tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.1616200213" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
 								<option id="gnu.c.compiler.option.include.paths.1568622142" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki}&quot;"/>
@@ -118,7 +142,9 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="contiki/apps/uartsensor|uartsensors" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="sensorsUnleashed/lib|lib|sensorsUnleashed/dev|dev|contiki/apps/uartsensor|uartsensors" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="sensorsUnleashed/dev"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="sensorsUnleashed/lib"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -143,7 +169,7 @@
 							<option id="cdt.managedbuild.option.gnu.cross.prefix.485602524" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix"/>
 							<option id="cdt.managedbuild.option.gnu.cross.path.155188354" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.1445878949" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
-							<builder buildPath="${workspace_loc:/SensorsUnleased_radio/coap-uart-device-handler}" id="cdt.managedbuild.builder.gnu.cross.726439242" incrementalBuildTarget="all TARGET=minimal-net" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
+							<builder buildPath="${workspace_loc:/SensorsUnleased_radio/sensorsUnleashed}" id="cdt.managedbuild.builder.gnu.cross.726439242" incrementalBuildTarget="all TARGET=minimal-net" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross"/>
 							<tool id="cdt.managedbuild.tool.gnu.cross.c.compiler.1274944117" name="Cross GCC Compiler" superClass="cdt.managedbuild.tool.gnu.cross.c.compiler">
 								<option id="gnu.c.compiler.option.include.paths.1871682047" name="Include paths (-I)" superClass="gnu.c.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki}&quot;"/>
@@ -176,7 +202,9 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="contiki/apps/uartsensor|uartsensors" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="sensorsUnleashed/lib|lib|sensorsUnleashed/dev|dev|contiki/apps/uartsensor|uartsensors" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="sensorsUnleashed/dev"/>
+						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="sensorsUnleashed/lib"/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -218,4 +246,5 @@
 			<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
 		</scannerConfigBuildInfo>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 </cproject>

@@ -13,7 +13,7 @@
 #include <string.h>
 #include "net/ip/uip.h"
 #include "lib/memb.h"
-#include "lib/sensors.h"
+#include "susensors.h"
 
 #define DEBUG 0
 #if DEBUG
@@ -66,11 +66,31 @@ void activateUartSensorPairing(uartsensors_device_t* p){
 	}
 }
 
+void activateSUSensorPairing(const struct susensors_sensor* p){
+
+	joinpair_t *pair = NULL;
+
+	for(pair = (joinpair_t *)list_head(pairings_list);
+			pair; pair = pair->next) {
+		int urllen = strlen(p->type);
+		if(urllen == strlen((char*)MMEM_PTR(&pair->srcurl))){
+			if(strncmp((char*)MMEM_PTR(&pair->srcurl), p->type, urllen) == 0){
+				pair->devicetype = susensor;
+				pair->deviceptr = (void*)p;
+			}
+		}
+
+	}
+}
+
 //Return 0 if data was stored
 //Return 1 if there was no more space
 uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len, uint32_t num){
 
-	if(num == 0) bufsize = 0;	//Clear the buffer
+	if(num == 0) {
+		bufsize = 0;	//Clear the buffer
+		memset(buffer, 0, BUFFERSIZE);
+	}
 	if(bufsize + len > BUFFERSIZE) return 1;
 	//For now only one can pair at a time. There is a single buffer.
 	memcpy(buffer + bufsize, data, len);
@@ -93,6 +113,8 @@ uint8_t parseMessage(enum datatype_e restype, joinpair_t* pair){
 	uint8_t* payload = &buffer[0];
 	uint32_t bufindex = 0;
 
+	memset(stringbuf, 0, 100);
+
 	if(cp_decodeU16Array((uint8_t*) payload + bufindex, (uint16_t*)&pair->destip, &bufindex) != 0){
 		return 1;
 	}
@@ -101,10 +123,11 @@ uint8_t parseMessage(enum datatype_e restype, joinpair_t* pair){
 		return 2;
 	}
 	stringlen++;	//We need the /0 also
+
 	if(mmem_alloc(&pair->dsturl, stringlen) == 0){
 		return 3;
 	}
-	memcpy(MMEM_PTR(&pair->dsturl), stringbuf, stringlen);
+	memcpy((char*)MMEM_PTR(&pair->dsturl), (char*)stringbuf, stringlen);
 
 	stringlen = 100;
 	if(cp_decode_string((uint8_t*) payload + bufindex, &stringbuf[0], &stringlen, &bufindex) != 0){
@@ -114,7 +137,7 @@ uint8_t parseMessage(enum datatype_e restype, joinpair_t* pair){
 	if(mmem_alloc(&pair->srcurl, stringlen) == 0){
 		return 3;
 	}
-	memcpy(MMEM_PTR(&pair->srcurl), stringbuf, stringlen);
+	memcpy((char*)MMEM_PTR(&pair->srcurl), (char*)stringbuf, stringlen);
 
 	pair->devicetype = restype;
 	pair->deviceptr = 0;
@@ -129,7 +152,6 @@ uint8_t parseMessage(enum datatype_e restype, joinpair_t* pair){
 // 3 = Unable to allocate enough dynamic memory
 // 4 = src_uri could not be parsed
 // 5 = device already paired
-
 uint8_t pairing_handle(void* resource, enum datatype_e restype){
 
 	uint8_t* payload = &buffer[0];
@@ -141,21 +163,21 @@ uint8_t pairing_handle(void* resource, enum datatype_e restype){
 		cp_encodeString((uint8_t*) payload + bufsize, resptr->conf.attr, strlen(resptr->conf.attr), &bufsize);
 	}
 	else if(restype == susensor){
-		struct sensors_sensor *s = (struct sensors_sensor*)resource;
-		struct resourceconf* resptr = s->configuration->data;
-		if(strlen(resptr->type) + bufsize > BUFFERSIZE) return 3;
-		cp_encodeString((uint8_t*) payload + bufsize, resptr->type, strlen(resptr->type), &bufsize);
+		struct susensors_sensor *s = (struct susensors_sensor*)resource;
+		//struct resourceconf* resptr = s->data->config;
+		if(strlen(s->type) + bufsize > BUFFERSIZE) return 3;
+		cp_encodeString((uint8_t*) payload + bufsize, s->type, strlen(s->type), &bufsize);
 	}
 
-	joinpair_t p;
-
-	int ret = parseMessage(restype, &p);
+	joinpair_t* p = (joinpair_t*)memb_alloc(&pairings);
+	int ret = parseMessage(restype, p);
 
 	if(ret != 0){
+		memb_free(&pairings, p);
 		return ret;
 	}
 
-	p.deviceptr = resource;
+	p->deviceptr = resource;
 
 
 	//p now contains all pairing details.
@@ -166,21 +188,22 @@ uint8_t pairing_handle(void* resource, enum datatype_e restype){
 	joinpair_t* pair = NULL;
 
 	for(pair = (joinpair_t *)list_head(pairings_list); pair; pair = pair->next) {
-		if(pair->deviceptr == p.deviceptr){		//Is it the same sensor
-			if(pair->dsturl.size == p.dsturl.size){
-				if(strncmp((char*)MMEM_PTR(&pair->dsturl),(char*)MMEM_PTR(&p.dsturl), pair->dsturl.size) == 0){
+		if(pair->deviceptr == p->deviceptr){		//Is it the same sensor
+			if(pair->dsturl.size == p->dsturl.size){
+				if(strncmp((char*)MMEM_PTR(&pair->dsturl),(char*)MMEM_PTR(&p->dsturl), pair->dsturl.size) == 0){
+					memb_free(&pairings, p);
 					return 5;
 				}
 			}
 		}
 	}
 
-	pair = (joinpair_t*)memb_alloc(&pairings);
-	if(pair == NULL) return 3;
+	//pair = (joinpair_t*)memb_alloc(&pairings);
+	//if(pair == NULL) return 3;
 
 	//Add pair to the list of pairs
-	memcpy(pair, &p, sizeof(joinpair_t));
-	list_add(pairings_list, pair);
+	//memcpy(pair, &p, sizeof(joinpair_t));
+	list_add(pairings_list, p);
 
 	//Finally store pairing info into flash
 	store_SensorPair(payload, bufsize);
@@ -221,14 +244,18 @@ void restore_SensorPairs(void){
 	cmp_init(&cmp, &read, file_reader, file_writer);
 	bufsize = BUFFERSIZE;
 	while(cmp_read_bin(&cmp, buffer, &bufsize)){
-		joinpair_t pair;
-		if(parseMessage(susensor, &pair) == 0){
-			PRINTF("SrcUri: %s -> DstUri: %s\n", (char*)MMEM_PTR(&pair.srcurl), (char*)MMEM_PTR(&pair.dsturl));
-			joinpair_t* p = (joinpair_t*)memb_alloc(&pairings);
-			memcpy(p, &pair, sizeof(joinpair_t));
-			if(p != 0){
-				list_add(pairings_list, p);
-			}
+		//joinpair_t pair;
+		joinpair_t* pair = (joinpair_t*)memb_alloc(&pairings);
+		if(parseMessage(susensor, pair) == 0){
+			PRINTF("SrcUri: %s -> DstUri: %s\n", (char*)MMEM_PTR(&pair->srcurl), (char*)MMEM_PTR(&pair->dsturl));
+			//joinpair_t* p = (joinpair_t*)memb_alloc(&pairings);
+			//memcpy(p, pair, sizeof(joinpair_t));
+			//if(p != 0){
+				list_add(pairings_list, pair);
+			//}
+		}
+		else{
+			memb_free(&pairings, pair);
 		}
 		bufsize = BUFFERSIZE;
 	}

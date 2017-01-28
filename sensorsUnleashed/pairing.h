@@ -13,13 +13,15 @@
 #include "net/ip/uiplib.h"
 #include "uartsensors.h"
 #include "lib/list.h"
+#include "lib/susensors.h"
 
 //We need to have a way to keep track of which sensor a notification belongs to
 enum datatype_e{
 	uartsensor,
 	susensor
 };
-struct joinpair_s{
+
+struct __attribute__ ((__packed__)) joinpair_s{
 	struct joinpair_s *next;	/* for LIST, points to next resource defined */
 
 	struct mmem dsturl;
@@ -34,6 +36,7 @@ typedef struct joinpair_s joinpair_t;
 list_t pairing_get_pairs(void);
 joinpair_t* getUartSensorPair(uartsensors_device_t* p);
 void activateUartSensorPairing(uartsensors_device_t* p);
+void activateSUSensorPairing(const struct susensors_sensor* p);
 
 uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len, uint32_t num);
 uint8_t pairing_handle(void* resource, enum datatype_e restype);

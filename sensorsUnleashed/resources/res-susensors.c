@@ -10,11 +10,8 @@
 #include "rest-engine.h"
 #include "dev/leds.h"
 #include "er-coap.h"
-
-#ifndef NATIVE
 #include "board.h"
-#endif
-#include "lib/sensors.h"
+#include "lib/susensors.h"
 #include "../../sensorsUnleashed/pairing.h"
 #include "../../apps/uartsensors/uart_protocolhandler.h"
 
@@ -63,43 +60,35 @@ res_susensor_gethandler(void *request, void *response, uint8_t *buffer, uint16_t
 	}
 
 	int len = REST.get_url(request, &url);
-	const struct sensors_sensor *sensor = sensors_find(url, len);
+	struct susensors_sensor *sensor = (struct susensors_sensor *)susensors_find(url, len);
 	if(sensor != NULL){
 		cmp_object_t obj;
 		len = REST.get_query(request, &str);
 		if(len > 0){
 			if(strncmp(str, "AboveEventAt", len) == 0){
-				len = sensor->status(AboveEventConfigValue, &obj) == 0;
+				len = sensor->suconfig(sensor, SUSENSORS_AEVENT_GET, &obj) == 0;
 				REST.set_header_max_age(response, 3600);
 			}
 			else if(strncmp(str, "BelowEventAt", len) == 0){
-				len = sensor->status(BelowEventConfigValue, &obj) == 0;
+				len = sensor->suconfig(sensor, SUSENSORS_BEVENT_GET, &obj) == 0;
 				REST.set_header_max_age(response, 3600);
 			}
 			else if(strncmp(str, "ChangeEventAt", len) == 0){
-				len = sensor->status(ChangeEventConfigValue, &obj) == 0;
+				len = sensor->suconfig(sensor, SUSENSORS_CEVENT_GET, &obj) == 0;
 				REST.set_header_max_age(response, 3600);
 			}
 			else if(strncmp(str, "RangeMin", len) == 0){
-				len = sensor->status(RangeMinValue, &obj) == 0;
+				len = sensor->suconfig(sensor, SUSENSORS_RANGEMIN_GET, &obj) == 0;
 			}
 			else if(strncmp(str, "RangeMax", len) == 0){
-				len = sensor->status(RangeMaxValue, &obj) == 0;
+				len = sensor->suconfig(sensor, SUSENSORS_RANGEMAX_GET, &obj) == 0;
 			}
 			else if(strncmp(str, "getEventState", len) == 0){
-				len = sensor->status(EventState, &obj) == 0;
+				len = sensor->suconfig(sensor, SUSENSORS_EVENTSTATE_GET, &obj) == 0;
 			}
 			else if(strncmp(str, "getEventSetup", len) == 0){
-				uint8_t* bufptr = buffer;
-				sensor->status(AboveEventConfigValue, &obj);
-				bufptr += cp_encodeObject(bufptr, &obj);
-				sensor->status(BelowEventConfigValue, &obj);
-				bufptr += cp_encodeObject(bufptr, &obj);
-				sensor->status(ChangeEventConfigValue, &obj);
-				bufptr += cp_encodeObject(bufptr, &obj);
-				sensor->status(EventState, &obj);
-				bufptr += cp_encodeObject(bufptr, &obj);
-				REST.set_response_payload(response, buffer, bufptr - buffer);
+				len = sensor->suconfig(sensor, SUSENSORS_EVENTSETUP_GET, buffer);
+				REST.set_response_payload(response, buffer, len);
 				return;
 			}
 			else{
@@ -107,8 +96,8 @@ res_susensor_gethandler(void *request, void *response, uint8_t *buffer, uint16_t
 			}
 		}
 		else{	//Send the actual value
-			len = sensor->status(ActualValue, &obj) == 0;
-			REST.set_header_max_age(response, sensor->configure(SENSORS_MAX_AGE, 0));
+			len = sensor->status(sensor, ActualValue, &obj) == 0;
+			REST.set_header_max_age(response, 30);
 		}
 
 		if(len){
@@ -139,17 +128,29 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 
 	int len = REST.get_url(request, &url);
 	coap_packet_t *const coap_req = (coap_packet_t *)request;
-	const struct sensors_sensor *sensor = sensors_find(url, len);
+	struct susensors_sensor *sensor = (struct susensors_sensor *)susensors_find(url, len);
 	if(sensor != NULL){
 		len = REST.get_query(request, &str);
 		if(len > 0){
 			/* Issue a command. The command is one of the enum suactions values*/
 			const char *commandstr = NULL;
 			char *pEnd;
-			if(REST.get_query_variable(request, "setCommand", &commandstr) > 0 && commandstr != NULL) {
-				if(sensor->value(strtol(commandstr, &pEnd, 10), 0) == 0){	//For now, no payload - might be necessary in the furture
+			if(strncmp(str, "aboveEvent", len) == 0){
+				len = REST.get_request_payload(request, &payload);
+				sensor->eventhandler(sensor, SUSENSORS_ABOVE_EVENT_SET, len, (uint8_t*)payload);
+			}
+			else if(strncmp(str, "belowEvent", len) == 0){
+				len = REST.get_request_payload(request, &payload);
+				sensor->eventhandler(sensor, SUSENSORS_BELOW_EVENT_SET, len, (uint8_t*)payload);
+			}
+			else if(strncmp(str, "changeEvent", len) == 0){
+				len = REST.get_request_payload(request, &payload);
+				sensor->eventhandler(sensor, SUSENSORS_CHANGE_EVENT_SET, len, (uint8_t*)payload);
+			}
+			else if(REST.get_query_variable(request, "setCommand", &commandstr) > 0 && commandstr != NULL) {
+				if(sensor->value(sensor, strtol(commandstr, &pEnd, 10), 0) == 0){	//For now, no payload - might be necessary in the furture
 					cmp_object_t obj;
-					len = sensor->status(ActualValue, &obj) == 0;
+					len = sensor->status(sensor, ActualValue, &obj) == 0;
 					len = cp_encodeObject(buffer, &obj);
 					REST.set_response_payload(response, buffer, len);
 					REST.set_response_status(response, REST.status.OK);
@@ -158,7 +159,7 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 					REST.set_response_status(response, REST.status.BAD_REQUEST);
 				}
 			}
-			else if(strncmp(str, "eventsetup", len) == 0){
+			else if(strncmp(str, "suconfig", len) == 0){
 				len = REST.get_request_payload(request, &payload);
 				if(len <= 0){
 					REST.set_response_status(response, REST.status.BAD_REQUEST);
@@ -167,83 +168,13 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 					return;
 				}
 
-				/* The eventsetup is send as a fixed list of cmp_objects:
-				 * 1. AboveEventAt
-				 * 2. BelowEventAt
-				 * 3. ChangeEvent
-				 * 4. eventsActive
-				 * */
-				uint32_t bufindex;
-				len = 0;
-				struct resourceconf* config;
-				/* TODO: Consider moving the logic away from coap - could be we move to something else at some point */
-				/* TODO: This cast should be dependendt on the xtra type field */
-				config = (struct resourceconf*) sensor->configuration->data;
-
-				cmp_object_t newval;
-				/* Read the AboveEventAt object */
-				if(cp_decodeObject((uint8_t*)payload + len, &newval, &bufindex) == 0){
-					len += bufindex;
-					if(newval.type == config->AboveEventAt.type){
-						config->AboveEventAt = newval;
-					}
-					else{
-						REST.set_response_status(response, REST.status.BAD_REQUEST);
-						return;
-					}
+				//TODO: Generate human readable error messages, if parsing fails (see pairing)
+				if(sensor->suconfig(sensor, SUSENSORS_EVENTSETUP_SET, (void*)payload) == 0){
+					REST.set_response_status(response, REST.status.CHANGED);
 				}
 				else{
 					REST.set_response_status(response, REST.status.BAD_REQUEST);
-					return;
 				}
-
-				/* Read the BelowEventAt object */
-				if(cp_decodeObject((uint8_t*)payload + len, &newval, &bufindex) == 0){
-					len += bufindex;
-					if(newval.type == config->BelowEventAt.type){
-						config->BelowEventAt = newval;
-					}
-					else{
-						REST.set_response_status(response, REST.status.BAD_REQUEST);
-						return;
-					}
-				}
-				else{
-					REST.set_response_status(response, REST.status.BAD_REQUEST);
-					return;
-				}
-				/* Read the ChangeEvent object */
-				if(cp_decodeObject((uint8_t*)payload + len, &newval, &bufindex) == 0){
-					len += bufindex;
-					if(newval.type == config->ChangeEvent.type){
-						config->ChangeEvent = newval;
-					}
-					else{
-						REST.set_response_status(response, REST.status.BAD_REQUEST);
-						return;
-					}
-				}
-				else{
-					REST.set_response_status(response, REST.status.BAD_REQUEST);
-					return;
-				}
-				/* Read the eventsActive object */
-				if(cp_decodeObject((uint8_t*)payload + len, &newval, &bufindex) == 0){
-					len += bufindex;
-					if(newval.type == CMP_TYPE_UINT8){
-						config->eventsActive = newval.as.u8;
-					}
-					else{
-						REST.set_response_status(response, REST.status.BAD_REQUEST);
-						return;
-					}
-				}
-				else{
-					REST.set_response_status(response, REST.status.BAD_REQUEST);
-					return;
-				}
-
-				REST.set_response_status(response, REST.status.CHANGED);
 			}
 			else if(strncmp(str, "join", len) == 0){
 				if((len = REST.get_request_payload(request, (const uint8_t **)&payload))) {
@@ -256,7 +187,7 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 
 						if(coap_req->block1_more == 0){
 							//We're finished receiving the payload, now parse it.
-							int res = pairing_handle((struct sensors_sensor*)sensor, susensor);	//TODO: This is not good
+							int res = pairing_handle((void*)sensor, susensor);	//TODO: This is not good
 
 							switch(res){
 							case 0:
@@ -301,15 +232,15 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 //Return 0 if the sensor was added as a coap resource
 //Return 1 if the sensor does not contain the necassery coap config
 //Return 2 if we can't allocate any more sensors
-int res_susensor_activate(const struct sensors_sensor* sensor){
+int res_susensor_activate(const struct susensors_sensor* sensor){
 
-	const struct extras* extra = sensor->configuration;
+	const struct extras* extra = sensor->data;
 	struct resourceconf* config;
 
 	if(extra->type != 1){
 		return 1;
 	}
-	config = (struct resourceconf*)extra->data;
+	config = (struct resourceconf*)extra->config;
 	//Create the resource for the coap engine
 	resource_t* r = (resource_t*)memb_alloc(&coap_resources);
 	if(r == 0)

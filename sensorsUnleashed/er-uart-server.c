@@ -46,10 +46,6 @@
 #include "uartsensors.h"
 #include "dev/button-sensor.h"
 #include "dev/relay.h"
-#ifndef NATIVE
-#include "dev/cc2538-sensors.h"
-#endif
-#include "dev/button-sensor.h"
 #include "dev/ledindicator.h"
 #include "../sensorsUnleashed/pairing.h"
 #include "resources/res-uartsensor.h"
@@ -59,10 +55,7 @@
  * Resources to be activated need to be imported through the extern keyword.
  * The build system automatically compiles the resources in the corresponding sub-directory.
  */
-#ifndef NATIVE
 extern resource_t res_sysinfo;
-#endif
-
 extern  resource_t  res_large_update, res_ledtoggle;
 
 PROCESS(er_uart_server, "Erbium Uart Server");
@@ -70,15 +63,22 @@ AUTOSTART_PROCESSES(&er_uart_server);
 
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 
-SENSORS(
+SUSENSORS(
 		&button_sensor, /*&cc2538_temp_sensor,*/
 		&pulse_sensor, &relay, &ledindicator
 );
 
 
+const char* AboveEventString  = "aboveEvent";
+const char* BelowEventString  = "belowEvent";
+const char* ChangeEventString = "changeEvent";
+
 static coap_packet_t request[1];      /* This way the packet can be treated as pointer as usual. */
 static joinpair_t *pair = NULL;
-static uint8_t tx[200];
+static uint8_t payload[50];
+static char uri[30];
+static uint8_t coapTx[60];
+
 PROCESS_THREAD(er_uart_server, ev, data)
 {
 
@@ -102,12 +102,15 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	//	rest_activate_resource(&res_mirror, "debug/mirror");
 
 	//Activate all attached sensors
-	SENSORS_ACTIVATE(pulse_sensor);
+	SUSENSORS_ACTIVATE(pulse_sensor);
 	res_susensor_activate(&pulse_sensor);
-	SENSORS_ACTIVATE(relay);
+	activateSUSensorPairing(&pulse_sensor);
+	SUSENSORS_ACTIVATE(relay);
 	res_susensor_activate(&relay);
-	SENSORS_ACTIVATE(ledindicator);
+	activateSUSensorPairing(&relay);
+	SUSENSORS_ACTIVATE(ledindicator);
 	res_susensor_activate(&ledindicator);
+	activateSUSensorPairing(&ledindicator);
 
 	//	uartsensors_init();
 	//	while(1) {	//Wait until uartsensors has been initialized
@@ -124,11 +127,37 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	while(1) {
 		PROCESS_YIELD();
 
-		if(ev == sensors_event) {
-			//struct sensors_sensor* s = (struct sensors_sensor*) data;
-			//if(data == &button_sensor) {
-				leds_toggle(LEDS_GREEN);
-			//}
+		if(ev == susensors_event) {
+			//leds_toggle(LEDS_GREEN);
+			list_t pairinglist = pairing_get_pairs();
+			for(pair = (joinpair_t *)list_head(pairinglist); pair; pair = pair->next) {
+				if(pair->deviceptr == data){
+					//Found a pair, now send the reading to the subscriber
+					struct susensors_sensor* p = (struct susensors_sensor*)data;
+					const char* eventstr = NULL;
+					int len = p->getActiveEventMsg(p, &eventstr, payload);
+					//p->eventhandler(p, SUSENSORS_EVENT_GET, )
+					//if(e->runtime)
+					coap_message_type_t type = COAP_TYPE_NON;
+
+					coap_init_message(request, type, COAP_PUT, coap_get_mid());
+
+					//sprintf(uri, "%s?%s", (char*)MMEM_PTR(&pair->dsturl), eventstr);
+
+					coap_set_header_uri_path(request, (char*)MMEM_PTR(&pair->dsturl));
+					coap_set_header_uri_query(request, eventstr);
+					REST.set_header_content_type(request, APPLICATION_OCTET_STREAM);
+					coap_set_payload(request, payload, len);	//Its already msgpack encoded.
+
+					len = coap_serialize_message(request, &coapTx[0]);
+					//if(type == COAP_TYPE_NON)
+						coap_send_message(&pair->destip, REMOTE_PORT, &coapTx[0], len);
+					//else
+					//	COAP_BLOCKING_REQUEST(&pair->destip, REMOTE_PORT, request, 0/*client_chunk_handler*/);
+
+					leds_toggle(LEDS_GREEN);
+				}
+			}
 		}
 
 		//		if(ev == uartsensors_event){
@@ -147,9 +176,9 @@ PROCESS_THREAD(er_uart_server, ev, data)
 		//						coap_set_payload(request, p->lastval, p->vallen);	//Its already msgpack encoded.
 		//					}
 		//
-		//					uint16_t len = coap_serialize_message(request, &tx[0]);
+		//					uint16_t len = coap_serialize_message(request, &payload[0]);
 		//					if(type == COAP_TYPE_NON)
-		//						coap_send_message(&pair->destip, REMOTE_PORT, &tx[0], len);
+		//						coap_send_message(&pair->destip, REMOTE_PORT, &payload[0], len);
 		//					else
 		//						COAP_BLOCKING_REQUEST(&pair->destip, REMOTE_PORT, request, 0/*client_chunk_handler*/);
 		//

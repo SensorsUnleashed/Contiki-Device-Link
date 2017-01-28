@@ -43,11 +43,11 @@
  * Implementation of a generic module controlling OpenMote-CC2538 sensors
  */
 /*---------------------------------------------------------------------------*/
-#include "contiki.h"
-#include "dev/cc2538-sensors.h"
-#include "dev/button-sensor.h"
+//#include "contiki.h"
+//#include "dev/cc2538-sensors.h"
+//#include "dev/button-sensor.h"
 
-#include <string.h>
+//#include <string.h>
 /*---------------------------------------------------------------------------*/
 /**
  * \brief Exports a global symbol to be used by the sensor API

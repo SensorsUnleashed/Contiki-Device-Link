@@ -38,7 +38,7 @@
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
 #include "relay.h"
-#include "lib/sensors.h"
+#include "lib/susensors.h"
 #include "dev/gpio.h"
 #include "dev/ioc.h"
 
@@ -50,14 +50,18 @@
 #include "rest-engine.h"
 #include "susensorcommon.h"
 
-const struct sensors_sensor relay;
+const struct susensors_sensor relay;
 /*---------------------------------------------------------------------------*/
 struct relayRuntime {
 	uint8_t enabled;
+	uint8_t hasEvent;
+	enum susensors_event_cmd lastEvent;
 	cmp_object_t LastEventValue;
+	const char* eventtype;
 };
-static struct relayRuntime data = {
+static struct relayRuntime rdata = {
 		.enabled = 0,
+		.hasEvent = 0,
 		.LastEventValue = {
 				.type = CMP_TYPE_UINT8,
 				.as.u8 = 0
@@ -100,68 +104,71 @@ static struct resourceconf config = {
 /*---------------------------------------------------------------------------*/
 
 static int
-relay_on(void)
+relay_on(struct susensors_sensor* this)
 {
-	if(enabled) {
-		GPIO_SET_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK);
-		return RELAY_SUCCESS;
+	GPIO_SET_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK);
+	struct relayRuntime* r = (struct relayRuntime*)this->data->runtime;
+	if(r->LastEventValue.as.u8 != 1){
+		r->LastEventValue.as.u8 = 1;
+		r->hasEvent = 1;
+		r->lastEvent = SUSENSORS_ABOVE_EVENT_SET;
+		r->eventtype = suEventAboveEventString;
 	}
-	return RELAY_ERROR;
+	return 0;
 }
 /*---------------------------------------------------------------------------*/
 static int
-relay_off(void)
+relay_off(struct susensors_sensor* this)
 {
-	if(enabled) {
-		GPIO_CLR_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK);
-		return RELAY_SUCCESS;
+	GPIO_CLR_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK);
+	struct relayRuntime* r = (struct relayRuntime*)this->data->runtime;
+	if(r->LastEventValue.as.u8 != 0){
+		r->LastEventValue.as.u8 = 0;
+		r->hasEvent = 1;
+		r->lastEvent = SUSENSORS_BELOW_EVENT_SET;
+		r->eventtype = suEventBelowEventString;
 	}
-	return RELAY_ERROR;
 
+	return 0;
 }
 /*---------------------------------------------------------------------------*/
+
 static int
-status(int type, void* data)
+get(struct susensors_sensor* this, int type, void* data)
 {
 	int ret = 1;
 	cmp_object_t* obj = (cmp_object_t*)data;
-
-	if((enum up_parameter) type == EventStatus){
-
-	}
-	else if((enum up_parameter) type == ActualValue){
+	if((enum up_parameter) type == ActualValue){
 		obj->type = CMP_TYPE_UINT8;
 		obj->as.u8 = (uint8_t) GPIO_READ_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK) > 0;
 		ret = 0;
 	}
-	else if(type >= (int)ChangeEventConfigValue){
-		ret = su_sensorvalue(type, obj, &config);
-	}
 	return ret;
 }
 /*---------------------------------------------------------------------------*/
 static int
-value(int type, void* data)
+set(struct susensors_sensor* this, int type, void* data)
 {
+	int enabled = ((struct relayRuntime*)this->data->runtime)->enabled;
 	int ret = 1;
-	if((enum suactions)type == setRelay_off){
-		ret = relay_off();
+	if((enum suactions)type == setRelay_off && enabled){
+		ret = relay_off(this);
 	}
-	else if((enum suactions)type == setRelay_on){
-		ret = relay_on();
+	else if((enum suactions)type == setRelay_on && enabled){
+		ret = relay_on(this);
 	}
-	else if((enum suactions)type == setRelay_toggle){
+	else if((enum suactions)type == setRelay_toggle && enabled){
 		if(GPIO_READ_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK) > 0){
-			ret = relay_off();
+			ret = relay_off(this);
 		}
 		else{
-			ret = relay_on();
+			ret = relay_on(this);
 		}
 	}
 
 	//Just signal that we have an event. Let the event logic handle if it should be fired or not
-	if(ret == 0 && config.eventsActive != 0){
-		sensors_changed(&relay);
+	if(ret == 0){
+		susensors_changed(this);
 	}
 
 	return ret;
@@ -169,9 +176,9 @@ value(int type, void* data)
 
 /*---------------------------------------------------------------------------*/
 static int
-configure(int type, int value)
+configure(struct susensors_sensor* this, int type, int value)
 {
-	if(type != SENSORS_ACTIVE) {
+	if(type != SUSENSORS_ACTIVE) {
 		return RELAY_ERROR;
 	}
 
@@ -180,17 +187,45 @@ configure(int type, int value)
 		GPIO_SET_OUTPUT(RELAY_PORT_BASE, RELAY_PIN_MASK);
 		ioc_set_over(RELAY_PORT, RELAY_PIN, IOC_OVERRIDE_OE);
 		GPIO_CLR_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK);
-		enabled = 1;
+		((struct relayRuntime*)this->data->runtime)->enabled = 1;
 		return RELAY_SUCCESS;
 	}
 	GPIO_SET_INPUT(RELAY_PORT_BASE, RELAY_PIN_MASK);
-	enabled = 0;
+	((struct relayRuntime*)this->data->runtime)->enabled = 0;
 	return RELAY_SUCCESS;
 }
 
+/* An event was received from another device - now act on it */
+static int eventHandler(struct susensors_sensor* this, int type, int len, uint8_t* payload){
+	enum susensors_event_cmd cmd = (enum susensors_event_cmd)type;
+	int ret = 1;
+	switch(cmd){
+	case SUSENSORS_ABOVE_EVENT_SET:
+		this->value(this, setRelay_on, NULL);
+		ret = 0;
+		break;
+	case SUSENSORS_BELOW_EVENT_SET:
+		this->value(this, setRelay_off, NULL);
+		ret = 0;
+		break;
+	case SUSENSORS_CHANGE_EVENT_SET:
+//		this->value(this, setRelay_toggle, NULL);
+//		ret = 0;
+		break;
+	}
+	return ret;
+}
+
+static int getActiveEventMsg(struct susensors_sensor* this, const char** eventstr, uint8_t* payload){
+	struct relayRuntime* d = (struct relayRuntime*)this->data->runtime;
+	int len = cp_encodeObject(payload, &d->LastEventValue);
+	*eventstr = d->eventtype;
+
+	return len;
+}
 
 /*---------------------------------------------------------------------------*/
-static struct extras extra = { .type = 1, .data = (void*)&config };
-SENSORS_SENSOR(relay, RELAY_ACTUATOR, value, configure, status, &extra);
+static struct extras extra = { .type = 1, .config = (void*)&config, .runtime = (void*) &rdata};
+SUSENSORS_SENSOR(relay, RELAY_ACTUATOR, set, configure, get, eventHandler, getActiveEventMsg, (void*)&extra);
 /*---------------------------------------------------------------------------*/
 /** @} */
