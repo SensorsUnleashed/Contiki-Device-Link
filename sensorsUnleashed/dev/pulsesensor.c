@@ -17,7 +17,7 @@
 
 #include "susensorcommon.h"
 
-const struct susensors_sensor pulse_sensor;
+struct susensors_sensor pulse_sensor;
 
 #define PULSE_PORT            GPIO_A_NUM
 #define PULSE_PIN             3
@@ -174,4 +174,4 @@ static int getActiveEventMsg(struct susensors_sensor* this, const char** eventst
 }
 //TODO: Add runtime data
 static struct extras extra = { .type = 1, .config = (void*)&config, .runtime = (void*)0 };
-SUSENSORS_SENSOR(pulse_sensor, PULSE_SENSOR, set, config_user, get, EventReceived, getActiveEventMsg, &extra);
+//SUSENSORS_SENSOR(pulse_sensor, PULSE_SENSOR, set, config_user, get, EventReceived, getActiveEventMsg, &extra);

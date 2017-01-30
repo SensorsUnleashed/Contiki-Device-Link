@@ -37,105 +37,113 @@
 #include "contiki.h"
 
 #include "lib/susensors.h"
+#include "lib/memb.h"
 
 const char* suEventAboveEventString = "aboveEvent";
 const char* suEventBelowEventString = "belowEvent";
 const char* suEventChangeEventString = "changeEvent";
 
 const extern struct susensors_sensor *susensors[];
-extern unsigned char susensors_flags[];
 
 #define FLAG_CHANGED    0x80
 
 process_event_t susensors_event;
 
-static unsigned char num_susensors;
+static unsigned char num_susensors = 0;
 
 PROCESS(susensors_process, "Sensors");
 
-/*---------------------------------------------------------------------------*/
-static int
-get_sensor_index(const struct susensors_sensor *s)
-{
-  int i;
-  for(i = 0; i < num_susensors; ++i) {
-    if(susensors[i] == s) {
-      return i;
-    }
-  }
-  return i;
+LIST(sudevices);
+MEMB(sudevices_memb, susensors_sensor_t, DEVICES_MAX);
+
+void initSUSensors(){
+	list_init(sudevices);
+	memb_init(&sudevices_memb);
 }
+
+susensors_sensor_t* addSUDevices(susensors_sensor_t* device){
+	susensors_sensor_t* d;
+	d = memb_alloc(&sudevices_memb);
+	if(d == 0) return NULL;
+
+	memcpy(d, device, sizeof(susensors_sensor_t));
+	LIST_STRUCT_INIT(d, pairs);
+	list_add(sudevices, d);
+
+	return d;
+}
+
 /*---------------------------------------------------------------------------*/
-const struct susensors_sensor *
+susensors_sensor_t *
 susensors_first(void)
 {
-  return susensors[0];
+	return list_head(sudevices);
 }
 /*---------------------------------------------------------------------------*/
-const struct susensors_sensor *
-susensors_next(const struct susensors_sensor *s)
+susensors_sensor_t *
+susensors_next(susensors_sensor_t* s)
 {
-  return susensors[get_sensor_index(s) + 1];
+	return list_item_next(s);
 }
 /*---------------------------------------------------------------------------*/
 void
-susensors_changed(const struct susensors_sensor *s)
+susensors_changed(susensors_sensor_t* s)
 {
-  susensors_flags[get_sensor_index(s)] |= FLAG_CHANGED;
-  process_poll(&susensors_process);
+	s->event_flag |= FLAG_CHANGED;
+	process_poll(&susensors_process);
 }
 /*---------------------------------------------------------------------------*/
-const struct susensors_sensor *
+susensors_sensor_t*
 susensors_find(const char *prefix, unsigned short len)
 {
-  int i;
+	susensors_sensor_t* i;
 
-  /* Search through all processes and search for the specified process
+	/* Search through all processes and search for the specified process
      name. */
-  if(!len)
-  len = strlen(prefix);
+	if(!len)
+		len = strlen(prefix);
 
-  for(i = 0; i < num_susensors; ++i) {
-    if(strncmp(prefix, susensors[i]->type, len) == 0) {
-      return susensors[i];
-    }
-  }
-  return NULL;
+	for(i = susensors_first(); i; i = susensors_next(i)) {
+		if(strncmp(prefix, i->type, len) == 0) {
+			return i;
+		}
+	}
+	return NULL;
 }
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(susensors_process, ev, data)
 {
-  static int i;
-  static int events;
+	static int i;
+	static int events;
+	susensors_sensor_t* d;
+	PROCESS_BEGIN();
 
-  PROCESS_BEGIN();
+	susensors_event = process_alloc_event();
 
-  susensors_event = process_alloc_event();
-
-  for(i = 0; susensors[i] != NULL; ++i) {
-    susensors_flags[i] = 0;
-    susensors[i]->configure((struct susensors_sensor*)susensors[i], SUSENSORS_HW_INIT, 0);
-  }
-  num_susensors = i;
-
-  while(1) {
-
-    PROCESS_WAIT_EVENT();
-
-    do {
-      events = 0;
-      for(i = 0; i < num_susensors; ++i) {
-	if(susensors_flags[i] & FLAG_CHANGED) {
-	  if(process_post(PROCESS_BROADCAST, susensors_event, (void *)susensors[i]) == PROCESS_ERR_OK) {
-	    PROCESS_WAIT_EVENT_UNTIL(ev == susensors_event);
-	  }
-	  susensors_flags[i] &= ~FLAG_CHANGED;
-	  events++;
+	for(d = susensors_first(); d; d = susensors_next(d)) {
+		d->event_flag = 0;
+		d->configure(d, SUSENSORS_HW_INIT, 0);
+		num_susensors++;
 	}
-      }
-    } while(events);
-  }
 
-  PROCESS_END();
+	while(1) {
+
+		PROCESS_WAIT_EVENT();
+
+		do {
+			events = 0;
+			for(d = susensors_first(); d; d = susensors_next(d)) {
+				if(d->event_flag & FLAG_CHANGED){
+					if(process_post(PROCESS_BROADCAST, susensors_event, (void *)d) == PROCESS_ERR_OK) {
+						PROCESS_WAIT_EVENT_UNTIL(ev == susensors_event);
+					}
+					d->event_flag &= ~FLAG_CHANGED;
+					events++;
+				}
+			}
+		} while(events);
+	}
+
+	PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/

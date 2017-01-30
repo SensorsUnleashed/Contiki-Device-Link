@@ -34,6 +34,10 @@
 #define SENSORS_H_
 
 #include "contiki.h"
+#include "lib/list.h"
+#include "../../apps/uartsensors/uart_protocolhandler.h"
+
+#define DEVICES_MAX		10
 
 extern const char* suEventAboveEventString;
 extern const char* suEventBelowEventString;
@@ -70,15 +74,15 @@ enum susensors_event_cmd {
 #define SUSENSORS_DEACTIVATE(sensor) (sensor).configure(&sensor, SUSENSORS_ACTIVE, 0)
 
 #define SUSENSORS_SENSOR(name, type, value, configure, status, eventhandler, getActiveEventMsg, data)        \
-const struct susensors_sensor name = { \
-	type, value, configure, status, eventhandler, getActiveEventMsg, suconfig, data \
+		struct susensors_sensor name = { \
+				type, value, configure, status, eventhandler, getActiveEventMsg, suconfig, data \
 }
 
 #define SUSENSORS_NUM (sizeof(susensors) / sizeof(struct susensors_sensor *))
 
 #define SUSENSORS(...) \
-const struct susensors_sensor *susensors[] = {__VA_ARGS__, NULL};       \
-unsigned char susensors_flags[SUSENSORS_NUM]
+		struct susensors_sensor *susensors[] = {__VA_ARGS__, NULL};       \
+		unsigned char susensors_flags[SUSENSORS_NUM]
 
 /* Used for extra material needed for using a sensor */
 struct extras{
@@ -88,28 +92,40 @@ struct extras{
 };
 
 struct susensors_sensor {
-  char *       type;
-  /* Set device values */
-  int          (* value)     	(struct susensors_sensor* this, int type, void* data);
-  /* Get/set device hardware specific configuration */
-  int          (* configure) 	(struct susensors_sensor* this, int type, int value);
-  /* Get device values */
-  int          (* status)    	(struct susensors_sensor* this, int type, void* data);
-  /* Received an event from another device - handle it */
-  int 		   (* eventhandler)	(struct susensors_sensor* this, int type, int len, uint8_t* payload);
-  /* Get the date from the last event emittet */
-  int 		   (* getActiveEventMsg)	(struct susensors_sensor* this, const char** eventstr, uint8_t* payload);
-  /* Get/set device suconfig (common to all devices) */
-  int          (* suconfig)  	(struct susensors_sensor* this, int type, void* data);
+	struct susensors_sensor* next;
+	char *       type;
 
-  struct extras* data;
+	unsigned char event_flag;
+
+	/* Set device values */
+	int          (* value)     	(struct susensors_sensor* this, int type, void* data);
+	/* Get/set device hardware specific configuration */
+	int          (* configure) 	(struct susensors_sensor* this, int type, int value);
+	/* Get device values */
+	int          (* status)    	(struct susensors_sensor* this, int type, void* data);
+	/* Received an event from another device - handle it */
+	int 		   (* eventhandler)	(struct susensors_sensor* this, int type, int len, uint8_t* payload);
+	/* Get the date from the last event emittet */
+	int 		   (* getActiveEventMsg)	(struct susensors_sensor* this, const char** eventstr, uint8_t* payload);
+	/* Get/set device suconfig (common to all devices) */
+	int          (* suconfig)  	(struct susensors_sensor* this, int type, void* data);
+
+	struct extras data;
+
+	LIST_STRUCT(pairs);
 };
 
-const struct susensors_sensor *susensors_find(const char *type, unsigned short len);
-const struct susensors_sensor *susensors_next(const struct susensors_sensor *s);
-const struct susensors_sensor *susensors_first(void);
+typedef struct susensors_sensor susensors_sensor_t;
 
-void susensors_changed(const struct susensors_sensor *s);
+void initSUSensors();
+
+susensors_sensor_t* addSUDevices(susensors_sensor_t* device);
+
+susensors_sensor_t* susensors_find(const char *type, unsigned short len);
+susensors_sensor_t* susensors_next(susensors_sensor_t* s);
+susensors_sensor_t* susensors_first(void);
+
+void susensors_changed(susensors_sensor_t* s);
 
 extern process_event_t susensors_event;
 

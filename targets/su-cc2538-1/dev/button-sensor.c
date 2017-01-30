@@ -184,9 +184,10 @@ static int EventReceived(struct susensors_sensor* this, int type, void* data){
 
 static int getActiveEventMsg(struct susensors_sensor* this, int len, uint8_t* payload){
 
+	return 1;
 }
 
 /*---------------------------------------------------------------------------*/
-SUSENSORS_SENSOR(button_sensor, BUTTON_SENSOR, value, config_user, NULL, EventReceived, getActiveEventMsg, NULL);
+//SUSENSORS_SENSOR(button_sensor, BUTTON_SENSOR, value, config_user, NULL, EventReceived, getActiveEventMsg, NULL);
 /*---------------------------------------------------------------------------*/
 /** @} */

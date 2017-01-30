@@ -8,7 +8,11 @@
 #ifndef SENSORSUNLEASHED_DEV_LEDINDICATOR_H_
 #define SENSORSUNLEASHED_DEV_LEDINDICATOR_H_
 
-extern const struct susensors_sensor ledindicator;
+#include "lib/susensors.h"
+
 #define LED_INDICATOR "su/ledindicator"
+
+extern struct resourceconf ledindicatorconfig;
+susensors_sensor_t* addASULedIndicator(const char* name, struct resourceconf* config);
 
 #endif /* SENSORSUNLEASHED_DEV_LEDINDICATOR_H_ */

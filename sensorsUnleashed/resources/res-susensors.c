@@ -234,12 +234,9 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 //Return 2 if we can't allocate any more sensors
 int res_susensor_activate(const struct susensors_sensor* sensor){
 
-	const struct extras* extra = sensor->data;
+	const struct extras* extra = &sensor->data;
 	struct resourceconf* config;
 
-	if(extra->type != 1){
-		return 1;
-	}
 	config = (struct resourceconf*)extra->config;
 	//Create the resource for the coap engine
 	resource_t* r = (resource_t*)memb_alloc(&coap_resources);

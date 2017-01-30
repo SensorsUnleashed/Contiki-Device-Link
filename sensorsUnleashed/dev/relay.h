@@ -16,6 +16,11 @@
 #define RELAY_H_
 /* -------------------------------------------------------------------------- */
 
+#include "lib/susensors.h"
+
+extern struct resourceconf relayconfigs;
+
+susensors_sensor_t* addASURelay(const char* name, struct resourceconf* config);
 /**
  * \name Relay default pin and port
  * @{
@@ -44,7 +49,7 @@
 /* -------------------------------------------------------------------------- */
 #define RELAY_ACTUATOR "su/powerrelay"
 /* -------------------------------------------------------------------------- */
-extern const struct susensors_sensor relay;
+extern struct susensors_sensor relay;
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 #endif /* RELAY_H_ */

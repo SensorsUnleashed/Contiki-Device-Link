@@ -63,12 +63,6 @@ AUTOSTART_PROCESSES(&er_uart_server);
 
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 
-SUSENSORS(
-		&button_sensor, /*&cc2538_temp_sensor,*/
-		&pulse_sensor, &relay, &ledindicator
-);
-
-
 const char* AboveEventString  = "aboveEvent";
 const char* BelowEventString  = "belowEvent";
 const char* ChangeEventString = "changeEvent";
@@ -87,12 +81,29 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	//Init dynamic memory	(Default 4096Kb)
 	mmem_init();
 
+	initSUSensors();
+
 	//Restore sensor pairs stored in flash
 	restore_SensorPairs();
 
 	/* Initialize the REST engine. */
 	rest_init_engine();
 	coap_init_engine();
+
+	susensors_sensor_t* d;
+	d = addASURelay(RELAY_ACTUATOR, &relayconfigs);
+	if(d != NULL) {
+		res_susensor_activate(d);
+		activateSUSensorPairing(d);
+	}
+	d = addASULedIndicator(LED_INDICATOR, &ledindicatorconfig);
+	if(d != NULL){
+		res_susensor_activate(d);
+		activateSUSensorPairing(d);
+	}
+
+	process_start(&susensors_process, NULL);
+
 #ifndef NATIVE
 	process_start(&sensors_process, NULL);
 	rest_activate_resource(&res_sysinfo, "SU/SystemInfo");
@@ -102,15 +113,15 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	//	rest_activate_resource(&res_mirror, "debug/mirror");
 
 	//Activate all attached sensors
-	SUSENSORS_ACTIVATE(pulse_sensor);
-	res_susensor_activate(&pulse_sensor);
-	activateSUSensorPairing(&pulse_sensor);
-	SUSENSORS_ACTIVATE(relay);
-	res_susensor_activate(&relay);
-	activateSUSensorPairing(&relay);
-	SUSENSORS_ACTIVATE(ledindicator);
-	res_susensor_activate(&ledindicator);
-	activateSUSensorPairing(&ledindicator);
+//	SUSENSORS_ACTIVATE(pulse_sensor);
+//	res_susensor_activate(&pulse_sensor);
+//	activateSUSensorPairing(&pulse_sensor);
+//	SUSENSORS_ACTIVATE(relay);
+//	res_susensor_activate(&relay);
+//	activateSUSensorPairing(&relay);
+//	SUSENSORS_ACTIVATE(ledindicator);
+//	res_susensor_activate(&ledindicator);
+//	activateSUSensorPairing(&ledindicator);
 
 	//	uartsensors_init();
 	//	while(1) {	//Wait until uartsensors has been initialized

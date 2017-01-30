@@ -1,6 +1,5 @@
 #include "ledindicator.h"
 #include "contiki.h"
-#include "lib/susensors.h"
 #include "dev/leds.h"
 
 #include "../../apps/uartsensors/uart_protocolhandler.h"
@@ -8,8 +7,7 @@
 #include "susensorcommon.h"
 #include "board.h"
 
-const struct susensors_sensor ledindicator;
-static struct resourceconf config = {
+struct resourceconf ledindicatorconfig = {
 		.resolution = 1,
 		.version = 1,
 		.flags = METHOD_GET | METHOD_PUT,
@@ -107,8 +105,23 @@ static int eventHandler(struct susensors_sensor* this, int type, int len, uint8_
 }
 
 static int getActiveEventMsg(struct susensors_sensor* this, const char** eventstr, uint8_t* payload){
-
+	return 1;
 }
 
-static struct extras extra = { .type = 1, .config = (void*)&config, .runtime = (void*)0 };
-SUSENSORS_SENSOR(ledindicator, LED_INDICATOR, set, configure, get, eventHandler, getActiveEventMsg, &extra);
+susensors_sensor_t* addASULedIndicator(const char* name, struct resourceconf* config){
+	susensors_sensor_t d;
+	d.type = (char*)name;
+	d.status = get;
+	d.value = set;
+	d.configure = configure;
+	d.eventhandler = eventHandler;
+	d.getActiveEventMsg = getActiveEventMsg;
+	d.suconfig = suconfig;
+	d.data.config = config;
+	d.data.runtime = (void*)0;
+
+	return addSUDevices(&d);
+}
+
+//static struct extras extra = { .type = 1, .config = (void*)&config, .runtime = (void*)0 };
+//SUSENSORS_SENSOR(ledindicator, LED_INDICATOR, set, configure, get, eventHandler, getActiveEventMsg, &extra);

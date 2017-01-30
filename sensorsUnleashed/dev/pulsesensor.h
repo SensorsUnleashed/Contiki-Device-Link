@@ -12,7 +12,7 @@
 
 #define PULSE_SENSOR "su/pulsecounter"
 
-extern const struct susensors_sensor pulse_sensor;
+extern struct susensors_sensor pulse_sensor;
 
 
 #endif /* SENSORSUNLEASHED_DEV_PULSESENSOR_H_ */

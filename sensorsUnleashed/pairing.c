@@ -198,11 +198,7 @@ uint8_t pairing_handle(void* resource, enum datatype_e restype){
 		}
 	}
 
-	//pair = (joinpair_t*)memb_alloc(&pairings);
-	//if(pair == NULL) return 3;
-
 	//Add pair to the list of pairs
-	//memcpy(pair, &p, sizeof(joinpair_t));
 	list_add(pairings_list, p);
 
 	//Finally store pairing info into flash
@@ -244,15 +240,10 @@ void restore_SensorPairs(void){
 	cmp_init(&cmp, &read, file_reader, file_writer);
 	bufsize = BUFFERSIZE;
 	while(cmp_read_bin(&cmp, buffer, &bufsize)){
-		//joinpair_t pair;
 		joinpair_t* pair = (joinpair_t*)memb_alloc(&pairings);
 		if(parseMessage(susensor, pair) == 0){
 			PRINTF("SrcUri: %s -> DstUri: %s\n", (char*)MMEM_PTR(&pair->srcurl), (char*)MMEM_PTR(&pair->dsturl));
-			//joinpair_t* p = (joinpair_t*)memb_alloc(&pairings);
-			//memcpy(p, pair, sizeof(joinpair_t));
-			//if(p != 0){
-				list_add(pairings_list, pair);
-			//}
+			list_add(pairings_list, pair);
 		}
 		else{
 			memb_free(&pairings, pair);

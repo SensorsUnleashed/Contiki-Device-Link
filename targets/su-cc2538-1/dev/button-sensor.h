@@ -54,7 +54,7 @@
 /*---------------------------------------------------------------------------*/
 #define BUTTON_SENSOR "Button"
 
-extern const struct susensors_sensor button_sensor;
+extern struct susensors_sensor button_sensor;
 /*---------------------------------------------------------------------------*/
 extern process_event_t button_press_duration_exceeded;
 /*---------------------------------------------------------------------------*/

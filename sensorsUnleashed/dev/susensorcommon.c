@@ -10,7 +10,7 @@
 int suconfig(struct susensors_sensor* this, int type, void* data){
 
 	int ret = 1;
-	struct resourceconf* config = (struct resourceconf*)this->data->config;
+	struct resourceconf* config = (struct resourceconf*)this->data.config;
 	enum susensors_configcmd cmd = (enum susensors_configcmd)type;
 	if(cmd == SUSENSORS_EVENTSETUP_SET){
 
