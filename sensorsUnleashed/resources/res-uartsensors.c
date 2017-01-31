@@ -197,7 +197,7 @@ static void res_proxy_put_handler(void *request, void *response, uint8_t *buffer
 
 					if(coap_req->block1_more == 0){
 						//We're finished receiving the payload, now parse it.
-						int res = pairing_handle(resource, uartsensor);
+						int res = 5; //pairing_handle(resource, uartsensor);
 
 						switch(res){
 						case 0:

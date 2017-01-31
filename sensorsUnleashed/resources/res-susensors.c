@@ -187,7 +187,7 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 
 						if(coap_req->block1_more == 0){
 							//We're finished receiving the payload, now parse it.
-							int res = pairing_handle((void*)sensor, susensor);	//TODO: This is not good
+							int res = pairing_handle(sensor);	//TODO: This is not good
 
 							switch(res){
 							case 0:

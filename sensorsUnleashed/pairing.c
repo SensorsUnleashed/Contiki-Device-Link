@@ -9,8 +9,8 @@
 #include "contiki.h"
 #include "cfs/cfs.h"
 #include "../apps/uartsensors/cmp.h"
-#include "uartsensors.h"
 #include <string.h>
+#include <stdio.h>
 #include "net/ip/uip.h"
 #include "lib/memb.h"
 #include "susensors.h"
@@ -39,38 +39,13 @@ static uint32_t file_writer(cmp_ctx_t* ctx, const void *data, uint32_t count);
 static uint8_t buffer[BUFFERSIZE] = { 0 };
 static uint32_t bufsize = 0;
 
-LIST(pairings_list);
 MEMB(pairings, joinpair_t, 20);
 
-list_t pairing_get_pairs(void)
-{
-	return pairings_list;
-}
-
-/*
- *	Restore pairing
- * */
-void activateUartSensorPairing(uartsensors_device_t* p){
+void activateSUSensorPairing(susensors_sensor_t* p){
 
 	joinpair_t *pair = NULL;
 
-	for(pair = (joinpair_t *)list_head(pairings_list);
-			pair; pair = pair->next) {
-		int urllen = strlen(p->conf.attr);
-		if(urllen == strlen((char*)MMEM_PTR(&pair->srcurl))){
-			if(strncmp((char*)MMEM_PTR(&pair->srcurl), p->conf.attr, urllen) == 0){
-				pair->devicetype = uartsensor;
-				pair->deviceptr = p;
-			}
-		}
-	}
-}
-
-void activateSUSensorPairing(const struct susensors_sensor* p){
-
-	joinpair_t *pair = NULL;
-
-	for(pair = (joinpair_t *)list_head(pairings_list);
+	for(pair = (joinpair_t *)list_head(p->pairs);
 			pair; pair = pair->next) {
 		int urllen = strlen(p->type);
 		if(urllen == strlen((char*)MMEM_PTR(&pair->srcurl))){
@@ -106,7 +81,7 @@ uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len, uint32_t num)
 // 3 = Unable to allocate enough dynamic memory
 // 4 = src_uri could not be parsed
 
-uint8_t parseMessage(enum datatype_e restype, joinpair_t* pair){
+uint8_t parseMessage(joinpair_t* pair){
 
 	uint32_t stringlen = 100;
 	char stringbuf[100];
@@ -139,7 +114,6 @@ uint8_t parseMessage(enum datatype_e restype, joinpair_t* pair){
 	}
 	memcpy((char*)MMEM_PTR(&pair->srcurl), (char*)stringbuf, stringlen);
 
-	pair->devicetype = restype;
 	pair->deviceptr = 0;
 
 	return 0;
@@ -152,32 +126,23 @@ uint8_t parseMessage(enum datatype_e restype, joinpair_t* pair){
 // 3 = Unable to allocate enough dynamic memory
 // 4 = src_uri could not be parsed
 // 5 = device already paired
-uint8_t pairing_handle(void* resource, enum datatype_e restype){
+uint8_t pairing_handle(susensors_sensor_t* s){
 
 	uint8_t* payload = &buffer[0];
+	list_t pairings_list = s->pairs;
 
-	//Append the src uri to the message.
-	if(restype == uartsensor){
-		uartsensors_device_t* resptr = (uartsensors_device_t*)resource;
-		if(strlen(resptr->conf.attr) + bufsize > BUFFERSIZE) return 3;
-		cp_encodeString((uint8_t*) payload + bufsize, resptr->conf.attr, strlen(resptr->conf.attr), &bufsize);
-	}
-	else if(restype == susensor){
-		struct susensors_sensor *s = (struct susensors_sensor*)resource;
-		//struct resourceconf* resptr = s->data->config;
-		if(strlen(s->type) + bufsize > BUFFERSIZE) return 3;
-		cp_encodeString((uint8_t*) payload + bufsize, s->type, strlen(s->type), &bufsize);
-	}
+	if(strlen(s->type) + bufsize > BUFFERSIZE) return 3;
+	cp_encodeString((uint8_t*) payload + bufsize, s->type, strlen(s->type), &bufsize);
 
 	joinpair_t* p = (joinpair_t*)memb_alloc(&pairings);
-	int ret = parseMessage(restype, p);
+	int ret = parseMessage(p);
 
 	if(ret != 0){
 		memb_free(&pairings, p);
 		return ret;
 	}
 
-	p->deviceptr = resource;
+	p->deviceptr = s;
 
 
 	//p now contains all pairing details.
@@ -202,14 +167,15 @@ uint8_t pairing_handle(void* resource, enum datatype_e restype){
 	list_add(pairings_list, p);
 
 	//Finally store pairing info into flash
-	store_SensorPair(payload, bufsize);
+	store_SensorPair(s, payload, bufsize);
 
 	return 0;
 }
 
-void store_SensorPair(uint8_t* data, uint32_t len){
-	const char* filename = "pairs";
-
+void store_SensorPair(susensors_sensor_t* s, uint8_t* data, uint32_t len){
+	char filename[30];
+	memset(filename, 0, 30);
+	sprintf(filename, "pairs_%s", s->type);
 	struct file_s write;
 	write.fd = cfs_open(filename, CFS_READ | CFS_WRITE | CFS_APPEND);
 	write.offset = 0;
@@ -225,10 +191,14 @@ void store_SensorPair(uint8_t* data, uint32_t len){
 	cfs_close(write.fd);
 }
 
-void restore_SensorPairs(void){
-	const char* filename = "pairs";
+void restore_SensorPairs(susensors_sensor_t* s){
 
 	struct file_s read;
+	list_t pairings_list = s->pairs;
+	char filename[30];
+	memset(filename, 0, 30);
+	sprintf(filename, "pairs_%s", s->type);
+
 	read.fd = cfs_open(filename, CFS_READ);
 	read.offset = 0;
 
@@ -241,8 +211,9 @@ void restore_SensorPairs(void){
 	bufsize = BUFFERSIZE;
 	while(cmp_read_bin(&cmp, buffer, &bufsize)){
 		joinpair_t* pair = (joinpair_t*)memb_alloc(&pairings);
-		if(parseMessage(susensor, pair) == 0){
+		if(parseMessage(pair) == 0){
 			PRINTF("SrcUri: %s -> DstUri: %s\n", (char*)MMEM_PTR(&pair->srcurl), (char*)MMEM_PTR(&pair->dsturl));
+			pair->deviceptr = s;
 			list_add(pairings_list, pair);
 		}
 		else{

@@ -70,20 +70,6 @@ enum susensors_event_cmd {
 #define SUSENSORS_EXTRAS 	131	/* Get a struct with further details */
 #define SUSENSORS_MAX_AGE	132	/* How long will the value be valid for */
 
-#define SUSENSORS_ACTIVATE(sensor) (sensor).configure((struct susensors_sensor*)&sensor, SUSENSORS_ACTIVE, 1)
-#define SUSENSORS_DEACTIVATE(sensor) (sensor).configure(&sensor, SUSENSORS_ACTIVE, 0)
-
-#define SUSENSORS_SENSOR(name, type, value, configure, status, eventhandler, getActiveEventMsg, data)        \
-		struct susensors_sensor name = { \
-				type, value, configure, status, eventhandler, getActiveEventMsg, suconfig, data \
-}
-
-#define SUSENSORS_NUM (sizeof(susensors) / sizeof(struct susensors_sensor *))
-
-#define SUSENSORS(...) \
-		struct susensors_sensor *susensors[] = {__VA_ARGS__, NULL};       \
-		unsigned char susensors_flags[SUSENSORS_NUM]
-
 /* Used for extra material needed for using a sensor */
 struct extras{
 	int type;
@@ -118,9 +104,7 @@ struct susensors_sensor {
 typedef struct susensors_sensor susensors_sensor_t;
 
 void initSUSensors();
-
 susensors_sensor_t* addSUDevices(susensors_sensor_t* device);
-
 susensors_sensor_t* susensors_find(const char *type, unsigned short len);
 susensors_sensor_t* susensors_next(susensors_sensor_t* s);
 susensors_sensor_t* susensors_first(void);

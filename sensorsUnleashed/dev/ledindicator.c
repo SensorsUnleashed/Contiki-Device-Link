@@ -122,6 +122,3 @@ susensors_sensor_t* addASULedIndicator(const char* name, struct resourceconf* co
 
 	return addSUDevices(&d);
 }
-
-//static struct extras extra = { .type = 1, .config = (void*)&config, .runtime = (void*)0 };
-//SUSENSORS_SENSOR(ledindicator, LED_INDICATOR, set, configure, get, eventHandler, getActiveEventMsg, &extra);

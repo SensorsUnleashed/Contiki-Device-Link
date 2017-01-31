@@ -36,13 +36,12 @@ typedef struct joinpair_s joinpair_t;
 list_t pairing_get_pairs(void);
 joinpair_t* getUartSensorPair(uartsensors_device_t* p);
 void activateUartSensorPairing(uartsensors_device_t* p);
-void activateSUSensorPairing(const struct susensors_sensor* p);
+void activateSUSensorPairing(susensors_sensor_t* p);
 
 uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len, uint32_t num);
-uint8_t pairing_handle(void* resource, enum datatype_e restype);
-void store_SensorPair(uint8_t* data, uint32_t len);
-void restore_SensorPairs(void);
-
+uint8_t pairing_handle(susensors_sensor_t* s);
+void store_SensorPair(susensors_sensor_t* s, uint8_t* data, uint32_t len);
+void restore_SensorPairs(susensors_sensor_t* s);
 
 
 #endif /* SENSORSUNLEASHED_PAIRING_H_ */

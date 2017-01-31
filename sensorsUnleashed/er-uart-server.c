@@ -68,7 +68,7 @@ const char* BelowEventString  = "belowEvent";
 const char* ChangeEventString = "changeEvent";
 
 static coap_packet_t request[1];      /* This way the packet can be treated as pointer as usual. */
-static joinpair_t *pair = NULL;
+
 static uint8_t payload[50];
 static char uri[30];
 static uint8_t coapTx[60];
@@ -82,9 +82,6 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	mmem_init();
 
 	initSUSensors();
-
-	//Restore sensor pairs stored in flash
-	restore_SensorPairs();
 
 	/* Initialize the REST engine. */
 	rest_init_engine();
@@ -113,15 +110,15 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	//	rest_activate_resource(&res_mirror, "debug/mirror");
 
 	//Activate all attached sensors
-//	SUSENSORS_ACTIVATE(pulse_sensor);
-//	res_susensor_activate(&pulse_sensor);
-//	activateSUSensorPairing(&pulse_sensor);
-//	SUSENSORS_ACTIVATE(relay);
-//	res_susensor_activate(&relay);
-//	activateSUSensorPairing(&relay);
-//	SUSENSORS_ACTIVATE(ledindicator);
-//	res_susensor_activate(&ledindicator);
-//	activateSUSensorPairing(&ledindicator);
+	//	SUSENSORS_ACTIVATE(pulse_sensor);
+	//	res_susensor_activate(&pulse_sensor);
+	//	activateSUSensorPairing(&pulse_sensor);
+	//	SUSENSORS_ACTIVATE(relay);
+	//	res_susensor_activate(&relay);
+	//	activateSUSensorPairing(&relay);
+	//	SUSENSORS_ACTIVATE(ledindicator);
+	//	res_susensor_activate(&ledindicator);
+	//	activateSUSensorPairing(&ledindicator);
 
 	//	uartsensors_init();
 	//	while(1) {	//Wait until uartsensors has been initialized
@@ -139,64 +136,29 @@ PROCESS_THREAD(er_uart_server, ev, data)
 		PROCESS_YIELD();
 
 		if(ev == susensors_event) {
-			//leds_toggle(LEDS_GREEN);
-			list_t pairinglist = pairing_get_pairs();
-			for(pair = (joinpair_t *)list_head(pairinglist); pair; pair = pair->next) {
-				if(pair->deviceptr == data){
-					//Found a pair, now send the reading to the subscriber
-					struct susensors_sensor* p = (struct susensors_sensor*)data;
-					const char* eventstr = NULL;
-					int len = p->getActiveEventMsg(p, &eventstr, payload);
-					//p->eventhandler(p, SUSENSORS_EVENT_GET, )
-					//if(e->runtime)
-					coap_message_type_t type = COAP_TYPE_NON;
+			joinpair_t *pair = (joinpair_t*)data;
+			susensors_sensor_t* p = (susensors_sensor_t*)pair->deviceptr;
+			const char* eventstr = NULL;
+			int len = p->getActiveEventMsg(p, &eventstr, payload);
+			coap_message_type_t type = COAP_TYPE_NON;
 
-					coap_init_message(request, type, COAP_PUT, coap_get_mid());
+			coap_init_message(request, type, COAP_PUT, coap_get_mid());
 
-					//sprintf(uri, "%s?%s", (char*)MMEM_PTR(&pair->dsturl), eventstr);
+			//sprintf(uri, "%s?%s", (char*)MMEM_PTR(&pair->dsturl), eventstr);
 
-					coap_set_header_uri_path(request, (char*)MMEM_PTR(&pair->dsturl));
-					coap_set_header_uri_query(request, eventstr);
-					REST.set_header_content_type(request, APPLICATION_OCTET_STREAM);
-					coap_set_payload(request, payload, len);	//Its already msgpack encoded.
+			coap_set_header_uri_path(request, (char*)MMEM_PTR(&pair->dsturl));
+			coap_set_header_uri_query(request, eventstr);
+			REST.set_header_content_type(request, APPLICATION_OCTET_STREAM);
+			coap_set_payload(request, payload, len);	//Its already msgpack encoded.
 
-					len = coap_serialize_message(request, &coapTx[0]);
-					//if(type == COAP_TYPE_NON)
-						coap_send_message(&pair->destip, REMOTE_PORT, &coapTx[0], len);
-					//else
-					//	COAP_BLOCKING_REQUEST(&pair->destip, REMOTE_PORT, request, 0/*client_chunk_handler*/);
+			len = coap_serialize_message(request, &coapTx[0]);
+			//if(type == COAP_TYPE_NON)
+			coap_send_message(&pair->destip, REMOTE_PORT, &coapTx[0], len);
+			//else
+			//	COAP_BLOCKING_REQUEST(&pair->destip, REMOTE_PORT, request, 0/*client_chunk_handler*/);
 
-					leds_toggle(LEDS_GREEN);
-				}
-			}
+			leds_toggle(LEDS_GREEN);
 		}
-
-		//		if(ev == uartsensors_event){
-		//			list_t pairinglist = pairing_get_pairs();
-		//			for(pair = (joinpair_t *)list_head(pairinglist); pair; pair = pair->next) {
-		//				if(pair->deviceptr == data){
-		//					coap_message_type_t type = COAP_TYPE_NON;
-		//					//Found a pair, now send the reading to the subscriber
-		//					coap_init_message(request, type, COAP_PUT, coap_get_mid());
-		//					coap_set_header_uri_path(request, (char*)MMEM_PTR(&pair->dsturl));
-		//					REST.set_header_content_type(request, APPLICATION_OCTET_STREAM);
-		//
-		//
-		//					if(pair->devicetype == uartsensor){
-		//						uartsensors_device_t* p = (uartsensors_device_t*)data;
-		//						coap_set_payload(request, p->lastval, p->vallen);	//Its already msgpack encoded.
-		//					}
-		//
-		//					uint16_t len = coap_serialize_message(request, &payload[0]);
-		//					if(type == COAP_TYPE_NON)
-		//						coap_send_message(&pair->destip, REMOTE_PORT, &payload[0], len);
-		//					else
-		//						COAP_BLOCKING_REQUEST(&pair->destip, REMOTE_PORT, request, 0/*client_chunk_handler*/);
-		//
-		//					leds_toggle(LEDS_YELLOW);
-		//				}
-		//			}
-		//		}
 	}
 	PROCESS_END();
 }
