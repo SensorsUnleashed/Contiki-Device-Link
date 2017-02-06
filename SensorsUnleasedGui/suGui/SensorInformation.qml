@@ -63,6 +63,38 @@ Item{
                     }
                 }
             }
+            GroupBox{
+                width: 3* 150 + 20;
+                height: 100;
+                title: qsTr("Test events");
+
+                Row{
+                    spacing: 10;
+                    SUButton{
+                        width: 140;
+                        text: "Above Event"
+                        onClicked: {
+                            activeSensor.testEvents("aboveEvent", 0);
+                        }
+                    }
+                    SUButton{
+                        width: 140;
+                        text: "Below Event"
+                        onClicked: {
+                            activeSensor.testEvents("belowEvent", 0);
+                        }
+                    }
+                    SUButton{
+                        text: "Change Event"
+                        width: 140;
+                        onClicked: {
+                            activeSensor.testEvents("changeEvent", 0);
+                        }
+                    }
+                }
+
+
+            }
         }
 
         Row{

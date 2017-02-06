@@ -1,7 +1,7 @@
 #include "node.h"
 
-pulsecounter::pulsecounter(node* parent, QString uri, QVariantMap attributes) :
-    sensor(parent, uri, attributes){
+pulsecounter::pulsecounter(node* parent, QString uri, QVariantMap attributes, sensorstore *p) :
+    sensor(parent, uri, attributes, p){
     polltimer = new QTimer;
     polltimer->setSingleShot(true);
 

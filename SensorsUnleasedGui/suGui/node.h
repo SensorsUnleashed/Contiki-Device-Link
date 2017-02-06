@@ -6,6 +6,8 @@
 #include <QHostAddress>
 #include "../../apps/uartsensors/uart_protocolhandler.h"
 #include "wsn.h"
+#include "pairlist.h"
+#include "sensorstore.h"
 
 enum request{
     req_RangeMinValue,
@@ -19,11 +21,15 @@ enum request{
     req_getEventSetup,
     req_updateEventsetup,
 
+    req_pairingslist,
     req_pairsensor,
     /* Used to set a command for an actuator
      * could be togglerelay or other
     */
     req_setCommand,
+
+    /* Used to test a device event handler*/
+    req_testevent,
 };
 
 struct msgid_s{
@@ -32,14 +38,21 @@ struct msgid_s{
 };
 typedef struct msgid_s msgid;
 
+class pairlist;
+class sensorstore;
 class node;
 class sensor : public wsn
 {
     Q_OBJECT
 public:
-    sensor(node* parent, QString uri, QVariantMap attributes);
+    sensor(node* parent, QString uri, QVariantMap attributes, sensorstore *p);
 
+    //Dummy constructor
+    sensor(QString ipaddr, QString uri);
+
+    node* getParent(){ return parent;}
     QString getUri(){ return uri; }
+    QString getAddressStr() {return ip.toString(); }
 
     void initSensor();
     Q_INVOKABLE void requestRangeMin();
@@ -55,12 +68,15 @@ public:
     Q_INVOKABLE QVariant getConfigValues();   //Get last stored values without quering the sensor
 
     /* Pair this sensor with another. */
+    Q_INVOKABLE void getpairingslist();
     Q_INVOKABLE QVariant pair(QVariant pairdata);
+    int parsePairList(cmp_ctx_t* cmp);
+    pairlist* getPairListModel() { return pairings; }
+
+    Q_INVOKABLE void testEvents(QVariant event, QVariant value);
 
     void nodeNotResponding(uint16_t token);
     QVariant parseAppOctetFormat(uint16_t token, QByteArray payload);
-
-
 
     virtual QVariant getClassType(){ return "SensorInformation.qml"; }
 protected:
@@ -68,9 +84,10 @@ protected:
 
     void put_request(CoapPDU *pdu, enum request req, QByteArray payload);
 private:
-
+    node* parent;
     QVariantMap sensorinfo;
     QVector<msgid> token;
+    pairlist* pairings;
     QHostAddress ip;
     uint8_t init;   //Flag to indicate if sensor config has been requested or not
 
@@ -99,7 +116,7 @@ signals:
 class pulsecounter : public sensor {
     Q_OBJECT
 public:
-    pulsecounter(node* parent, QString uri, QVariantMap attributes);
+    pulsecounter(node* parent, QString uri, QVariantMap attributes, sensorstore *p);
     QVariant getClassType(){ return "PulseCounter.qml"; }
 
     Q_INVOKABLE void startPoll(QVariant interval);
@@ -115,7 +132,7 @@ private slots:
 class powerrelay : public sensor {
     Q_OBJECT
 public:
-    powerrelay(node* parent, QString uri, QVariantMap attributes);
+    powerrelay(node* parent, QString uri, QVariantMap attributes, sensorstore *p);
     QVariant getClassType(){ return "PowerRelay.qml"; }
 
     Q_INVOKABLE void toggleRelay();
@@ -128,7 +145,7 @@ private:
 class ledindicator : public sensor {
     Q_OBJECT
 public:
-    ledindicator(node *parent, QString uri, QVariantMap attributes);
+    ledindicator(node *parent, QString uri, QVariantMap attributes, sensorstore *p);
     QVariant getClassType(){ return "LedIndicator.qml"; }
 
     Q_INVOKABLE void toggleRedLED();
@@ -143,7 +160,8 @@ class node : public wsn
 {
     Q_OBJECT
 public:
-    node(QHostAddress addr, QVariantMap data);
+    node(QHostAddress addr, QVariantMap data, sensorstore* p);
+    void addSensor(QString uri, QVariantMap attributes);
 
     QVariant getDatabaseinfo(){ return databaseinfo; }
     QHostAddress getAddress() { return ip; }
@@ -166,9 +184,12 @@ private:
     QHostAddress ip;
     QVariantMap linklist;
     uint16_t token;
+    sensorstore* allsensorslist;
+    sensorstore* ownsensorslist;
 
     QVariantMap databaseinfo;
 
+    //TBD
     QVector<sensor*> sensors;
 
 signals:

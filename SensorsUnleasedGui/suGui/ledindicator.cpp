@@ -1,7 +1,7 @@
 #include "node.h"
 
-ledindicator::ledindicator(node* parent, QString uri, QVariantMap attributes) :
-    sensor(parent, uri, attributes)
+ledindicator::ledindicator(node* parent, QString uri, QVariantMap attributes, sensorstore *p) :
+    sensor(parent, uri, attributes, p)
 {
 
 }

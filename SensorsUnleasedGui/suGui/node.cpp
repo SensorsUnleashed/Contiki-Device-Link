@@ -1,10 +1,12 @@
 #include "node.h"
 #include "socket.h"
 //Created from QML
-node::node(QHostAddress addr, QVariantMap data) : wsn(addr)
+node::node(QHostAddress addr, QVariantMap data, sensorstore *p) : wsn(addr)
 {
     ip = addr;
     databaseinfo = data;
+    allsensorslist = p;
+    ownsensorslist = new sensorstore;
     qDebug() << "Node: " << ip << " created";
 }
 
@@ -77,28 +79,33 @@ QVariant node::parseAppLinkFormat(uint16_t token, QByteArray payload){
                 }
             }
         }
-
-        if(uri.compare(".well-known/core") != 0){
-            sensor* s;
-            if(uri.compare("su/powerrelay") == 0){
-                s = new powerrelay(this, uri, attributes);
-            }
-            else if(uri.compare("su/pulsecounter") == 0){
-                s = new pulsecounter(this, uri, attributes);
-            }
-            else if(uri.compare("su/ledindicator") == 0){
-                s = new ledindicator(this, uri, attributes);
-            }
-            else{
-                s = new sensor(this, uri, attributes);
-            }
-
-            sensors.append(s);
-            emit sensorFound(uri, s->getClassType());
-        }
+        addSensor(uri, attributes);
     }
     this->token = 0;
     return QVariant(0);
+}
+
+void node::addSensor(QString uri, QVariantMap attributes){
+    if(uri.compare(".well-known/core") != 0){
+        sensor* s;
+        if(uri.compare("su/powerrelay") == 0){
+            s = new powerrelay(this, uri, attributes, allsensorslist);
+        }
+        else if(uri.compare("su/pulsecounter") == 0){
+            s = new pulsecounter(this, uri, attributes, allsensorslist);
+        }
+        else if(uri.compare("su/ledindicator") == 0){
+            s = new ledindicator(this, uri, attributes, allsensorslist);
+        }
+        else{
+            s = new sensor(this, uri, attributes, allsensorslist);
+        }
+
+        sensors.append(s);
+        ownsensorslist->append(s);
+        allsensorslist->append(s);
+        emit sensorFound(uri, s->getClassType());
+    }
 }
 
 QVariant node::parseAppOctetFormat(uint16_t token, QByteArray payload){

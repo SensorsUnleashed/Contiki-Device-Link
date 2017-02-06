@@ -7,12 +7,13 @@ int encode(char* buffer, cmp_object_t objTemplate, QVariant value);
 static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit);
 static uint32_t buf_writer(cmp_ctx_t* ctx, const void *data, uint32_t count);
 
-sensor::sensor(node* parent, QString uri, QVariantMap attributes) : wsn(parent->getAddress())
+sensor::sensor(node* parent, QString uri, QVariantMap attributes, sensorstore *p) : wsn(parent->getAddress())
 {
     qDebug() << "Sensor: " << uri << " with attribute: " << attributes << " created";
+    this->parent = parent;
     this->uri = uri;
     ip = parent->getAddress();
-
+    pairings = new pairlist(this, p);
     eventsActive.as.u8 = 0;
     eventsActive.type = CMP_TYPE_UINT8;
     LastValue.as.s8 = 0;
@@ -29,6 +30,14 @@ sensor::sensor(node* parent, QString uri, QVariantMap attributes) : wsn(parent->
     RangeMax.type = CMP_TYPE_SINT8;
 
     init = 0;
+}
+
+/* We create a dummy sensor, used only if a pairing could not be resolved */
+sensor::sensor(QString ipaddr, QString uri): wsn(QHostAddress(ipaddr)){
+    ip = QHostAddress(ipaddr);
+    this->uri = uri;
+    parent = 0;
+    init = 1;
 }
 
 void sensor::initSensor(){
@@ -200,6 +209,14 @@ void sensor::updateConfig(QVariant updatevalues){
     put_request(pdu, req_updateEventsetup, payload);
 }
 
+void sensor::getpairingslist(){
+    const char* uristring = uri.toLatin1().data();
+    CoapPDU *pdu = new CoapPDU();
+    pdu->setURI((char*)uristring, strlen(uristring));
+    pdu->addURIQuery((char*)"pairings");
+    get_request(pdu, req_pairingslist);
+}
+
 QVariant sensor::pair(QVariant pairdata){
 
     helper::uip_ip6addr_t pairaddr;
@@ -239,6 +256,19 @@ QVariant sensor::pair(QVariant pairdata){
     return QVariant(0);
 }
 
+void sensor::testEvents(QVariant event, QVariant value){
+    QString e = event.toString();
+    QVariantMap m = value.toMap();
+    QByteArray payload;
+
+    const char* uristring = uri.toLatin1().data();
+    CoapPDU *pdu = new CoapPDU();
+    pdu->setURI((char*)uristring, strlen(uristring));
+    pdu->addURIQuery(e.toLatin1().data());
+
+    put_request(pdu, req_testevent, payload);
+}
+
 /******** Sensor reply handlers ************/
 
 void sensor::nodeNotResponding(uint16_t token){
@@ -251,75 +281,118 @@ void sensor::nodeNotResponding(uint16_t token){
 
 QVariant sensor::parseAppOctetFormat(uint16_t token, QByteArray payload) {
     qDebug() << uri << " got message!";
-
+    int cont = 0;
     cmp_ctx_t cmp;
     cmp_init(&cmp, payload.data(), buf_reader, 0);
-
-    cmp_object_t obj;
-    if(!cmp_read_object(&cmp, &obj)) return QVariant(0);
-
-    QVariantMap result = cmpobjectToVariant(obj).toMap();
-    qDebug() << result;
-
     int index = findToken(token, this->token);
-    if(index != -1){
-        switch(this->token.at(index).req){
-        case req_RangeMinValue:
-            RangeMin = obj;
-            emit rangeMinValueReceived(result);
-            break;
-        case req_RangeMaxValue:
-            RangeMax = obj;
-            emit rangeMaxValueReceived(result);
-            break;
-        case req_currentValue:
-            LastValue = obj;
-            emit currentValueChanged(result);
-            break;
-        case req_aboveEventValue:
-            AboveEventAt = obj;
-            emit aboveEventValueChanged(result);
-            break;
-        case req_belowEventValue:
-            BelowEventAt = obj;
-            emit belowEventValueChanged(result);
-            break;
-        case req_changeEventAt:
-            ChangeEvent = obj;
-            emit changeEventValueChanged(result);
-            break;
-        case req_getEventSetup:
-            AboveEventAt = obj;
-            if(!cmp_read_object(&cmp, &obj)) return QVariant(0);
-            BelowEventAt = obj;
-            if(!cmp_read_object(&cmp, &obj)) return QVariant(0);
-            ChangeEvent = obj;
-            if(!cmp_read_object(&cmp, &obj)) return QVariant(0);
-            eventsActive = obj;
-            emit eventSetupRdy();
-            break;
-        case req_updateEventsetup:
-            qDebug() << "req_updateEventsetup";
-            qDebug() << payload;
-            break;
-        case req_pairsensor:
-            qDebug() << "req_pairsensor";
-            qDebug() << payload;
-            break;
-        //When we request a state change in the device, it always returns its current value
-        case req_setCommand:
-            LastValue = obj;
-            emit currentValueChanged(result);
-            qDebug() << "req_setCommand";
-            break;
+    do{
+        cmp_object_t obj;
+        if(!cmp_read_object(&cmp, &obj)) return QVariant(0);
+        QVariantMap result = cmpobjectToVariant(obj).toMap();
+
+        //qDebug() << result;
+
+        if(index != -1){
+            switch(this->token.at(index).req){
+            case req_RangeMinValue:
+                RangeMin = obj;
+                emit rangeMinValueReceived(result);
+                break;
+            case req_RangeMaxValue:
+                RangeMax = obj;
+                emit rangeMaxValueReceived(result);
+                break;
+            case req_currentValue:
+                LastValue = obj;
+                emit currentValueChanged(result);
+                break;
+            case req_aboveEventValue:
+                AboveEventAt = obj;
+                emit aboveEventValueChanged(result);
+                break;
+            case req_belowEventValue:
+                BelowEventAt = obj;
+                emit belowEventValueChanged(result);
+                break;
+            case req_changeEventAt:
+                ChangeEvent = obj;
+                emit changeEventValueChanged(result);
+                break;
+            case req_getEventSetup:
+                AboveEventAt = obj;
+                if(!cmp_read_object(&cmp, &obj)) return QVariant(0);
+                BelowEventAt = obj;
+                if(!cmp_read_object(&cmp, &obj)) return QVariant(0);
+                ChangeEvent = obj;
+                if(!cmp_read_object(&cmp, &obj)) return QVariant(0);
+                eventsActive = obj;
+                emit eventSetupRdy();
+                break;
+            case req_updateEventsetup:
+                qDebug() << "req_updateEventsetup";
+                qDebug() << payload;
+                break;
+            case req_pairingslist:
+                if(obj.type >= CMP_TYPE_BIN8 && obj.type <= CMP_TYPE_BIN32){
+                    qDebug() << "req_pairingslist";
+                    cont = parsePairList(&cmp) == 0;
+                }
+                else{
+                    qDebug() << "req_pairingslist - something in the message was wrong";
+                }
+                break;
+            case req_pairsensor:
+                qDebug() << "req_pairsensor";
+                qDebug() << payload;
+                break;
+                //When we request a state change in the device, it always returns its current value
+            case req_setCommand:
+                LastValue = obj;
+                emit currentValueChanged(result);
+                qDebug() << "req_setCommand";
+                break;
+            case req_testevent:
+                break;
+            }
         }
-    }
+    }while(cmp.buf < payload.data() + payload.length() && cont);
 
     this->token.remove(index);
     return QVariant(0);
 }
 
+/* Return 0 on success
+ * Return >1 on fail
+*/
+int sensor::parsePairList(cmp_ctx_t* cmp){
+    QVariantMap pl;
+    QHostAddress ip;
+    QByteArray url;
+    uint16_t addr[8];
+    uint32_t size;
 
+    if(!cmp_read_array(cmp, &size)) return 1;
+    for(uint8_t i=0; i<size/2; i++){
+        if(!cmp_read_u16(cmp, &addr[i])) return 2;
+    }
+    ip.setAddress((uint8_t*)&addr);
+    pl["addr"] = ip.toString();
+
+    size = 30;
+    url.reserve(30);
+    if(!cmp_read_str(cmp, url.data(), &size)) return 3;
+    url.resize(size);
+    pl["dsturi"] = QString(url);
+
+    size = 30;
+    url.reserve(30);
+    if(!cmp_read_str(cmp, url.data(), &size)) return 4;
+    url.resize(size);
+    pl["srcuri"] = QString(url);
+
+    pairings->append(pl);
+    return 0;
+}
 
 /*************** Helpers ******************************************/
 

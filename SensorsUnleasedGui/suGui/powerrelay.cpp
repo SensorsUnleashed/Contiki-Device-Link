@@ -1,7 +1,7 @@
 #include "node.h"
 
-powerrelay::powerrelay(node* parent, QString uri, QVariantMap attributes) :
-    sensor(parent, uri, attributes){
+powerrelay::powerrelay(node* parent, QString uri, QVariantMap attributes, sensorstore *p) :
+    sensor(parent, uri, attributes, p){
 
 }
 

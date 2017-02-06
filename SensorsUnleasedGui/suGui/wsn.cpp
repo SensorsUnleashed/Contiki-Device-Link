@@ -394,7 +394,6 @@ void wsn::parseMessage(coapMessageStore_* message){
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET:
         parseAppOctetFormat(message->token, message->rx_payload);
-        qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET";
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_EXI:
         parseAppExiFormat(message->token, message->rx_payload);

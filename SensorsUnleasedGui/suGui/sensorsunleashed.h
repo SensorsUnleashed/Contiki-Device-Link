@@ -5,6 +5,7 @@
 #include "coaphandler.h"
 #include "node.h"
 #include <QObject>
+#include "sensorstore.h"
 
 #include <QQmlContext>
 
@@ -32,13 +33,18 @@ private:
     database *db;
     coaphandler* nodecomm;
     QVector<node*> nodes;
-
+    sensorstore* allsensorslist;
     QQmlContext *context;
 signals:
 
+
     void nodeCreated(QVariant nodeinfo);
 
+private slots:
+    void updateDB(sensor* s);
+
 public slots:
+
 
 };
 

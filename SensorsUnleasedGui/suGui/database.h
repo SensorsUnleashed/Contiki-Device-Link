@@ -72,9 +72,19 @@ public:
         return 0;
     }
 
+    int insert(QString querystring){
+        if(db.open()){
+            QSqlQuery query;
+            if(!query.exec(querystring)){
+                qDebug() << query.lastError();
+                return 1;
+            }
+            return 0;
+        }
+    }
+
 private:
     QSqlDatabase db;
 };
-
 #endif // DATABASE_H
 
