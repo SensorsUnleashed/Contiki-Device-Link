@@ -91,6 +91,17 @@ res_susensor_gethandler(void *request, void *response, uint8_t *buffer, uint16_t
 				REST.set_response_payload(response, buffer, len);
 				return;
 			}
+			else if(strncmp(str, "pairings", len) == 0){
+
+				//if(offset )
+				int16_t ret = pairing_getlist(sensor, buffer, preferred_size, offset);
+				if( ret < preferred_size){	//Finished sending
+					*offset = -1;
+				}
+
+				REST.set_response_payload(response, buffer, ret);
+				len = 0;
+			}
 			else{
 				len = 0;
 			}
@@ -187,8 +198,7 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 
 						if(coap_req->block1_more == 0){
 							//We're finished receiving the payload, now parse it.
-							int res = pairing_handle(sensor);	//TODO: This is not good
-
+							int res = pairing_handle(sensor);
 							switch(res){
 							case 0:
 								//All is good
@@ -232,8 +242,10 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 //Return 0 if the sensor was added as a coap resource
 //Return 1 if the sensor does not contain the necassery coap config
 //Return 2 if we can't allocate any more sensors
+//Return 3 the sensor was NULL
 int res_susensor_activate(const struct susensors_sensor* sensor){
 
+	if(sensor == NULL) return 3;
 	const struct extras* extra = &sensor->data;
 	struct resourceconf* config;
 
@@ -242,7 +254,6 @@ int res_susensor_activate(const struct susensors_sensor* sensor){
 	resource_t* r = (resource_t*)memb_alloc(&coap_resources);
 	if(r == 0)
 		return 2;
-
 
 	r->url = config->type;
 	r->attributes = config->attr;

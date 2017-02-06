@@ -19,6 +19,8 @@ uart::uart()
     uartport = 0;
     portfound = false;
     uartport = new QSerialPort("/dev/ttyUSB0");
+    //uartport = new QSerialPort("/dev/pts/0");
+
     activebuffer = 0;
     switchbuffer();
 
@@ -44,6 +46,11 @@ uart::uart()
     connect(uartport, SIGNAL(readyRead()), this, SLOT(readData()));
 
 
+}
+
+uart::~uart(){
+    uartport->close();
+    delete uartport;
 }
 
 void uart::switchbuffer(){

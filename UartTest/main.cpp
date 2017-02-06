@@ -19,6 +19,11 @@ int main(int argc, char *argv[])
     context->setContextProperty("guiglue", guihandler);
 
     engine.load(QUrl(QStringLiteral("qrc:/main.qml")));
+    int ret = app.exec();
+    delete protohandler;
+    delete guihandler;
 
-    return app.exec();
+    return ret;
+
 }
+

@@ -17,6 +17,7 @@ class uart : public QObject
     Q_OBJECT
 public:
     uart();
+    ~uart();
     void transmit(const char *txbuf, uint8_t len);
     int messageQueEmpty();
     QByteArray getFirstMessage();

@@ -41,23 +41,6 @@ static uint32_t bufsize = 0;
 
 MEMB(pairings, joinpair_t, 20);
 
-void activateSUSensorPairing(susensors_sensor_t* p){
-
-	joinpair_t *pair = NULL;
-
-	for(pair = (joinpair_t *)list_head(p->pairs);
-			pair; pair = pair->next) {
-		int urllen = strlen(p->type);
-		if(urllen == strlen((char*)MMEM_PTR(&pair->srcurl))){
-			if(strncmp((char*)MMEM_PTR(&pair->srcurl), p->type, urllen) == 0){
-				pair->devicetype = susensor;
-				pair->deviceptr = (void*)p;
-			}
-		}
-
-	}
-}
-
 //Return 0 if data was stored
 //Return 1 if there was no more space
 uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len, uint32_t num){
@@ -71,6 +54,29 @@ uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len, uint32_t num)
 	memcpy(buffer + bufsize, data, len);
 	bufsize += len;
 	return 0;
+}
+
+//Returns the data left to send
+//Return 0 if there are no more data to send
+//Return -1 if no file found
+int16_t pairing_getlist(susensors_sensor_t* s, uint8_t* buffer, uint16_t len, int32_t *offset){
+	uint16_t ret = 0;
+
+	char filename[30];
+	memset(filename, 0, 30);
+	sprintf(filename, "pairs_%s", s->type);
+
+	int fd = cfs_open(filename, CFS_READ);
+
+	if(fd < 0) return -1;
+
+	cfs_seek(fd, *offset, CFS_SEEK_SET);
+	ret = cfs_read(fd, buffer, len);
+	*offset += ret;
+
+	cfs_close(fd);
+
+	return ret;
 }
 
 

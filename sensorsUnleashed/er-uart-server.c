@@ -55,8 +55,7 @@
  * Resources to be activated need to be imported through the extern keyword.
  * The build system automatically compiles the resources in the corresponding sub-directory.
  */
-extern resource_t res_sysinfo;
-extern  resource_t  res_large_update, res_ledtoggle;
+//extern  resource_t  res_large_update, res_sysinfo;
 
 PROCESS(er_uart_server, "Erbium Uart Server");
 AUTOSTART_PROCESSES(&er_uart_server);
@@ -70,7 +69,6 @@ const char* ChangeEventString = "changeEvent";
 static coap_packet_t request[1];      /* This way the packet can be treated as pointer as usual. */
 
 static uint8_t payload[50];
-static char uri[30];
 static uint8_t coapTx[60];
 
 PROCESS_THREAD(er_uart_server, ev, data)
@@ -91,12 +89,10 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	d = addASURelay(RELAY_ACTUATOR, &relayconfigs);
 	if(d != NULL) {
 		res_susensor_activate(d);
-		activateSUSensorPairing(d);
 	}
 	d = addASULedIndicator(LED_INDICATOR, &ledindicatorconfig);
 	if(d != NULL){
 		res_susensor_activate(d);
-		activateSUSensorPairing(d);
 	}
 
 	process_start(&susensors_process, NULL);
@@ -105,20 +101,12 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	process_start(&sensors_process, NULL);
 	rest_activate_resource(&res_sysinfo, "SU/SystemInfo");
 #endif
-	rest_activate_resource(&res_large_update, "large-update");
-	//rest_activate_resource(&res_ledtoggle, "SU/ledtoggle");
-	//	rest_activate_resource(&res_mirror, "debug/mirror");
+	//rest_activate_resource(&res_large_update, "large-update");
 
 	//Activate all attached sensors
 	//	SUSENSORS_ACTIVATE(pulse_sensor);
 	//	res_susensor_activate(&pulse_sensor);
 	//	activateSUSensorPairing(&pulse_sensor);
-	//	SUSENSORS_ACTIVATE(relay);
-	//	res_susensor_activate(&relay);
-	//	activateSUSensorPairing(&relay);
-	//	SUSENSORS_ACTIVATE(ledindicator);
-	//	res_susensor_activate(&ledindicator);
-	//	activateSUSensorPairing(&ledindicator);
 
 	//	uartsensors_init();
 	//	while(1) {	//Wait until uartsensors has been initialized
@@ -143,8 +131,6 @@ PROCESS_THREAD(er_uart_server, ev, data)
 			coap_message_type_t type = COAP_TYPE_NON;
 
 			coap_init_message(request, type, COAP_PUT, coap_get_mid());
-
-			//sprintf(uri, "%s?%s", (char*)MMEM_PTR(&pair->dsturl), eventstr);
 
 			coap_set_header_uri_path(request, (char*)MMEM_PTR(&pair->dsturl));
 			coap_set_header_uri_query(request, eventstr);
