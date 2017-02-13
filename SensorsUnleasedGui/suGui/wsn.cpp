@@ -314,7 +314,7 @@ void wsn::parseData(QByteArray datagram){
                         dotx = 1;
                     }
                     else{
-                        parseMessage(storedPDUdata);
+                        parseMessage(storedPDUdata, code);
                     }
                 }
             }   //Block2 handling
@@ -325,7 +325,7 @@ void wsn::parseData(QByteArray datagram){
                         storedPDUdata->rx_payload[i] = *(pl+i);
                     }
                     //Handle single messages
-                    parseMessage(storedPDUdata);
+                    parseMessage(storedPDUdata, code);
                 }
             }
 
@@ -358,6 +358,7 @@ void wsn::parseData(QByteArray datagram){
                 conn->send(addr, txPDU->getPDUPointer(), txPDU->getPDULength());
             }
             else{
+                handleReturnCode(storedPDUdata->token, code);
                 removePDU(storedPDUdata->token);
             }
         }
@@ -365,7 +366,7 @@ void wsn::parseData(QByteArray datagram){
     delete recvPDU;
 }
 
-void wsn::parseMessage(coapMessageStore_* message){
+void wsn::parseMessage(coapMessageStore_* message, CoapPDU::Code code){
 
     int ct = 0;
     CoapPDU::CoapOption* options = 0;
@@ -393,7 +394,7 @@ void wsn::parseMessage(coapMessageStore_* message){
         qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_XML";
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET:
-        parseAppOctetFormat(message->token, message->rx_payload);
+        parseAppOctetFormat(message->token, message->rx_payload, code);
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_EXI:
         parseAppExiFormat(message->token, message->rx_payload);

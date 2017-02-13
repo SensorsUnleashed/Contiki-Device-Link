@@ -6,30 +6,35 @@ GroupBox{
     width: 350;
     height: 350;
 
-//    ListModel{
-//        id: pairingslist;
-//        ListElement{
-//            nodename: "Test node";
-//            sensorname: "sensor name";
-//        }
-//    }
-
     ListView{
+        id: lw;
         anchors.fill: parent;
         height: parent.height;
         width: parent.width;
 
-        model: pairlist;//pairingslist;
+        model: pairlist;
 
-        delegate: Column{
-            Text {
-                text: sensorname;
-                font.pointSize: 12;
+        delegate:Rectangle{
+            width: parent.width;
+            height: item.height;
+            color: selected == 0 ? "transparent" : "grey";
+            Column{
+                id: item;
+                Text {
+                    text: sensorname;
+                    font.pointSize: 12;
+                }
+                Text {
+                    text: nodename + " (" + nodeip + ")";
+                    font.pointSize: 8;
+                    font.italic: true;
+                }
             }
-            Text {
-                text: nodename + " (" + nodeip + ")";
-                font.pointSize: 8;
-                font.italic: true;
+            MouseArea {
+                anchors.fill: parent
+                onClicked: {
+                    pairlist.setSelected(index, !selected); //Toggle
+                }
             }
         }
 
@@ -39,31 +44,36 @@ GroupBox{
             height: 50;
             spacing: 5;
             SUButton{
-                text: "New pairing";
-                width: parent.width / 2 - 10;
+                text: "New";
+                width: parent.width / 3 - 10;
                 onClicked: {
                     globalpopup.sourceComponent = pairingpicker;
                 }
             }
             SUButton{
-                text: "Get list";
-                width: parent.width / 2 - 10;
+                text: "Refresh";
+                width: parent.width / 3 - 10;
                 onClicked: {
                     activeSensor.getpairingslist();
                 }
             }
+            SUButton{
+                text: "Remove selected";
+                width: parent.width / 3 - 10;
+                onClicked: {
+                    //activeSensor.clearpairingslist();
+                    pairlist.removePairings();
+                }
+            }
+//            SUButton{
+//                text: "Test";
+//                width: parent.width / 3 - 10;
+//                onClicked: {
+//                    activeSensor.removeItems();
+//                }
+//            }
         }
     }
-
-//    Connections{
-//        target: activeSensor;
-//        onPairlistUpdated:{
-//            pairingslist.clear();
-
-//            //var plist = activeSensor.getPairList();
-//            //console.log(plist);
-//        }
-//    }
 
     Component{
         id: pairingpicker

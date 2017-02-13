@@ -109,7 +109,7 @@ void sensor::get_request(CoapPDU *pdu, enum request req, QByteArray payload){
     token.append(t);
 }
 
-void sensor::put_request(CoapPDU *pdu, enum request req, QByteArray payload){
+uint16_t sensor::put_request(CoapPDU *pdu, enum request req, QByteArray payload){
     msgid t;
     t.req = req;
     t.number = qrand();
@@ -125,6 +125,8 @@ void sensor::put_request(CoapPDU *pdu, enum request req, QByteArray payload){
     send(pdu, t.number, payload);
 
     token.append(t);
+
+    return t.number;
 }
 
 
@@ -217,6 +219,35 @@ void sensor::getpairingslist(){
     get_request(pdu, req_pairingslist);
 }
 
+uint16_t sensor::clearpairingslist(){
+    const char* uristring = uri.toLatin1().data();
+    CoapPDU *pdu = new CoapPDU();
+    pdu->setURI((char*)uristring, strlen(uristring));
+    pdu->addURIQuery((char*)"pairRemoveAll");
+    return put_request(pdu, req_clearparings, 0);
+}
+
+uint16_t sensor::removeItems(QByteArray arr){
+    const char* uristring = uri.toLatin1().data();
+    CoapPDU *pdu = new CoapPDU();
+    pdu->setURI((char*)uristring, strlen(uristring));
+    pdu->addURIQuery((char*)"pairRemoveIndex");
+
+    QByteArray payload;
+    payload.resize(200);
+
+    cmp_ctx_t cmp;
+    cmp_init(&cmp, payload.data(), buf_reader, buf_writer);
+
+    //uint8_t arr[2] = { 0, 2 };
+    cmp_write_array(&cmp, arr.size());
+    for(uint8_t i=0; i<arr.size(); i++){
+        cmp_write_u8(&cmp, arr[i]);
+    }
+    payload.resize((uint8_t*)cmp.buf - (uint8_t*)payload.data());
+    return put_request(pdu, req_removepairingitems, payload);
+}
+
 QVariant sensor::pair(QVariant pairdata){
 
     helper::uip_ip6addr_t pairaddr;
@@ -270,6 +301,21 @@ void sensor::testEvents(QVariant event, QVariant value){
 }
 
 /******** Sensor reply handlers ************/
+void sensor::handleReturnCode(uint16_t token, CoapPDU::Code code){
+
+    int index = findToken(token, this->token);
+    if(index < 0) return;
+
+    if(this->token.at(index).req == req_clearparings){
+        if(code == CoapPDU::COAP_CHANGED){
+            pairings->removePairingsAck();
+        }
+    }
+    else if(this->token.at(index).req == req_removepairingitems){
+        qDebug() << "handleReturnCode req_clearparings";
+        pairings->removePairingsAck();
+    }
+}
 
 void sensor::nodeNotResponding(uint16_t token){
     qDebug() << "Message timed out";
@@ -279,7 +325,7 @@ void sensor::nodeNotResponding(uint16_t token){
         this->token.remove(index);
 }
 
-QVariant sensor::parseAppOctetFormat(uint16_t token, QByteArray payload) {
+QVariant sensor::parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU::Code code) {
     qDebug() << uri << " got message!";
     int cont = 0;
     cmp_ctx_t cmp;
@@ -334,12 +380,20 @@ QVariant sensor::parseAppOctetFormat(uint16_t token, QByteArray payload) {
                 break;
             case req_pairingslist:
                 if(obj.type >= CMP_TYPE_BIN8 && obj.type <= CMP_TYPE_BIN32){
+                    //First time we get here, clear the old pairingslist
+                    if(cont == 0) pairings->clear();
                     qDebug() << "req_pairingslist";
                     cont = parsePairList(&cmp) == 0;
                 }
                 else{
                     qDebug() << "req_pairingslist - something in the message was wrong";
                 }
+                break;
+            case req_clearparings:
+                qDebug() << "req_clearparings";
+                break;
+            case req_removepairingitems:
+                qDebug() << "req_clearparings";
                 break;
             case req_pairsensor:
                 qDebug() << "req_pairsensor";

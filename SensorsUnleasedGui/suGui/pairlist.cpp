@@ -11,6 +11,7 @@ enum roles {
     sensorname = Qt::UserRole,
     nodename,
     nodeip,
+    selected,
 };
 
 QHash<int, QByteArray> pairlist::roleNames() const{
@@ -18,6 +19,7 @@ QHash<int, QByteArray> pairlist::roleNames() const{
     rolelist.insert(sensorname, QByteArray("sensorname"));
     rolelist.insert(nodename, QByteArray("nodename"));
     rolelist.insert(nodeip, QByteArray("nodeip"));
+    rolelist.insert(selected, QByteArray("selected"));
     return rolelist;
 }
 
@@ -25,32 +27,69 @@ QVariant pairlist::data(const QModelIndex& index, int role) const{
     if (!index.isValid())
         return QVariant();
 
-
-    QHash<sensor*, sensor*>::const_iterator i = pairs.cbegin() + index.row();
-    if(i == pairs.cend()) {
-        return QVariant();
-    }
-
-    int dummysensor = i.value()->getParent() == 0;
+    int dummysensor = pairs.at(index.row())->dst->getParent() == 0;
 
     if(role == sensorname){
-        return i.value()->getUri();
+        return pairs.at(index.row())->dst->getUri();
     }
     else if(role == nodename){
         if(dummysensor){
             return QVariant("Dummy");
         }
-        return i.value()->getParent()->getDatabaseinfo().toMap()["name"];
+        return pairs.at(index.row())->dst->getParent()->getDatabaseinfo().toMap()["name"];
     }
     else if(role == nodeip){
-        return i.value()->getAddressStr();
+        return pairs.at(index.row())->dst->getAddressStr();
+    }
+    else if(role == selected){
+        return pairs.at(index.row())->selected;
     }
 
     return QVariant();
 }
 
+
+
 int pairlist::rowCount(const QModelIndex&) const{
     return pairs.count();
+}
+
+Qt::ItemFlags pairlist::flags(const QModelIndex &index) const
+{
+    //    if (index.isValid())
+    //        return (QAbstractListModel::flags(index)|Qt::ItemIsSelect able);
+
+    return Qt::ItemIsSelectable;
+}
+
+void pairlist::setSelected(int row, const QVariant &value)
+{
+    setData(index(row, 0), value, selected);
+}
+
+bool pairlist::setData(const QModelIndex &index, const QVariant &value, int role){
+
+    if(!index.isValid()) return false;
+
+    if(role == selected){
+        pairs.at(index.row())->selected = value.toUInt();
+        emit dataChanged(index, index);
+        return true;
+    }
+
+    return false;
+}
+
+bool pairlist::removeRows(int row, int count, const QModelIndex &parent){
+    beginRemoveRows(QModelIndex(), row, row+count); //Append to beginning end of the list
+    pairs.remove(row, count);
+    endRemoveRows();
+}
+
+void pairlist::clear(){
+    beginRemoveRows(QModelIndex(), 0, rowCount()); //Append to beginning end of the list
+    pairs.clear();
+    endRemoveRows();
 }
 
 void pairlist::append(QVariantMap dstinfo){
@@ -64,10 +103,42 @@ void pairlist::append(QVariantMap dstinfo){
         allsensorslist->append(dst);
     }
 
-    if(!pairs.contains(owner, dst)){
-        beginInsertRows(QModelIndex(), rowCount(), rowCount()); //Append to the end of the list
-        pairs.insert(owner, dst);
+    struct aPair* p = new struct aPair;
+    p->dst = dst;
+    p->id = rowCount(); //Workaround for now!! dstinfo["id"].toUInt();
+    p->selected = 0;
+
+    if(!pairs.contains(p)){
+        beginInsertRows(QModelIndex(), rowCount(), rowCount());
+        pairs.append(p);
         endInsertRows();
     }
 }
 
+void pairlist::removePairings(){
+    QByteArray a;
+    for(int i=0; i<rowCount(); i++){
+        if(pairs.at(i)->selected == 1){
+            a.append(pairs.at(i)->id);
+        }
+    }
+
+    if(a.size() == rowCount()){ //Just wipe out the remote pairingsfile
+        lastcmd.number = owner->clearpairingslist();
+    }
+    else{
+        lastcmd.number = owner->removeItems(a);
+    }
+    lastcmd.rowstodelete = a;
+}
+
+void pairlist::removePairingsAck(){
+    for(int i=0; i<lastcmd.rowstodelete.size(); i++){
+        for(int j=0; j<rowCount(); j++){
+            if(pairs.at(j)->id == lastcmd.rowstodelete.at(i)){
+                removeRow(j);
+                break;
+            }
+        }
+    }
+}

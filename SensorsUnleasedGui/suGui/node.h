@@ -22,6 +22,8 @@ enum request{
     req_updateEventsetup,
 
     req_pairingslist,
+    req_clearparings,
+    req_removepairingitems,
     req_pairsensor,
     /* Used to set a command for an actuator
      * could be togglerelay or other
@@ -69,20 +71,23 @@ public:
 
     /* Pair this sensor with another. */
     Q_INVOKABLE void getpairingslist();
+    Q_INVOKABLE uint16_t clearpairingslist();
+    Q_INVOKABLE uint16_t removeItems(QByteArray arr);
     Q_INVOKABLE QVariant pair(QVariant pairdata);
     int parsePairList(cmp_ctx_t* cmp);
     pairlist* getPairListModel() { return pairings; }
 
     Q_INVOKABLE void testEvents(QVariant event, QVariant value);
 
+    void handleReturnCode(uint16_t token, CoapPDU::Code code);
     void nodeNotResponding(uint16_t token);
-    QVariant parseAppOctetFormat(uint16_t token, QByteArray payload);
+    QVariant parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU::Code code);
 
     virtual QVariant getClassType(){ return "SensorInformation.qml"; }
 protected:
     QString uri;
 
-    void put_request(CoapPDU *pdu, enum request req, QByteArray payload);
+    uint16_t put_request(CoapPDU *pdu, enum request req, QByteArray payload);
 private:
     node* parent;
     QVariantMap sensorinfo;
