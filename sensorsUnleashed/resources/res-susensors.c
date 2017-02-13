@@ -93,13 +93,18 @@ res_susensor_gethandler(void *request, void *response, uint8_t *buffer, uint16_t
 			}
 			else if(strncmp(str, "pairings", len) == 0){
 
-				//if(offset )
 				int16_t ret = pairing_getlist(sensor, buffer, preferred_size, offset);
-				if( ret < preferred_size){	//Finished sending
-					*offset = -1;
+
+				if( ret == -1){
+					REST.set_response_status(response, REST.status.BAD_REQUEST);
+				}
+				else {
+					if( ret < preferred_size){	//Finished sending
+						*offset = -1;
+					}
+					REST.set_response_payload(response, buffer, ret);
 				}
 
-				REST.set_response_payload(response, buffer, ret);
 				len = 0;
 			}
 			else{
@@ -181,6 +186,30 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 
 				//TODO: Generate human readable error messages, if parsing fails (see pairing)
 				if(sensor->suconfig(sensor, SUSENSORS_EVENTSETUP_SET, (void*)payload) == 0){
+					REST.set_response_status(response, REST.status.CHANGED);
+				}
+				else{
+					REST.set_response_status(response, REST.status.BAD_REQUEST);
+				}
+			}
+			else if(strncmp(str, "pairRemoveIndex", len) == 0){
+				len = REST.get_request_payload(request, &payload);
+				int ret = pairing_remove(sensor, len, (uint8_t*) payload);
+				if(ret == 0){
+					REST.set_response_status(response, REST.status.CHANGED);
+				}
+				else if(ret == 2){
+					REST.set_response_status(response, REST.status.INTERNAL_SERVER_ERROR);
+				}
+				else if(ret == 3){
+					REST.set_response_status(response, REST.status.NOT_MODIFIED);
+				}
+				else if(ret == 4){
+					REST.set_response_status(response, REST.status.BAD_REQUEST);
+				}
+			}
+			else if(strncmp(str, "pairRemoveAll", len) == 0){
+				if(pairing_remove_all(sensor) == 0){
 					REST.set_response_status(response, REST.status.CHANGED);
 				}
 				else{

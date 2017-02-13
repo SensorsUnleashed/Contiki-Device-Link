@@ -40,6 +40,8 @@ void activateSUSensorPairing(susensors_sensor_t* p);
 
 uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len, uint32_t num);
 int16_t pairing_getlist(susensors_sensor_t* s, uint8_t* buffer, uint16_t len, int32_t *offset);
+uint8_t pairing_remove_all(susensors_sensor_t* s);
+uint8_t pairing_remove(susensors_sensor_t* s, uint32_t len, uint8_t* indexbuffer);
 uint8_t pairing_handle(susensors_sensor_t* s);
 void store_SensorPair(susensors_sensor_t* s, uint8_t* data, uint32_t len);
 void restore_SensorPairs(susensors_sensor_t* s);

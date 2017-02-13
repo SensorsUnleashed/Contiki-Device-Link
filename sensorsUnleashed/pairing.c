@@ -78,6 +78,124 @@ int16_t pairing_getlist(susensors_sensor_t* s, uint8_t* buffer, uint16_t len, in
 
 	return ret;
 }
+uint8_t pairing_remove_all(susensors_sensor_t* s){
+	char filename[30];
+	memset(filename, 0, 30);
+	sprintf(filename, "pairs_%s", s->type);
+
+	while(list_head(s->pairs) != 0){
+		joinpair_t* p = list_pop(s->pairs);
+		mmem_free(&p->dsturl);
+		mmem_free(&p->srcurl);
+	}
+
+	return cfs_remove(filename);
+}
+
+//Used to read from msgpacked buffer
+static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit) {
+	for(uint32_t i=0; i<limit; i++){
+		*((char*)data++) = *((char*)ctx->buf++);
+	}
+	return true;
+}
+
+//Return not needed pairing - Indexes shall be ordered - lowest first e.g, [0,3,4]
+//Return 0 on success
+//Return 1 if there are no pairingfile
+//Return 2 Its not possible to create a temperary file
+//Return 3 There pairings file is empty.
+//Return 4 index array malformed
+uint8_t pairing_remove(susensors_sensor_t* s, uint32_t len, uint8_t* indexbuffer){
+
+	uint8_t* index;			//Current line index to be removed
+	uint32_t indexlen = 0;	//Received length of indexs
+	int currentindex = 0;	//Current pairindex
+	struct file_s orig, temp;
+
+	char filename[30];
+	memset(filename, 0, 30);
+	sprintf(filename, "pairs_%s", s->type);
+
+	orig.fd = cfs_open(filename, CFS_READ);
+	orig.offset = 0;
+	if(orig.fd < 0) return 1;
+
+	temp.fd = cfs_open("temp", CFS_READ | CFS_WRITE);
+	temp.offset = 0;
+	if(temp.fd < 0) {
+		cfs_close(orig.fd);
+		return 2;
+	}
+
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, &orig, file_reader, file_writer);
+
+	cmp_ctx_t cmptmp;
+	cmp_init(&cmptmp, &temp, file_reader, file_writer);
+
+	cmp_ctx_t cmpindex;
+	cmp_init(&cmpindex, indexbuffer, buf_reader, 0);
+
+	if(!cmp_read_array(&cmpindex, &indexlen)) {
+		cfs_close(orig.fd);
+		cfs_close(temp.fd);
+		return 4;
+	}
+
+	uint8_t arr[indexlen];
+	for(int i=0; i<indexlen; i++){
+		if(!cmp_read_u8(&cmpindex, &arr[i])){
+				cfs_close(orig.fd);
+				cfs_close(temp.fd);
+				return 4;
+		}
+	}
+	index = &arr[0];
+
+	/* Copy all the wanted pairings to a temp file */
+	bufsize = BUFFERSIZE;
+	while(cmp_read_bin(&cmp, buffer, &bufsize)){
+		if(currentindex == *index){
+			if(--indexlen > 0){
+				index++;
+			}
+		}
+		else{
+			cmp_write_bin(&cmptmp, buffer, bufsize);
+		}
+		currentindex++;
+		bufsize = BUFFERSIZE;
+	}
+
+	cfs_close(orig.fd);
+
+	if(orig.offset == 0){	//File was empty, just leave
+		return 3;
+	}
+
+	cfs_remove(filename);
+	orig.fd = cfs_open(filename, CFS_WRITE);	//Truncate the file to the new content
+	orig.offset = 0;
+	if(orig.fd < 0) return 1;
+
+//	//Start writing from the end
+//	cfs_seek(temp.fd, 0, CFS_SEEK_SET);
+
+	//Next copy the temp data back to the original file
+	while(cmp_read_bin(&cmptmp, buffer, &bufsize)){
+		cmp_write_bin(&cmp, buffer, bufsize);
+		bufsize = BUFFERSIZE;
+	}
+
+	bufsize = 0;
+
+	cfs_close(orig.fd);
+	cfs_close(temp.fd);
+	cfs_remove("temp");
+
+	return 0;
+}
 
 
 //Return 0 if success
