@@ -29,7 +29,7 @@
  */
 /*---------------------------------------------------------------------------*/
 /**
- * \addtogroup zoul-relay
+ * \addtogroup su-mainsdetector
  * @{
  *
  * \file
@@ -111,6 +111,8 @@ static int set(struct susensors_sensor* this, int type, void* data)
 	return ret;
 }
 
+//#include "dev/leds.h"
+
 /**
  * \brief Callback registered with the GPIO module. Gets fired when mains is detected
  * \param port The port number that generated the interrupt
@@ -131,6 +133,7 @@ mainsdetect_isr_callback(uint8_t port, uint8_t pin)
 	if(r->LastValue.as.u8 == 0){
 		r->LastValue.as.u8 = 1;
 		setEventU8(this, 1, 1);
+		leds_on(LEDS_YELLOW);
 	}
 }
 
@@ -143,6 +146,7 @@ mainsgonecallback(void *ptr)
 	if(r->LastValue.as.u8 == 1){
 		r->LastValue.as.u8 = 0;
 		setEventU8(this, -1, 1);
+		leds_off(LEDS_YELLOW);
 	}
 }
 
@@ -168,7 +172,7 @@ static int configure(struct susensors_sensor* this, int type, int value)
 		break;
 	case SUSENSORS_ACTIVE:
 		if(value) {
-			ctimer_set(&mains_gone_timeout, CLOCK_SECOND/2, mainsgonecallback, this);
+			ctimer_set(&mains_gone_timeout, CLOCK_SECOND/5, mainsgonecallback, this);
 			GPIO_ENABLE_INTERRUPT(MAINSDETECT_PORT_BASE, MAINSDETECT_PIN_MASK);
 			nvic_interrupt_enable(MAINSDETECT_VECTOR);
 

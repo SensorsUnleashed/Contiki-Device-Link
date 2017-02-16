@@ -4,6 +4,7 @@
  *  Created on: 06/12/2016
  *      Author: omn
  */
+
 #include "pulsesensor.h"
 #include "contiki.h"
 
@@ -17,21 +18,25 @@
 
 #include "susensorcommon.h"
 
-struct susensors_sensor pulse_sensor;
-
 #define PULSE_PORT            GPIO_A_NUM
 #define PULSE_PIN             3
 
-static struct resourceconf config = {
+PROCESS(pulseinput_int_process, "Pulse input interrupt process handler");
+
+static susensors_sensor_t* pulsesensor = NULL;
+
+static struct relayRuntime pulseinputruntime[1];
+
+struct resourceconf pulseconfig = {
 		.resolution = 100,	//0.1W
 		.version = 1,		//Q22.10
 		.flags = METHOD_GET | METHOD_PUT,			//Flags - which handle do we serve: Get/Post/PUT/Delete
 		.max_pollinterval = 30, 					//How often can you ask for a new reading
 
-		.eventsActive = 0,
+		.eventsActive = ChangeEventActive,
 		.AboveEventAt = {
 				.type = CMP_TYPE_UINT16,
-		     	.as.u16 = 10000
+		     	.as.u16 = 1000
 		},
 		.BelowEventAt = {
 				.type = CMP_TYPE_UINT16,
@@ -39,7 +44,7 @@ static struct resourceconf config = {
 		},
 		.ChangeEvent = {
 				.type = CMP_TYPE_UINT16,
-				.as.u16 = 10000
+				.as.u16 = 50
 		},
 		.RangeMin = {
 				.type = CMP_TYPE_UINT16,
@@ -52,7 +57,7 @@ static struct resourceconf config = {
 		.unit = "W",
 		.spec = "This is a pulse counter, counting 10000 pulses/kwh",				//Human readable spec of the sensor
 		.type = PULSE_SENSOR,
-		.attr = "title=\"Puls counter\" ;rt=\"Control\"",
+		.attr = "title=\"Pulse counter\" ;rt=\"Control\"",
 		//uint8_t notation;		//Qm.f => MMMM.FFFF	eg. Q1.29 = int32_t with 1 integer bit and 29 fraction bits, Q
 };
 
@@ -63,15 +68,15 @@ static struct resourceconf config = {
  */
 //Return 0 for success
 //Return 1 for invalid request
-static int
-get(struct susensors_sensor* this, int type, void* data)
+static int get(struct susensors_sensor* this, int type, void* data)
 {
 	int ret = 1;
 	cmp_object_t* obj = (cmp_object_t*)data;
 
 	if((enum up_parameter) type == ActualValue){
+		struct relayRuntime* r = (struct relayRuntime*)this->data.runtime;
 		obj->type = CMP_TYPE_UINT16;
-		obj->as.u16 = (uint16_t) REG(GPT_1_BASE + GPTIMER_TAR);
+		obj->as.u16 = (uint16_t) REG(GPT_1_BASE + GPTIMER_TAR) + r->LastValue.as.u16;
 		ret = 0;
 	}
 	return ret;
@@ -79,19 +84,19 @@ get(struct susensors_sensor* this, int type, void* data)
 
 //Return 0 for success
 //Return 1 for invalid request
-static int
-set(struct susensors_sensor* this, int type, void* data)
+static int set(struct susensors_sensor* this, int type, void* data)
 {
 	int ret = 1;
 	return ret;
 }
 
-static int
-config_user(struct susensors_sensor* this, int type, int value)
+static int configure(struct susensors_sensor* this, int type, int value)
 {
+	struct resourceconf* config = (struct resourceconf*)(this->data.config);
 	switch(type) {
 	case SUSENSORS_HW_INIT:
-		/* We use Timer1A as a 16bit pulse counter */
+
+		/* Use Timer1A as a 16bit pulse counter */
 
 		/*
 		 * Remove the clock gate to enable GPT1 and then initialise it
@@ -124,7 +129,6 @@ config_user(struct susensors_sensor* this, int type, int value)
 		REG(GPT_1_BASE + GPTIMER_TAMR) &= ~(GPTIMER_TAMR_TACMR);	//Edge count mode
 		REG(GPT_1_BASE + GPTIMER_TAMR) |= GPTIMER_TAMR_TACDIR;		//Count up
 
-
 		/* 4. Configure the type of event(s) that the timer captures by writing the TnEVENT field of the G Control (GPTIMER_CTL) register. */
 		/* Positive edges */
 		REG(GPT_1_BASE + GPTIMER_CTL) &= ~GPTIMER_CTL_TAEVENT;	//0=Postive Edge, 1=Negative Edge, 3=Both
@@ -135,43 +139,103 @@ config_user(struct susensors_sensor* this, int type, int value)
 
 		/* 6. Load the timer start value into the GPTM Timer n Interval Load (GPTIMER_TnILR) registe */
 		/* When the timer is counting up, this register sets the upper bound for the timeout event. */
-		REG(GPT_1_BASE + GPTIMER_TAILR) = config.RangeMax.as.u16;;	//When reached, its starts over from 0
+		REG(GPT_1_BASE + GPTIMER_TAILR) = config->ChangeEvent.as.u16;	//When reached, its starts over from 0
 
 		/* 7. Load the event count into the GPTM Timer n Match (GPTIMER_TnMATCHR) register. */
-		REG(GPT_1_BASE + GPTIMER_TAMATCHR) = config.RangeMax.as.u16;
+		REG(GPT_1_BASE + GPTIMER_TAMATCHR) = config->ChangeEvent.as.u16;
 
+//		/* 8. If interrupts are required, set the CnMIM bit in the GPTM Interrupt Mask (GPTIMER_IMR) register. */
+//		REG(GPT_1_BASE + GPTIMER_IMR) |= GPTIMER_IMR_CAMIM;
+//		nvic_interrupt_unpend(NVIC_INT_GPTIMER_1A);	//Clear pending interrupts
+//		nvic_interrupt_enable(NVIC_INT_GPTIMER_1A);
+		process_start(&pulseinput_int_process, NULL);
 
 		break;
 	case SUSENSORS_ACTIVE:
 		if(value){	//Activate
 			if(!REG(GPT_1_BASE + GPTIMER_CTL) & GPTIMER_CTL_TAEN){
-				REG(GPT_1_BASE + GPTIMER_CTL) |= GPTIMER_CTL_TAEN;	//Enable puls counter
+				/* Enable interrupts */
+				REG(GPT_1_BASE + GPTIMER_IMR) |= GPTIMER_IMR_CAMIM;
+				nvic_interrupt_unpend(NVIC_INT_GPTIMER_1A);	//Clear pending interrupts
+				nvic_interrupt_enable(NVIC_INT_GPTIMER_1A);
+
+				REG(GPT_1_BASE + GPTIMER_CTL) |= GPTIMER_CTL_TAEN;	//Enable pulse counter
 			}
 		}
 		else{
 			if(REG(GPT_1_BASE + GPTIMER_CTL) & GPTIMER_CTL_TAEN){
-				REG(GPT_1_BASE + GPTIMER_CTL) &= ~GPTIMER_CTL_TAEN;	//disable puls counter
+				REG(GPT_1_BASE + GPTIMER_CTL) &= ~GPTIMER_CTL_TAEN;	//disable pulse counter
+
+				/* Disable interrupts */
+				REG(GPT_1_BASE + GPTIMER_IMR) &= ~GPTIMER_IMR_CAMIM;
+				nvic_interrupt_disable(NVIC_INT_GPTIMER_1A);
 			}
 		}
 		break;
-	case SUSENSORS_MAX_AGE:
-		return 30;	//Updated value every 30 sec.
-		break;
 	}
-	return 1;
+	return 0;
 }
 
 /* An event was received from another device - now act on it */
-static int EventReceived(struct susensors_sensor* this, int type, void* data){
-	enum susensors_event_cmd cmd = (enum susensors_event_cmd)type;
-	int ret = 1;
-
-	return ret;
+static int eventHandler(struct susensors_sensor* this, int len, uint8_t* payload){
+	//TODO: Consider what the pulse counter should if someone posts an event to it.
+	return 0;
 }
 
-static int getActiveEventMsg(struct susensors_sensor* this, const char** eventstr, uint8_t* payload){
+susensors_sensor_t* addASUPulseInputRelay(const char* name, struct resourceconf* config){
+	susensors_sensor_t d;
+	d.type = (char*)name;
+	d.status = get;
+	d.value = set;
+	d.configure = configure;
+	d.eventhandler = eventHandler;
+	d.getActiveEventMsg = getActiveEventMsg;
+	d.suconfig = suconfig;
+	d.data.config = config;
 
+	pulseinputruntime[0].enabled = 0;
+	pulseinputruntime[0].hasEvent = 0,
+	pulseinputruntime[0].LastEventValue.type = CMP_TYPE_UINT8;
+	pulseinputruntime[0].LastEventValue.as.u8 = 0;
+	pulseinputruntime[0].ChangeEventAcc.as.u8 = 0;
+	d.data.runtime = (void*) &pulseinputruntime[0];
+
+	pulsesensor = addSUDevices(&d);
+	return pulsesensor;
 }
-//TODO: Add runtime data
-static struct extras extra = { .type = 1, .config = (void*)&config, .runtime = (void*)0 };
-//SUSENSORS_SENSOR(pulse_sensor, PULSE_SENSOR, set, config_user, get, EventReceived, getActiveEventMsg, &extra);
+
+/**
+ * Interrupt handling
+ *
+ * The ISR is added to our own vector in the SU platform startup-gcc.c
+ *
+ */
+
+/**
+ * ISR handler
+ */
+void pulscounter_isr(){
+	process_poll(&pulseinput_int_process);
+
+	//both cases, the status flags are cleared by writing a 1 to the CnMCINT bit of the GPTM Interrupt Clear (GPTIMER_ICR) register.
+	REG(GPT_1_BASE + GPTIMER_ICR) |= GPTIMER_ICR_CAMCINT;
+}
+
+PROCESS_THREAD(pulseinput_int_process, ev, data)
+{
+  PROCESS_EXITHANDLER();
+  PROCESS_BEGIN();
+
+  while(1) {
+
+     PROCESS_YIELD_UNTIL(ev == PROCESS_EVENT_POLL);
+
+     /* For now we only have one pulse counter, so we dont have to know the pulsecounter instance */
+     struct relayRuntime* r = (struct relayRuntime*)pulsesensor->data.runtime;
+     r->LastValue.as.u16 += REG(GPT_1_BASE + GPTIMER_TAILR);
+     setEventU16(pulsesensor, 1, REG(GPT_1_BASE + GPTIMER_TAILR));
+  }
+
+  PROCESS_END();
+}
+

@@ -291,11 +291,29 @@ void sensor::testEvents(QVariant event, QVariant value){
     QString e = event.toString();
     QVariantMap m = value.toMap();
     QByteArray payload;
+    payload.reserve(100);
+    uint8_t eventval;
+    if(e.compare("aboveEvent") == 0){
+        eventval = 2;
+    }
+    else if(e.compare("belowEvent") == 0){
+        eventval = 4;
+    }
+    else if(e.compare("changeEvent") == 0){
+        eventval = 8;
+    }
+
+    cmp_ctx_t cmp;
+    cmp_init(&cmp, payload.data(), 0, buf_writer);
+
+    cmp_write_u8(&cmp, eventval);
+    cmp_write_u8(&cmp, 0);  //For now just send a zero as payload
+    payload.resize((uint8_t*)cmp.buf - (uint8_t*)payload.data());
 
     const char* uristring = uri.toLatin1().data();
     CoapPDU *pdu = new CoapPDU();
     pdu->setURI((char*)uristring, strlen(uristring));
-    pdu->addURIQuery(e.toLatin1().data());
+    pdu->addURIQuery((char*)"postEvent");
 
     put_request(pdu, req_testevent, payload);
 }

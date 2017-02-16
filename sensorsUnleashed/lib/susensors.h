@@ -39,13 +39,6 @@
 
 #define DEVICES_MAX		10
 
-extern const char* suEventAboveEventString;
-extern const char* suEventBelowEventString;
-extern const char* suEventChangeEventString;
-/* This is common to all devices and has its own function */
-struct susensors_sensor;
-int suconfig(struct susensors_sensor* this, int type, void* data);
-
 enum susensors_configcmd {
 	SUSENSORS_EVENTSETUP_SET,
 	SUSENSORS_EVENTSETUP_GET,
@@ -67,8 +60,14 @@ enum susensors_event_cmd {
 #define SUSENSORS_HW_INIT 	128 /* internal - used only for initialization */
 #define SUSENSORS_ACTIVE 	129 /* ACTIVE => 0 -> turn off, 1 -> turn on */
 #define SUSENSORS_READY 	130 /* read only */
-#define SUSENSORS_EXTRAS 	131	/* Get a struct with further details */
-#define SUSENSORS_MAX_AGE	132	/* How long will the value be valid for */
+
+struct relayRuntime {
+	uint8_t enabled;
+	uint8_t hasEvent;
+	cmp_object_t LastEventValue;
+	cmp_object_t LastValue;
+	cmp_object_t ChangeEventAcc;	///Accumulated steps; for determining if event should be fired
+};
 
 /* Used for extra material needed for using a sensor */
 struct extras{
@@ -84,17 +83,17 @@ struct susensors_sensor {
 	unsigned char event_flag;
 
 	/* Set device values */
-	int          (* value)     	(struct susensors_sensor* this, int type, void* data);
+	int (* value)     			(struct susensors_sensor* this, int type, void* data);
 	/* Get/set device hardware specific configuration */
-	int          (* configure) 	(struct susensors_sensor* this, int type, int value);
+	int (* configure) 			(struct susensors_sensor* this, int type, int value);
 	/* Get device values */
-	int          (* status)    	(struct susensors_sensor* this, int type, void* data);
+	int (* status)    			(struct susensors_sensor* this, int type, void* data);
 	/* Received an event from another device - handle it */
-	int 		   (* eventhandler)	(struct susensors_sensor* this, int type, int len, uint8_t* payload);
+	int (* eventhandler)		(struct susensors_sensor* this, int len, uint8_t* payload);
 	/* Get the date from the last event emittet */
-	int 		   (* getActiveEventMsg)	(struct susensors_sensor* this, const char** eventstr, uint8_t* payload);
+	int (* getActiveEventMsg)	(struct susensors_sensor* this, uint8_t* payload);
 	/* Get/set device suconfig (common to all devices) */
-	int          (* suconfig)  	(struct susensors_sensor* this, int type, void* data);
+	int (* suconfig)  			(struct susensors_sensor* this, int type, void* data);
 
 	struct extras data;
 

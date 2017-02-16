@@ -40,8 +40,6 @@ enum up_parameter{
 	ActualValue,
 	EventStatus,	//Get the event fired
 
-
-
 	/* Common config */
 	ChangeEventConfigValue,
 	AboveEventConfigValue,
@@ -62,10 +60,10 @@ typedef struct  {
 }rx_msg;
 
 enum eventstate{
-	NoEventActive =     (1 << 0),
-	AboveEventActive =  (1 << 1),
-	BelowEventActive =  (1 << 2),
-	ChangeEventActive = (1 << 3),
+	NoEventActive =     (1 << 0),	//1
+	AboveEventActive =  (1 << 1),	//2
+	BelowEventActive =  (1 << 2),	//4
+	ChangeEventActive = (1 << 3),	//8
 };
 
 //void* lastval;			//MsgPacked value. Actual SI value is calculated as: Value * 1/resolution = X [Unit].
@@ -91,10 +89,10 @@ struct resourceconf{
 	 * It is possible to have all event types enabled together, but its the subscriber that
 	 * will need to detect which event was fired. They are all alike.
 	 * */
-	uint8_t eventsActive;		//Events on or Off
-	cmp_object_t AboveEventAt;	//When resource crosses this line from low to high give an event (>=)
-	cmp_object_t BelowEventAt;	//When resource crosses this line from high to low give an event (<=)
-    cmp_object_t ChangeEvent;	//When value has changed more than changeEvent + lastevent value <>= value
+	uint8_t eventsActive;		///Generation of events on or Off (Determined by eventstate)
+	cmp_object_t AboveEventAt;	///When resource crosses this line from low to high give an event (>=)
+	cmp_object_t BelowEventAt;	///When resource crosses this line from high to low give an event (<=)
+    cmp_object_t ChangeEvent;	///When value has changed more than changeEvent + lastevent value <>= value
 
     cmp_object_t RangeMin;		//What is the minimum value this device can read
     cmp_object_t RangeMax;		//What is the maximum value this device can read

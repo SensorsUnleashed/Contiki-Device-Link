@@ -47,6 +47,7 @@
 #include "dev/button-sensor.h"
 #include "dev/relay.h"
 #include "dev/ledindicator.h"
+#include "dev/mainsdetect.h"
 #include "../sensorsUnleashed/pairing.h"
 #include "resources/res-uartsensor.h"
 #include "resources/res-susensors.h"
@@ -71,6 +72,18 @@ static coap_packet_t request[1];      /* This way the packet can be treated as p
 static uint8_t payload[50];
 static uint8_t coapTx[60];
 
+/* This function is will be passed to COAP_BLOCKING_REQUEST() to handle responses. */
+static void
+client_chunk_handler(void *response)
+{
+  const uint8_t *chunk;
+
+  int len = coap_get_payload(response, &chunk);
+
+//  PRINTF("|%.*s", len, (char *)chunk);
+}
+
+joinpair_t *pair;
 PROCESS_THREAD(er_uart_server, ev, data)
 {
 
@@ -91,6 +104,14 @@ PROCESS_THREAD(er_uart_server, ev, data)
 		res_susensor_activate(d);
 	}
 	d = addASULedIndicator(LED_INDICATOR, &ledindicatorconfig);
+	if(d != NULL){
+		res_susensor_activate(d);
+	}
+	d = addASUPulseInputRelay(PULSE_SENSOR, &pulseconfig);
+	if(d != NULL){
+		res_susensor_activate(d);
+	}
+	d = addASUMainsDetector(MAINSDETECT_ACTUATOR, &mainsdetectconfig);
 	if(d != NULL){
 		res_susensor_activate(d);
 	}
@@ -124,16 +145,16 @@ PROCESS_THREAD(er_uart_server, ev, data)
 		PROCESS_YIELD();
 
 		if(ev == susensors_event) {
-			joinpair_t *pair = (joinpair_t*)data;
+			/*joinpair_t* */ pair = (joinpair_t*)data;
 			susensors_sensor_t* p = (susensors_sensor_t*)pair->deviceptr;
-			const char* eventstr = NULL;
-			int len = p->getActiveEventMsg(p, &eventstr, payload);
+			int len = p->getActiveEventMsg(p, payload);
+
 			coap_message_type_t type = COAP_TYPE_NON;
 
 			coap_init_message(request, type, COAP_PUT, coap_get_mid());
 
 			coap_set_header_uri_path(request, (char*)MMEM_PTR(&pair->dsturl));
-			coap_set_header_uri_query(request, eventstr);
+			coap_set_header_uri_query(request, "postEvent"); //eventstr);
 			REST.set_header_content_type(request, APPLICATION_OCTET_STREAM);
 			coap_set_payload(request, payload, len);	//Its already msgpack encoded.
 
@@ -141,9 +162,11 @@ PROCESS_THREAD(er_uart_server, ev, data)
 			//if(type == COAP_TYPE_NON)
 			coap_send_message(&pair->destip, REMOTE_PORT, &coapTx[0], len);
 			//else
-			//	COAP_BLOCKING_REQUEST(&pair->destip, REMOTE_PORT, request, 0/*client_chunk_handler*/);
-
 			leds_toggle(LEDS_GREEN);
+			//COAP_BLOCKING_REQUEST(&pair->destip, REMOTE_PORT, request, client_chunk_handler);
+
+
+
 		}
 	}
 	PROCESS_END();

@@ -151,17 +151,14 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 			/* Issue a command. The command is one of the enum suactions values*/
 			const char *commandstr = NULL;
 			char *pEnd;
-			if(strncmp(str, "aboveEvent", len) == 0){
+			if(strncmp(str, "postEvent", len) == 0){
 				len = REST.get_request_payload(request, &payload);
-				sensor->eventhandler(sensor, SUSENSORS_ABOVE_EVENT_SET, len, (uint8_t*)payload);
-			}
-			else if(strncmp(str, "belowEvent", len) == 0){
-				len = REST.get_request_payload(request, &payload);
-				sensor->eventhandler(sensor, SUSENSORS_BELOW_EVENT_SET, len, (uint8_t*)payload);
-			}
-			else if(strncmp(str, "changeEvent", len) == 0){
-				len = REST.get_request_payload(request, &payload);
-				sensor->eventhandler(sensor, SUSENSORS_CHANGE_EVENT_SET, len, (uint8_t*)payload);
+				if((len = sensor->eventhandler(sensor, len, (uint8_t*)payload)) == 0){
+					REST.set_response_status(response, REST.status.OK);
+				}
+				else{
+					REST.set_response_status(response, REST.status.BAD_REQUEST);
+				}
 			}
 			else if(REST.get_query_variable(request, "setCommand", &commandstr) > 0 && commandstr != NULL) {
 				if(sensor->value(sensor, strtol(commandstr, &pEnd, 10), 0) == 0){	//For now, no payload - might be necessary in the furture
@@ -175,7 +172,7 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 					REST.set_response_status(response, REST.status.BAD_REQUEST);
 				}
 			}
-			else if(strncmp(str, "suconfig", len) == 0){
+			else if(strncmp(str, "eventsetup", len) == 0){
 				len = REST.get_request_payload(request, &payload);
 				if(len <= 0){
 					REST.set_response_status(response, REST.status.BAD_REQUEST);

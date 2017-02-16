@@ -60,10 +60,6 @@ static int set(struct susensors_sensor* this, int type, void* data){
 		ret = 0;
 	}
 
-	if(ret == 0){
-		susensors_changed(this);
-	}
-
 	return ret;
 }
 
@@ -84,28 +80,27 @@ int get(struct susensors_sensor* this, int type, void* data){
 }
 
 /* An event was received from another device - now act on it */
-static int eventHandler(struct susensors_sensor* this, int type, int len, uint8_t* payload){
-	enum susensors_event_cmd cmd = (enum susensors_event_cmd)type;
-	int ret = 1;
-	switch(cmd){
-	case SUSENSORS_ABOVE_EVENT_SET:
-		this->value(this, toggleLED_RED, NULL);
-		ret = 0;
-		break;
-	case SUSENSORS_BELOW_EVENT_SET:
-		this->value(this, toggleLED_YELLOW, NULL);
-		ret = 0;
-		break;
-	case SUSENSORS_CHANGE_EVENT_SET:
-		this->value(this, toggleLED_ORANGE, NULL);
-		ret = 0;
-		break;
-	}
-	return ret;
-}
+static int eventHandler(struct susensors_sensor* this, int len, uint8_t* payload){
+	uint8_t event;
+	uint32_t parselen = len;
+	cmp_object_t eventval;
+	if(cp_decodeU8(payload, &event, &parselen) != 0) return 1;
+	payload += parselen;
+	parselen = len - parselen;
+	if(cp_decodeObject(payload, &eventval, &parselen) != 0) return 2;
 
-static int getActiveEventMsg(struct susensors_sensor* this, const char** eventstr, uint8_t* payload){
-	return 1;
+	if(event & AboveEventActive){
+		this->value(this, toggleLED_RED, NULL);
+	}
+	else if(event & BelowEventActive){
+		this->value(this, toggleLED_YELLOW, NULL);
+	}
+
+	if(event & ChangeEventActive){
+		this->value(this, toggleLED_ORANGE, NULL);
+	}
+
+	return 0;
 }
 
 susensors_sensor_t* addASULedIndicator(const char* name, struct resourceconf* config){

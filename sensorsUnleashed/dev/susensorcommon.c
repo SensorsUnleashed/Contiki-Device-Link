@@ -4,8 +4,7 @@
  *  Created on: 25/12/2016
  *      Author: omn
  */
-#include "../../apps/uartsensors/uart_protocolhandler.h"
-#include "lib/susensors.h"
+#include "susensorcommon.h"
 
 int suconfig(struct susensors_sensor* this, int type, void* data){
 
@@ -133,4 +132,81 @@ int suconfig(struct susensors_sensor* this, int type, void* data){
 		ret = 0;
 	}
 	return ret;
+}
+
+int getActiveEventMsg(struct susensors_sensor* this, uint8_t* payload){
+	struct relayRuntime* d = (struct relayRuntime*)this->data.runtime;
+	int len = cp_encodeU8(payload, d->hasEvent);
+	len += cp_encodeObject(payload + len, &d->LastEventValue);
+	return len;
+}
+
+/**
+ *
+ * @param this
+ * 	The actual sensor instance
+ * @param dir
+ * 	The direction of the last value
+ * @param step
+ * 	The step from from last time the actuator was set
+ * @return
+ */
+void setEventU8(struct susensors_sensor* this, int dir, uint8_t step){
+	struct resourceconf* c = (struct resourceconf*)(this->data.config);
+	struct relayRuntime* r = (struct relayRuntime*)(this->data.runtime);
+
+	r->hasEvent = NoEventActive;
+	if(dir < 0){
+		if(r->LastValue.as.u8 <= c->BelowEventAt.as.u8 && (c->eventsActive & BelowEventActive)){
+			r->hasEvent = BelowEventActive;
+		}
+	}
+	else{
+		if(r->LastValue.as.u8 >= c->AboveEventAt.as.u8 && (c->eventsActive & AboveEventActive)){
+			r->hasEvent = AboveEventActive;
+		}
+	}
+
+	r->ChangeEventAcc.as.u8 += step;
+	if(c->ChangeEvent.as.u8 <= r->ChangeEventAcc.as.u8){
+		r->ChangeEventAcc.as.u8 = 0;
+		if(c->eventsActive & ChangeEventActive){
+			r->hasEvent |= ChangeEventActive;
+		}
+	}
+
+	if(r->hasEvent != NoEventActive){
+		r->LastEventValue = r->LastValue;
+		susensors_changed(this);
+	}
+}
+
+void setEventU16(struct susensors_sensor* this, int dir, uint8_t step){
+	struct resourceconf* c = (struct resourceconf*)(this->data.config);
+	struct relayRuntime* r = (struct relayRuntime*)(this->data.runtime);
+
+	r->hasEvent = NoEventActive;
+	if(dir < 0){
+		if(r->LastValue.as.u16 <= c->BelowEventAt.as.u16 && (c->eventsActive & BelowEventActive)){
+			r->hasEvent = BelowEventActive;
+		}
+	}
+	else{
+		if(r->LastValue.as.u16 >= c->AboveEventAt.as.u16 && (c->eventsActive & AboveEventActive)){
+			r->hasEvent = AboveEventActive;
+		}
+	}
+
+	r->ChangeEventAcc.as.u16 += step;
+	if(c->ChangeEvent.as.u16 <= r->ChangeEventAcc.as.u16){
+		r->ChangeEventAcc.as.u16 = 0;
+		if(c->eventsActive & ChangeEventActive){
+			r->hasEvent |= ChangeEventActive;
+		}
+	}
+
+	if(r->hasEvent != NoEventActive){
+		r->LastEventValue = r->LastValue;
+		susensors_changed(this);
+	}
 }

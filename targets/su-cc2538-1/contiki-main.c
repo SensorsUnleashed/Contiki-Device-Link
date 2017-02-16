@@ -145,7 +145,7 @@ set_rf_params(void)
 }
 /*---------------------------------------------------------------------------*/
 /**
- * \brief Main routine for the OpenMote-CC2538 platforms
+ * \brief Main routine for the Sensors Unleashed - CC2538 platform
  */
 int
 main(void)

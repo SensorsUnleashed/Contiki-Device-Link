@@ -6,10 +6,6 @@
 #include "lib/memb.h"
 #include "../pairing.h"
 
-const char* suEventAboveEventString = "aboveEvent";
-const char* suEventBelowEventString = "belowEvent";
-const char* suEventChangeEventString = "changeEvent";
-
 #define FLAG_CHANGED    0x80
 
 process_event_t susensors_event;
@@ -86,6 +82,7 @@ PROCESS_THREAD(susensors_process, ev, data)
 	for(d = susensors_first(); d; d = susensors_next(d)) {
 		d->event_flag = 0;
 		d->configure(d, SUSENSORS_HW_INIT, 0);
+		d->configure(d, SUSENSORS_ACTIVE, 1);
 
 		//Restore sensor pairs stored in flash
 		restore_SensorPairs(d);
@@ -97,7 +94,7 @@ PROCESS_THREAD(susensors_process, ev, data)
 
 		do {
 			events = 0;
-			for(d = susensors_first(); list_head(d->pairs); d = susensors_next(d)) {
+			for(d = susensors_first(); d; d = susensors_next(d)) {
 				if(d->event_flag & FLAG_CHANGED){
 					for(pair = list_head(d->pairs); pair; pair = pair->next) {
 						if(process_post(PROCESS_BROADCAST, susensors_event, (void *)pair) == PROCESS_ERR_OK) {
