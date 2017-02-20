@@ -2,7 +2,7 @@
  * Modified header taken from MessagePack implmenetation, original license below:
  * MessagePack system dependencies
  *
- * Copyright (C) 2008-2010 FURUHASHI Sadayuki
+ * Copyright (C) 2008-2016 FURUHASHI Sadayuki
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
