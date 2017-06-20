@@ -33,6 +33,7 @@
 #include "sys/ctimer.h"
 #include "mainsdetect.h"
 
+#include "dev/leds.h"
 #include "dev/gpio.h"
 #include "dev/ioc.h"
 

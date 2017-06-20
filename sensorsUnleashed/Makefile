@@ -25,6 +25,10 @@ ifeq ($(TARGET), su-cc2538-1)
 CFLAGS += -DNATIVE=0
 endif
 
+ifeq ($(TARGET), radioone)
+CFLAGS += -DNATIVE=0
+endif
+
 # automatically build RESTful resources
 REST_RESOURCES_DIR = ./resources
 ifndef TARGET
