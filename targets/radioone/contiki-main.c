@@ -46,7 +46,6 @@
 #include "dev/adc.h"
 #include "dev/leds.h"
 #include "dev/sys-ctrl.h"
-#include "dev/scb.h"
 #include "dev/nvic.h"
 #include "dev/uart.h"
 #include "dev/watchdog.h"
@@ -235,7 +234,7 @@ main(void)
   fade(LEDS_ORANGE);
 
   tps62730_init();
-  tps62730_on();
+//  tps62730_on();
 
   while(1) {
     uint8_t r;

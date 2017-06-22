@@ -48,7 +48,7 @@
 #include "sys/timer.h"
 #include "sys/ctimer.h"
 #include "sys/process.h"
-#include "board.h"
+
 #include <stdint.h>
 #include <string.h>
 /*---------------------------------------------------------------------------*/
@@ -83,7 +83,7 @@ duration_exceeded_callback(void *data)
  *             respectively
  */
 static int
-value(struct susensors_sensor* this, int type, void* data)
+value(int type)
 {
   switch(type) {
   case BUTTON_SENSOR_VALUE_TYPE_LEVEL:
@@ -113,7 +113,7 @@ btn_callback(uint8_t port, uint8_t pin)
 
   if(press_duration) {
     press_event_counter = 0;
-    if(value(NULL, BUTTON_SENSOR_VALUE_TYPE_LEVEL, 0) == BUTTON_SENSOR_PRESSED_LEVEL) {
+    if(value(BUTTON_SENSOR_VALUE_TYPE_LEVEL) == BUTTON_SENSOR_PRESSED_LEVEL) {
       ctimer_set(&press_counter, press_duration, duration_exceeded_callback,
                  NULL);
     } else {
@@ -121,7 +121,7 @@ btn_callback(uint8_t port, uint8_t pin)
     }
   }
 
-  susensors_changed(&button_sensor);
+  sensors_changed(&button_sensor);
 }
 /*---------------------------------------------------------------------------*/
 /**
@@ -133,10 +133,10 @@ btn_callback(uint8_t port, uint8_t pin)
  * \return Depends on the value of the type argument
  */
 static int
-config_user(struct susensors_sensor* this, int type, int value)
+config_user(int type, int value)
 {
   switch(type) {
-  case SUSENSORS_HW_INIT:
+  case SENSORS_HW_INIT:
     button_press_duration_exceeded = process_alloc_event();
 
     /* Software controlled */
@@ -151,17 +151,18 @@ config_user(struct susensors_sensor* this, int type, int value)
     /* Both Edges */
     GPIO_TRIGGER_BOTH_EDGES(BUTTON_USER_PORT_BASE, BUTTON_USER_PIN_MASK);
 
-    ioc_set_over(BUTTON_USER_PORT, BUTTON_USER_PIN, IOC_OVERRIDE_PUE);
+    /* Disable pull-ups */
+    ioc_set_over(BUTTON_USER_PORT, BUTTON_USER_PIN, IOC_OVERRIDE_DIS);
 
     gpio_register_callback(btn_callback, BUTTON_USER_PORT, BUTTON_USER_PIN);
     break;
-  case SUSENSORS_ACTIVE:
+  case SENSORS_ACTIVE:
     if(value) {
       GPIO_ENABLE_INTERRUPT(BUTTON_USER_PORT_BASE, BUTTON_USER_PIN_MASK);
-      nvic_interrupt_enable(BUTTON_USER_VECTOR);
+      NVIC_EnableIRQ(BUTTON_USER_VECTOR);
     } else {
       GPIO_DISABLE_INTERRUPT(BUTTON_USER_PORT_BASE, BUTTON_USER_PIN_MASK);
-      nvic_interrupt_disable(BUTTON_USER_VECTOR);
+      NVIC_DisableIRQ(BUTTON_USER_VECTOR);
     }
     return value;
   case BUTTON_SENSOR_CONFIG_TYPE_INTERVAL:
@@ -173,18 +174,7 @@ config_user(struct susensors_sensor* this, int type, int value)
 
   return 1;
 }
-
-/* An event was received from another device - now act on it */
-static int EventReceived(struct susensors_sensor* this, int type, void* data){
-	enum susensors_event_cmd cmd = (enum susensors_event_cmd)type;
-	int ret = 1;
-
-	return ret;
-}
-
-
-
 /*---------------------------------------------------------------------------*/
-//SUSENSORS_SENSOR(button_sensor, BUTTON_SENSOR, value, config_user, NULL, EventReceived, getActiveEventMsg, NULL);
+SENSORS_SENSOR(button_sensor, BUTTON_SENSOR, value, config_user, NULL);
 /*---------------------------------------------------------------------------*/
 /** @} */

@@ -86,12 +86,24 @@ static uint8_t coapTx[60];
 static void
 client_chunk_handler(void *response)
 {
-  const uint8_t *chunk;
+	const uint8_t *chunk;
 
-  int len = coap_get_payload(response, &chunk);
-  (void)(len);
+	int len = coap_get_payload(response, &chunk);
+	(void)(len);
 
-//  PRINTF("|%.*s", len, (char *)chunk);
+	//  PRINTF("|%.*s", len, (char *)chunk);
+}
+
+void printInfo(){
+
+	int i;
+	printf("Rime configured with address ");
+	for(i = 0; i < LINKADDR_SIZE - 1; i++) {
+		printf("%02x:", linkaddr_node_addr.u8[i]);
+	}
+	printf("%02x\n", linkaddr_node_addr.u8[i]);
+
+
 }
 
 joinpair_t *pair;
@@ -160,6 +172,9 @@ PROCESS_THREAD(er_uart_server, ev, data)
 			susensors_sensor_t* p = (susensors_sensor_t*)pair->deviceptr;
 			int len = p->getActiveEventMsg(p, payload);
 
+			//Use this instead
+			//			REST.notify_subscribers(&res_push);
+
 			coap_message_type_t type = COAP_TYPE_NON;
 
 			coap_init_message(request, type, COAP_PUT, coap_get_mid());
@@ -178,6 +193,7 @@ PROCESS_THREAD(er_uart_server, ev, data)
 		}
 		else if(ev == sensors_event){	//Button was pressed
 			PRINTF("Button press\n");
+			printInfo();
 		}
 	}
 	PROCESS_END();

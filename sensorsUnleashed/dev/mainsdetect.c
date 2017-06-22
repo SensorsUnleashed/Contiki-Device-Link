@@ -39,7 +39,7 @@
 
 #define MAINSDETECT_PORT_BASE          GPIO_PORT_TO_BASE(MAINSDETECT_PORT)
 #define MAINSDETECT_PIN_MASK           GPIO_PIN_MASK(MAINSDETECT_PIN)
-#define MAINSDETECT_VECTOR			   NVIC_INT_GPIO_PORT_A
+#define MAINSDETECT_VECTOR			   GPIO_A_IRQn //NVIC_INT_GPIO_PORT_A
 
 #include "rest-engine.h"
 #include "susensorcommon.h"
@@ -164,12 +164,12 @@ static int configure(struct susensors_sensor* this, int type, int value)
 		if(value) {
 			ctimer_set(&mains_gone_timeout, CLOCK_SECOND/5, mainsgonecallback, this);
 			GPIO_ENABLE_INTERRUPT(MAINSDETECT_PORT_BASE, MAINSDETECT_PIN_MASK);
-			nvic_interrupt_enable(MAINSDETECT_VECTOR);
+			NVIC_EnableIRQ(MAINSDETECT_VECTOR);
 
 		} else {
 			ctimer_stop(&mains_gone_timeout);
 			GPIO_DISABLE_INTERRUPT(MAINSDETECT_PORT_BASE, MAINSDETECT_PIN_MASK);
-			nvic_interrupt_disable(MAINSDETECT_VECTOR);
+			NVIC_DisableIRQ(MAINSDETECT_VECTOR);
 		}
 		return value;
 	default:

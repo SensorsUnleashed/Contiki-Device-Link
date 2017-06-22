@@ -46,6 +46,7 @@
 #include "rest-engine.h"
 #include "dev/gptimer.h"
 #include "dev/gpio.h"
+#include "nvic.h"
 
 #include "susensorcommon.h"
 
@@ -187,9 +188,8 @@ static int configure(struct susensors_sensor* this, int type, int value)
 			if(!REG(GPT_1_BASE + GPTIMER_CTL) & GPTIMER_CTL_TAEN){
 				/* Enable interrupts */
 				REG(GPT_1_BASE + GPTIMER_IMR) |= GPTIMER_IMR_CAMIM;
-				nvic_interrupt_unpend(NVIC_INT_GPTIMER_1A);	//Clear pending interrupts
-				nvic_interrupt_enable(NVIC_INT_GPTIMER_1A);
-
+				NVIC_ClearPendingIRQ(GPT1A_IRQn);
+				NVIC_EnableIRQ(GPT1A_IRQn);
 				REG(GPT_1_BASE + GPTIMER_CTL) |= GPTIMER_CTL_TAEN;	//Enable pulse counter
 			}
 		}
@@ -199,7 +199,7 @@ static int configure(struct susensors_sensor* this, int type, int value)
 
 				/* Disable interrupts */
 				REG(GPT_1_BASE + GPTIMER_IMR) &= ~GPTIMER_IMR_CAMIM;
-				nvic_interrupt_disable(NVIC_INT_GPTIMER_1A);
+				NVIC_DisableIRQ(GPT1A_IRQn);
 			}
 		}
 		break;

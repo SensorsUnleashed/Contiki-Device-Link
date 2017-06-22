@@ -64,14 +64,6 @@ MEMB(coap_resources, resource_t, MAX_RESOURCES);
 static void res_susensor_gethandler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 static void res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 
-/* A simple actuator example. Toggles the red led */
-RESOURCE(res_sysinfo,
-		"title=\"Radio info\";rt=\"Info\"",
-		res_susensor_gethandler,
-		NULL,
-		NULL,
-		NULL);
-
 #define MSG_PACKED	0
 #define PLAIN_TEXT	1
 

@@ -24,7 +24,7 @@
 							<option id="cdt.managedbuild.option.gnu.cross.prefix.496617415" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix"/>
 							<option id="cdt.managedbuild.option.gnu.cross.path.1607221532" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.1374636133" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
-							<builder buildPath="${workspace_loc:/SensorsUnleased_radio/sensorsUnleashed}" cleanBuildTarget="clean TARGET=su-cc2538-1" id="cdt.managedbuild.builder.gnu.cross.591395579" incrementalBuildTarget="all TARGET=su-cc2538-1" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" superClass="cdt.managedbuild.builder.gnu.cross">
+							<builder buildPath="${workspace_loc:/SensorsUnleased_radio/sensorsUnleashed}" cleanBuildTarget="clean TARGET=su-cc2538-1" id="cdt.managedbuild.builder.gnu.cross.591395579" incrementalBuildTarget="all TARGET=su-cc2538-1" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="8" superClass="cdt.managedbuild.builder.gnu.cross">
 								<outputEntries>
 									<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="outputPath" name="sensorsUnleashed"/>
 									<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="outputPath" name=""/>
@@ -48,6 +48,7 @@
 									<listOptionValue builtIn="false" value="NETSTACK_CONF_WITH_IPV6=1"/>
 									<listOptionValue builtIn="false" value="CONTIKI_WITH_IPV6=1"/>
 									<listOptionValue builtIn="false" value="NATIVE=0"/>
+									<listOptionValue builtIn="false" value="COAP_OBSERVE_CLIENT=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1721034232" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -123,6 +124,7 @@
 									<listOptionValue builtIn="false" value="REST=coap_rest_implementation"/>
 									<listOptionValue builtIn="false" value="NETSTACK_CONF_WITH_IPV6=1"/>
 									<listOptionValue builtIn="false" value="CONTIKI_WITH_IPV6=1"/>
+									<listOptionValue builtIn="false" value="COAP_OBSERVE_CLIENT=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.272618941" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -183,6 +185,7 @@
 									<listOptionValue builtIn="false" value="NETSTACK_CONF_WITH_IPV6=1"/>
 									<listOptionValue builtIn="false" value="UIP_CONF_IPV6_RPL=0"/>
 									<listOptionValue builtIn="false" value="HARD_CODED_ADDRESS=1"/>
+									<listOptionValue builtIn="false" value="COAP_OBSERVE_CLIENT=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1165196972" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
@@ -234,7 +237,7 @@
 							<option id="cdt.managedbuild.option.gnu.cross.prefix.427309986" name="Prefix" superClass="cdt.managedbuild.option.gnu.cross.prefix"/>
 							<option id="cdt.managedbuild.option.gnu.cross.path.1910707745" name="Path" superClass="cdt.managedbuild.option.gnu.cross.path"/>
 							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="cdt.managedbuild.targetPlatform.gnu.cross.1103891818" isAbstract="false" osList="all" superClass="cdt.managedbuild.targetPlatform.gnu.cross"/>
-							<builder buildPath="${workspace_loc:/SensorsUnleased_radio/sensorsUnleashed}" cleanBuildTarget="clean TARGET=radioone" id="cdt.managedbuild.builder.gnu.cross.179725086" incrementalBuildTarget="all TARGET=radioone" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="optimal" superClass="cdt.managedbuild.builder.gnu.cross">
+							<builder buildPath="${workspace_loc:/SensorsUnleased_radio/sensorsUnleashed}" cleanBuildTarget="clean TARGET=radioone" id="cdt.managedbuild.builder.gnu.cross.179725086" incrementalBuildTarget="all TARGET=radioone" keepEnvironmentInBuildfile="false" managedBuildOn="false" name="Gnu Make Builder" parallelBuildOn="true" parallelizationNumber="8" superClass="cdt.managedbuild.builder.gnu.cross">
 								<outputEntries>
 									<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="outputPath" name="sensorsUnleashed"/>
 									<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="outputPath" name=""/>
@@ -256,6 +259,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc253x/usb/common}&quot;"/>
 									<listOptionValue builtIn="false" value="/SensorsUnleased_radio/contiki/cpu/cc253x/usb/common/cdc-acm"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/core/lib}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/arm/common/CMSIS}&quot;"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.416261559" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="AUTOSTART_ENABLE=1"/>
@@ -264,6 +268,7 @@
 									<listOptionValue builtIn="false" value="CONTIKI_WITH_IPV6=1"/>
 									<listOptionValue builtIn="false" value="NATIVE=0"/>
 									<listOptionValue builtIn="false" value="size_t=int"/>
+									<listOptionValue builtIn="false" value="COAP_OBSERVE_CLIENT=1"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.224831948" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>

@@ -132,7 +132,7 @@
 /** BUTTON_USER -> PD0 */
 #define BUTTON_USER_PORT       GPIO_D_NUM
 #define BUTTON_USER_PIN        0
-#define BUTTON_USER_VECTOR     NVIC_INT_GPIO_PORT_D
+#define BUTTON_USER_VECTOR     GPIO_D_IRQn
 
 /* Notify various examples that we have Buttons */
 #define PLATFORM_HAS_BUTTON     1

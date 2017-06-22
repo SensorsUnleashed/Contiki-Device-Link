@@ -50,11 +50,11 @@
 #ifndef BUTTON_SENSOR_H_
 #define BUTTON_SENSOR_H_
 /*---------------------------------------------------------------------------*/
-#include "lib/susensors.h"
+#include "lib/sensors.h"
 /*---------------------------------------------------------------------------*/
 #define BUTTON_SENSOR "Button"
 
-extern struct susensors_sensor button_sensor;
+extern const struct sensors_sensor button_sensor;
 /*---------------------------------------------------------------------------*/
 extern process_event_t button_press_duration_exceeded;
 /*---------------------------------------------------------------------------*/

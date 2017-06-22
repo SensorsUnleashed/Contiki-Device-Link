@@ -48,7 +48,6 @@
 #include "contiki.h"
 #include "dev/leds.h"
 #include "dev/sys-ctrl.h"
-#include "dev/scb.h"
 #include "dev/nvic.h"
 #include "dev/uart.h"
 #include "dev/i2c.h"
@@ -72,7 +71,7 @@
 #include "reg.h"
 #include "ieee-addr.h"
 #include "lpm.h"
-#include "board.h"
+
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
@@ -180,8 +179,8 @@ main(void)
   INTERRUPTS_ENABLE();
   fade(LEDS_BLUE);
 
-//  PUTS(CONTIKI_VERSION_STRING);
-//  PUTS(BOARD_STRING);
+  PUTS(CONTIKI_VERSION_STRING);
+  PUTS(BOARD_STRING);
 #if STARTUP_CONF_VERBOSE
   soc_print_info();
 #endif
@@ -216,7 +215,8 @@ main(void)
   process_start(&tcpip_process, NULL);
 #endif /* NETSTACK_CONF_WITH_IPV6 */
 
-  //SUSENSORS_ACTIVATE(button_sensor);
+  process_start(&sensors_process, NULL);
+  SENSORS_ACTIVATE(button_sensor);
 
   energest_init();
   ENERGEST_ON(ENERGEST_TYPE_CPU);
@@ -229,7 +229,8 @@ main(void)
   while(1) {
     uint8_t r;
     do {
-      //watchdog_periodic();
+      /* Reset watchdog and handle polls and events */
+      watchdog_periodic();
 
       r = process_run();
     } while(r > 0);
