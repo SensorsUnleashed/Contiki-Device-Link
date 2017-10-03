@@ -263,6 +263,31 @@ int cp_decodeU8(const uint8_t* buffer, uint8_t* x, uint32_t* len){
 
 //Return 1 for error
 //Return 0 for success
+int cp_decodeS8Array(uint8_t* buffer, int8_t* arr, uint32_t* len){
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, buffer, buf_reader, 0);
+	uint32_t size;
+	int ret = 0;
+
+	if(cmp_read_array(&cmp, &size)){    //Returns the number of single bytes in the array
+		while(size){
+			if(cmp_read_s8(&cmp, arr++)){
+				size -= 1;
+			}
+			else{
+				ret = 1;
+				break;
+			}
+		}
+	}
+
+	*len += (uint8_t*)cmp.buf - buffer;
+	return ret;
+}
+
+
+//Return 1 for error
+//Return 0 for success
 int cp_decodeU16Array(uint8_t* buffer, uint16_t* arr, uint32_t* len){
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, buf_reader, 0);

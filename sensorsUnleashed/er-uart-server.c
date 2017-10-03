@@ -44,6 +44,7 @@
 #include "../sensorsUnleashed/pairing.h"
 #include "resources/res-uartsensor.h"
 #include "resources/res-susensors.h"
+#include "dev/susensorcommon.h"
 
 //#include "lib/sensors.h"
 
@@ -73,10 +74,6 @@ AUTOSTART_PROCESSES(&er_uart_server);
 
 #define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
 
-const char* AboveEventString  = "aboveEvent";
-const char* BelowEventString  = "belowEvent";
-const char* ChangeEventString = "changeEvent";
-
 static coap_packet_t request[1];      /* This way the packet can be treated as pointer as usual. */
 
 static uint8_t payload[50];
@@ -94,18 +91,33 @@ client_chunk_handler(void *response)
 	//  PRINTF("|%.*s", len, (char *)chunk);
 }
 
-void printInfo(){
+void printInfo(susensors_sensor_t* test){
 
-	int i;
-	printf("Rime configured with address ");
-	for(i = 0; i < LINKADDR_SIZE - 1; i++) {
-		printf("%02x:", linkaddr_node_addr.u8[i]);
-	}
-	printf("%02x\n", linkaddr_node_addr.u8[i]);
+//	int i;
+//	printf("Rime configured with address ");
+//	for(i = 0; i < LINKADDR_SIZE - 1; i++) {
+//		printf("%02x:", linkaddr_node_addr.u8[i]);
+//	}
+//	printf("%02x\n", linkaddr_node_addr.u8[i]);
 
+	//coap_notify_observers_sub(test, "/above");
+
+	//REST.notify_subscribers(test);
+
+	uip_ipaddr_t addr;
+	addr.u16[0] = (uint16_t)33277;
+	addr.u16[1] = (uint16_t)43581;
+	addr.u16[2] = (uint16_t)19195;
+	addr.u16[3] = (uint16_t)44791;
+	addr.u16[4] = (uint16_t)4610;
+	addr.u16[5] = (uint16_t)75;
+	addr.u16[6] = (uint16_t)7684;
+	addr.u16[7] = (uint16_t)32940;
+
+	coap_obs_request_registration(&addr, 5683, "su/powerrelay/above", test->notification_callback, test);
 
 }
-
+susensors_sensor_t* test;
 joinpair_t *pair;
 PROCESS_THREAD(er_uart_server, ev, data)
 {
@@ -121,22 +133,24 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	rest_init_engine();
 	coap_init_engine();
 
+
 	susensors_sensor_t* d;
 	d = addASURelay(RELAY_ACTUATOR, &relayconfigs);
 	if(d != NULL) {
-		res_susensor_activate(d);
+		test = d;
+		setResource(d, res_susensor_activate(d));
 	}
-	d = addASULedIndicator(LED_INDICATOR, &ledindicatorconfig);
-	if(d != NULL){
-		res_susensor_activate(d);
-	}
+//	d = addASULedIndicator(LED_INDICATOR, &ledindicatorconfig);
+//	if(d != NULL){
+//		setResource(d, res_susensor_activate(d));
+//	}
 	d = addASUPulseInputRelay(PULSE_SENSOR, &pulseconfig);
 	if(d != NULL){
-		res_susensor_activate(d);
+		setResource(d, res_susensor_activate(d));
 	}
 	d = addASUMainsDetector(MAINSDETECT_ACTUATOR, &mainsdetectconfig);
 	if(d != NULL){
-		res_susensor_activate(d);
+		setResource(d, res_susensor_activate(d));
 	}
 
 	process_start(&susensors_process, NULL);
@@ -193,7 +207,7 @@ PROCESS_THREAD(er_uart_server, ev, data)
 		}
 		else if(ev == sensors_event){	//Button was pressed
 			PRINTF("Button press\n");
-			printInfo();
+			printInfo(test);
 		}
 	}
 	PROCESS_END();

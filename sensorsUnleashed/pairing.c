@@ -35,6 +35,7 @@
  *  Created on: 12/11/2016
  *      Author: omn
  */
+#include <stdlib.h>
 #include "../sensorsUnleashed/pairing.h"
 
 #include "contiki.h"
@@ -233,8 +234,9 @@ uint8_t pairing_remove(susensors_sensor_t* s, uint32_t len, uint8_t* indexbuffer
 //Return >0 if error:
 // 1 = IP address can not be parsed
 // 2 = dst_uri could not be parsed
-// 3 = Unable to allocate enough dynamic memory
+// 3 = Unable to parse the triggers
 // 4 = src_uri could not be parsed
+// 5 = Unable to allocate enough dynamic memory
 
 uint8_t parseMessage(joinpair_t* pair){
 
@@ -245,19 +247,43 @@ uint8_t parseMessage(joinpair_t* pair){
 
 	memset(stringbuf, 0, 100);
 
+	//Decode the IP address
 	if(cp_decodeU16Array((uint8_t*) payload + bufindex, (uint16_t*)&pair->destip, &bufindex) != 0){
 		return 1;
 	}
 
+	//Decode the URL of the device
 	if(cp_decode_string((uint8_t*) payload + bufindex, &stringbuf[0], &stringlen, &bufindex) != 0){
 		return 2;
 	}
-	stringlen++;	//We need the /0 also
+	//stringlen++;	//We need the /0 also
 
-	if(mmem_alloc(&pair->dsturl, stringlen) == 0){
+	if(mmem_alloc(&pair->dsturl, stringlen+1) == 0){
+		return 5;
+	}
+	memcpy((char*)MMEM_PTR(&pair->dsturl), (char*)stringbuf, stringlen+1);
+
+	//Event triggers
+	if(cp_decodeS8Array((uint8_t*) payload + bufindex, pair->triggers, &bufindex) != 0){
 		return 3;
 	}
-	memcpy((char*)MMEM_PTR(&pair->dsturl), (char*)stringbuf, stringlen);
+
+	//Generate all the connection handles (FIXME: Even though they might not be used)
+	if(pair->dsturlAbove == 0){
+		pair->dsturlAbove = malloc(stringlen + strlen(strAbove)+1);
+		memcpy(pair->dsturlAbove, &stringbuf, strlen(stringbuf));
+		memcpy(pair->dsturlAbove + strlen(stringbuf), strAbove, strlen(strAbove)+1);
+	}
+	if(pair->dsturlBelow == 0){
+		pair->dsturlBelow = malloc(stringlen + strlen(strBelow)+1);
+		memcpy(pair->dsturlBelow, &stringbuf, strlen(stringbuf));
+		memcpy(pair->dsturlBelow + strlen(stringbuf), strBelow, strlen(strBelow)+1);
+	}
+	if(pair->dsturlChange == 0){
+		pair->dsturlChange = malloc(stringlen + strlen(strChange)+1);
+		memcpy(pair->dsturlChange, &stringbuf, strlen(stringbuf));
+		memcpy(pair->dsturlChange + strlen(stringbuf), strChange, strlen(strChange)+1);
+	}
 
 	stringlen = 100;
 	if(cp_decode_string((uint8_t*) payload + bufindex, &stringbuf[0], &stringlen, &bufindex) != 0){
@@ -318,11 +344,18 @@ uint8_t pairing_handle(susensors_sensor_t* s){
 		}
 	}
 
+
+
 	//Add pair to the list of pairs
 	list_add(pairings_list, p);
 
 	//Finally store pairing info into flash
 	store_SensorPair(s, payload, bufsize);
+
+	//Signal to the susensor class, that a new pair/binding is ready.
+	process_post(&susensors_process, susensors_pair, p);
+
+	//coap_obs_request_registration(&p->destip, 5683, (char*)MMEM_PTR(&p->dsturl), s->notification_callback, s);
 
 	return 0;
 }

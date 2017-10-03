@@ -11,7 +11,8 @@ Item{
             sensor.identification = info;
             sensor.parentnode = nodeaddr;
             sensor.loader = sensorpopover;
-            sensor.source = source;
+            sensor.source_common = "SensorInformation.qml";
+            sensor.source_sensor_specific = source;
         }
     }
 
@@ -92,9 +93,8 @@ Item{
 
     Loader{
         id: sensorpopover;
-        width: parent.width * 0.9;
-        height: parent.height * 0.9;
-        anchors.centerIn: parent;
+        anchors.fill: parent;
+        anchors.margins: 40;    //Rethink this - quick temp fix.
         onStatusChanged: {
             if(sensorpopover.status == Loader.Ready)
                 nodeinfoscreen.enabled = false;

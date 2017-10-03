@@ -5,6 +5,9 @@ import QtQml.Models 2.2
 Item{
     id: sensorlistview;
 
+    signal cancel;
+    signal select(var data);
+
     ListModel{
         id: sensorlistmodel;
         Component.onCompleted: {
@@ -63,22 +66,23 @@ Item{
             width: sensorlistview.width - 10;
             spacing: 10;
             SUButton{
-                text: "Pair";
+                text: "NEXT";
                 width: (parent.width - parent.spacing) / 2 -1;
                 onClicked: {
                     //For now we just start the pairing process
                     var pairdata = {};
                     pairdata['addr'] = sensorlistmodel.get(lw.currentIndex).node_addr;
                     pairdata['url'] = sensorlistmodel.get(lw.currentIndex).sensor_name;
-
-                    activeSensor.pair(pairdata);
+//                    activeSensor.pair(pairdata);
+                    select(pairdata)
                 }
             }
             SUButton{
-                text: "Cancel"
+                text: "CANCEL"
                 width: (parent.width - parent.spacing) / 2 -1;
                 onClicked: {
-                    globalpopup.sourceComponent = undefined;
+                    //globalpopup.sourceComponent = undefined;
+                    cancel();
                 }
             }
         }

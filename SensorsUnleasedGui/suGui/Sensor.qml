@@ -13,7 +13,8 @@ Button {
     property var parentnode;
 
     property var loader;
-    property var source;
+    property var source_common;
+    property var source_sensor_specific;
 
     property var nodeinfo;  //As received from the database
 
@@ -43,6 +44,6 @@ Button {
             sensor: identification,
         }
         su.changeActiveSensor(sensorinfo);
-        loader.setSource(source, {nodeaddr: identification, nodeinfo: nodeinfo});
+        loader.setSource(source_common, {nodeaddr: identification, nodeinfo: nodeinfo, source_sensor_specific: source_sensor_specific});
     }
 }

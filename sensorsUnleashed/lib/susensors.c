@@ -36,10 +36,15 @@
 #include "lib/susensors.h"
 #include "lib/memb.h"
 #include "../pairing.h"
+#include "rest-engine.h"
+#include "er-coap-observe.h"
 
-#define FLAG_CHANGED    0x80
+const char* strAbove = "/above";
+const char* strBelow = "/below";
+const char* strChange = "/change";
 
 process_event_t susensors_event;
+process_event_t susensors_pair;
 
 PROCESS(susensors_process, "Sensors");
 
@@ -77,9 +82,9 @@ susensors_next(susensors_sensor_t* s)
 }
 /*---------------------------------------------------------------------------*/
 void
-susensors_changed(susensors_sensor_t* s)
+susensors_changed(susensors_sensor_t* s, uint8_t event)
 {
-	s->event_flag |= FLAG_CHANGED;
+	s->event_flag |= event;
 	process_poll(&susensors_process);
 }
 /*---------------------------------------------------------------------------*/
@@ -94,9 +99,17 @@ susensors_find(const char *prefix, unsigned short len)
 		len = strlen(prefix);
 
 	for(i = susensors_first(); i; i = susensors_next(i)) {
-		if(strncmp(prefix, i->type, len) == 0) {
-			return i;
-		}
+		uint8_t su_url_len = strlen(i->type);
+
+	    if((su_url_len == len
+	        || (len > su_url_len
+	            && (((struct resourceconf*)(i->data.config))->flags & HAS_SUB_RESOURCES)
+	            && prefix[su_url_len] == '/'))
+	       && strncmp(prefix, i->type, su_url_len-1) == 0) {
+
+	    	return i;
+
+	    }
 	}
 	return NULL;
 }
@@ -105,10 +118,11 @@ PROCESS_THREAD(susensors_process, ev, data)
 {
 	static int events;
 	static susensors_sensor_t* d;
-	static joinpair_t *pair = 0;
+
 	PROCESS_BEGIN();
 
 	susensors_event = process_alloc_event();
+	susensors_pair = process_alloc_event();
 
 	for(d = susensors_first(); d; d = susensors_next(d)) {
 		d->event_flag = 0;
@@ -123,20 +137,49 @@ PROCESS_THREAD(susensors_process, ev, data)
 
 		PROCESS_WAIT_EVENT();
 
-		do {
+		if(ev == susensors_pair){
+			joinpair_t* pair = (joinpair_t*) data;
+			if(pair->triggers[0] != -1){	//Above
+				coap_obs_request_registration(&pair->destip, UIP_HTONS(5683), pair->dsturlAbove, ((susensors_sensor_t*)(pair->deviceptr))->notification_callback, pair->deviceptr);
+			}
+			if(pair->triggers[1] != -1){	//Below
+				coap_obs_request_registration(&pair->destip, UIP_HTONS(5683), pair->dsturlBelow, ((susensors_sensor_t*)(pair->deviceptr))->notification_callback, pair->deviceptr);
+			}
+			if(pair->triggers[2] != -1){	//Change
+				coap_obs_request_registration(&pair->destip, UIP_HTONS(5683), pair->dsturlChange, ((susensors_sensor_t*)(pair->deviceptr))->notification_callback, pair->deviceptr);
+			}
+		}
+		else {
+			do {
 			events = 0;
 			for(d = susensors_first(); d; d = susensors_next(d)) {
-				if(d->event_flag & FLAG_CHANGED){
-					for(pair = list_head(d->pairs); pair; pair = pair->next) {
-						if(process_post(PROCESS_BROADCAST, susensors_event, (void *)pair) == PROCESS_ERR_OK) {
-							PROCESS_WAIT_EVENT_UNTIL(ev == susensors_event);
-						}
-					}
-					d->event_flag &= ~FLAG_CHANGED;
-					events++;
+				resource_t* resource = d->data.resource;
+				if(d->event_flag & SUSENSORS_CHANGE_EVENT){
+					d->event_flag &= ~SUSENSORS_CHANGE_EVENT;
+					coap_notify_observers_sub(resource, strAbove);
 				}
+				if(d->event_flag & SUSENSORS_BELOW_EVENT){
+					d->event_flag &= ~SUSENSORS_BELOW_EVENT;
+					coap_notify_observers_sub(resource, strBelow);
+				}
+				if(d->event_flag & SUSENSORS_ABOVE_EVENT){
+					d->event_flag &= ~SUSENSORS_ABOVE_EVENT;
+					coap_notify_observers_sub(resource, strChange);
+				}
+
+//				if(d->event_flag & FLAG_CHANGED){
+//					for(pair = list_head(d->pairs); pair; pair = pair->next) {
+//						if(process_post(PROCESS_BROADCAST, susensors_event, (void *)pair) == PROCESS_ERR_OK) {
+//							PROCESS_WAIT_EVENT_UNTIL(ev == susensors_event);
+//						}
+//					}
+//					d->event_flag &= ~FLAG_CHANGED;
+//					events++;
+//				}
+				d->event_flag = SUSENSORS_NO_EVENT;
 			}
 		} while(events);
+		}
 	}
 
 	PROCESS_END();

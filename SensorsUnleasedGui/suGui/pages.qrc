@@ -1,8 +1,9 @@
 <RCC>
     <qresource prefix="/">
         <file>main.qml</file>
-        <file>FrontPage.qml</file>
-        <file>TestPage.qml</file>
         <file>NodesPage.qml</file>
+        <file>SensorInformation.qml</file>
+        <file>NewNodeScreen.qml</file>
+        <file>NodeInformation.qml</file>
     </qresource>
 </RCC>

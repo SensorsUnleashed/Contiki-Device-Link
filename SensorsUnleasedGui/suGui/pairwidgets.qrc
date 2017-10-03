@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file>SensorPairing.qml</file>
+        <file>SensorList.qml</file>
+        <file>SensorListofPairs.qml</file>
+        <file>DefaultActions.qml</file>
+        <file>ActionsSetup.qml</file>
+    </qresource>
+</RCC>

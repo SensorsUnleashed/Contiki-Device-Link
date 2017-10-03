@@ -36,7 +36,18 @@
 #include "lib/list.h"
 #include "../../apps/uartsensors/uart_protocolhandler.h"
 
+#include "er-coap-observe-client.h"
 #define DEVICES_MAX		10
+
+#define SUSENSORS_NO_EVENT		0
+#define SUSENSORS_ABOVE_EVENT	(1 << 1)
+#define SUSENSORS_BELOW_EVENT	(1 << 2)
+#define SUSENSORS_CHANGE_EVENT	(1 << 3)
+#define SUSENSORS_NEW_PAIR		(1 << 4)
+
+extern const char* strAbove;
+extern const char* strBelow;
+extern const char* strChange;
 
 enum susensors_configcmd {
 	SUSENSORS_EVENTSETUP_SET,
@@ -73,6 +84,7 @@ struct extras{
 	int type;
 	void* config;
 	void* runtime;
+	void* resource;
 };
 
 struct susensors_sensor {
@@ -89,6 +101,9 @@ struct susensors_sensor {
 	int (* status)    			(struct susensors_sensor* this, int type, void* data);
 	/* Received an event from another device - handle it */
 	int (* eventhandler)		(struct susensors_sensor* this, int len, uint8_t* payload);
+
+	notification_callback_t notification_callback;
+
 	/* Get the date from the last event emittet */
 	int (* getActiveEventMsg)	(struct susensors_sensor* this, uint8_t* payload);
 	/* Get/set device suconfig (common to all devices) */
@@ -107,10 +122,10 @@ susensors_sensor_t* susensors_find(const char *type, unsigned short len);
 susensors_sensor_t* susensors_next(susensors_sensor_t* s);
 susensors_sensor_t* susensors_first(void);
 
-void susensors_changed(susensors_sensor_t* s);
+void susensors_changed(susensors_sensor_t* s, uint8_t event);
 
 extern process_event_t susensors_event;
-
+extern process_event_t susensors_pair;
 PROCESS_NAME(susensors_process);
 
 #endif /* SENSORS_H_ */

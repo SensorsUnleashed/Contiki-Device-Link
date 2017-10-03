@@ -27,8 +27,8 @@ Item{
         id: nodepage;
         color: suPalette.window;
 
-        width: parent.width -40;
-        height: parent.height -40;
+        width: parent.width -10;
+        height: parent.height -10;
         anchors.centerIn: parent;
 
         Flow {
@@ -66,10 +66,13 @@ Item{
         su.initNodelist();
     }
 
+    onWidthChanged: console.log("NodesPage width: " + width + " height: " + height);
+    onHeightChanged: console.log("NodesPage width: " + width + " height: " + height);
+
     Loader{
         id: popover;
-        width: parent.width * 0.9;
-        height: parent.height * 0.9;
+        width: parent.width - 10;
+        height: parent.height - 10;
         anchors.centerIn: parent;
 
         onStatusChanged: {

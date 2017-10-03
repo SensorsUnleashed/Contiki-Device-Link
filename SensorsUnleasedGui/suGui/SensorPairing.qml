@@ -1,94 +1,83 @@
 import QtQuick 2.7
 import QtQuick.Controls 2.0
+import QtQuick.Layouts 1.3
 
-GroupBox{
-    title: qsTr("Pairings:");
-    width: 350;
-    height: 350;
+ColumnLayout{
+    Layout.fillWidth: true;
+    Layout.fillHeight: true;
 
-    ListView{
-        id: lw;
-        anchors.fill: parent;
-        height: parent.height;
-        width: parent.width;
+    SUButton{
+        id: headerbutton;
+        Layout.fillWidth: true;
+        Layout.preferredHeight: 50;
+        text: "PAIRINGS";
 
-        model: pairlist;
-
-        delegate:Rectangle{
-            width: parent.width;
-            height: item.height;
-            color: selected == 0 ? "transparent" : "grey";
-            Column{
-                id: item;
-                Text {
-                    text: sensorname;
-                    font.pointSize: 12;
-                }
-                Text {
-                    text: nodename + " (" + nodeip + ")";
-                    font.pointSize: 8;
-                    font.italic: true;
-                }
-            }
-            MouseArea {
-                anchors.fill: parent
-                onClicked: {
-                    pairlist.setSelected(index, !selected); //Toggle
-                }
-            }
-        }
-
-        footerPositioning: ListView.OverlayFooter;
-        footer: Row{
-            width: parent.width;
-            height: 50;
-            spacing: 5;
-            SUButton{
-                text: "New";
-                width: parent.width / 3 - 10;
-                onClicked: {
-                    globalpopup.sourceComponent = pairingpicker;
-                }
-            }
-            SUButton{
-                text: "Refresh";
-                width: parent.width / 3 - 10;
-                onClicked: {
-                    activeSensor.getpairingslist();
-                }
-            }
-            SUButton{
-                text: "Remove selected";
-                width: parent.width / 3 - 10;
-                onClicked: {
-                    //activeSensor.clearpairingslist();
-                    pairlist.removePairings();
-                }
-            }
-//            SUButton{
-//                text: "Test";
-//                width: parent.width / 3 - 10;
-//                onClicked: {
-//                    activeSensor.removeItems();
-//                }
-//            }
+        onClicked: {
+            pairingsstack.currentIndex = 0;
         }
     }
 
-    Component{
-        id: pairingpicker
+    /*
+        The list of pairs is initially shown
 
-        MouseArea{
-            Rectangle{
-                width: 500;
-                height: 500;
-                anchors.centerIn: parent;
-                color: suPalette.window;
-                border.color: suPalette.buttonText;
+        ADD new sensor pair:
+        1. Show complete list of available sensors
+        2. Select a new sensor to pair -> edit screen
+        3. Attach events to actions
+        3. Submit -> Pair and wait -> Show pairs; Cancel -> show pairs
 
-                SensorList{
-                    anchors.fill: parent;
-                }
+        Edit sensor pair:
+        1. Select one of the pairs on the pairs list -> Edit screen
+        2. Attach events to actions
+        3. Submit -> Pair and wait -> Show pairs; Cancel -> show pairs
+    */
+
+    StackLayout{
+        id: pairingsstack;
+        Layout.fillWidth: true;
+        Layout.fillHeight: true;
+
+        SensorListofPairs{
+            anchors.fill: parent;
+            onAddNew:{  //Show the edit event/actions page
+                pairingsstack.currentIndex = 1;
+                headerbutton.text = "Add a new sensor pair";
+            }
+            onSelect: {
+                eventsensorSetup.setSource("ActionsSetup.qml", {actionmodel: activeSensor.getActionModel(), dstsensor: data});
+                headerbutton.text = data['url'] + " events trigger actions...";
+                pairingsstack.currentIndex = 2;
+            }
+
+        }
+
+        SensorList{
+            anchors.fill: parent;
+            onCancel: {
+                pairingsstack.currentIndex = 0;
+                headerbutton.text = "PAIRINGS";
+            }
+            onSelect: {
+                eventsensorSetup.setSource("ActionsSetup.qml", {actionmodel: activeSensor.getActionModel(), dstsensor: data});
+                headerbutton.text = data['url'] + " events trigger actions...";
+                pairingsstack.currentIndex = 2;
+            }
+        }
+
+        Loader{
+            id: eventsensorSetup;
+            anchors.fill: parent;
+        }
+
+        Connections{
+            target: eventsensorSetup.item;
+            onCancel: {
+                pairingsstack.currentIndex = 0;
+                headerbutton.text = "PAIRINGS";
+            }
+            onSubmit: {
+                pairingsstack.currentIndex = 0;
+                headerbutton.text = "PAIRINGS";
             }
         }
     }

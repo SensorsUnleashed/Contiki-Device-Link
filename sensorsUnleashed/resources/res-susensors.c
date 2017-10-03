@@ -75,12 +75,12 @@ res_susensor_gethandler(void *request, void *response, uint8_t *buffer, uint16_t
 	unsigned int ct = -1;
 	REST.get_header_content_type(request, &ct);
 
-	if(ct != REST.type.APPLICATION_OCTET_STREAM) {
-		REST.set_response_status(response, REST.status.BAD_REQUEST);
-		const char *error_msg = "msgPacked, octet-stream only";
-		REST.set_response_payload(response, error_msg, strlen(error_msg));
-		return;
-	}
+//	if(ct != REST.type.APPLICATION_OCTET_STREAM) {
+//		REST.set_response_status(response, REST.status.BAD_REQUEST);
+//		const char *error_msg = "msgPacked, octet-stream only";
+//		REST.set_response_payload(response, error_msg, strlen(error_msg));
+//		return;
+//	}
 
 	int len = REST.get_url(request, &url);
 	struct susensors_sensor *sensor = (struct susensors_sensor *)susensors_find(url, len);
@@ -246,6 +246,7 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 						}
 
 						if(coap_req->block1_more == 0){
+
 							//We're finished receiving the payload, now parse it.
 							int res = pairing_handle(sensor);
 							switch(res){
@@ -292,7 +293,7 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 //Return 1 if the sensor does not contain the necassery coap config
 //Return 2 if we can't allocate any more sensors
 //Return 3 the sensor was NULL
-int res_susensor_activate(const struct susensors_sensor* sensor){
+resource_t* res_susensor_activate(const struct susensors_sensor* sensor){
 
 	if(sensor == NULL) return 3;
 	const struct extras* extra = &sensor->data;
@@ -325,5 +326,5 @@ int res_susensor_activate(const struct susensors_sensor* sensor){
 	rest_activate_resource(r, (char*)r->url);
 	PRINTF("Activated resource: %s Attributes: %s - Spec: %s, Unit: %s\n", r->url, r->attributes, config->spec, config->unit );
 
-	return 0;
+	return r;
 }

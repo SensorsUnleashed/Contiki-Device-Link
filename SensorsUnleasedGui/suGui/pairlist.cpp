@@ -43,6 +43,7 @@ enum roles {
     nodename,
     nodeip,
     selected,
+    eventSetupQML,
 };
 
 QHash<int, QByteArray> pairlist::roleNames() const{
@@ -51,6 +52,7 @@ QHash<int, QByteArray> pairlist::roleNames() const{
     rolelist.insert(nodename, QByteArray("nodename"));
     rolelist.insert(nodeip, QByteArray("nodeip"));
     rolelist.insert(selected, QByteArray("selected"));
+    rolelist.insert(eventSetupQML, QByteArray("eventSetupQML"));
     return rolelist;
 }
 
@@ -74,6 +76,9 @@ QVariant pairlist::data(const QModelIndex& index, int role) const{
     }
     else if(role == selected){
         return pairs.at(index.row())->selected;
+    }
+    else if(role == eventSetupQML){
+        return pairs.at(index.row())->eventSetupQMLlnk;
     }
 
     return QVariant();
@@ -138,6 +143,7 @@ void pairlist::append(QVariantMap dstinfo){
     p->dst = dst;
     p->id = rowCount(); //Workaround for now!! dstinfo["id"].toUInt();
     p->selected = 0;
+    p->eventSetupQMLlnk = "PowerRelayEventSetup.qml";
 
     if(!pairs.contains(p)){
         beginInsertRows(QModelIndex(), rowCount(), rowCount());

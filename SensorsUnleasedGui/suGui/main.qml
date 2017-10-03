@@ -2,7 +2,6 @@ import QtQuick 2.7
 import QtQuick.Window 2.2
 import QtQuick.Controls 2.0
 import QtQuick.Layouts 1.0
-import QtQuick.Controls.Material 2.0
 
 ApplicationWindow {
     id: mainwindow;
@@ -13,48 +12,19 @@ ApplicationWindow {
     }
 
     visible: true
-    width: 1024
-    height: 800
+    width: 1024; //;Screen.width;
+    height: 768; //Screen.height;
     color: suPalette.dark;
     title: qsTr("Sensors Unleased")
 
     SwipeView {
         id: swipeView
         anchors.fill: parent
-        currentIndex: tabBar.currentIndex
 
         NodesPage{
 
         }
-
-        TestPage {
-
-        }
-
-        FrontPage {
-
-        }
-    }
-
-    Loader{
-        id: setupboxloader;
-        width: parent.width;
-        height: parent.height;
-
-    }
-
-    footer: TabBar {
-        id: tabBar
-        currentIndex: swipeView.currentIndex
-        TabButton {
-            text: qsTr("Nodes")
-        }
-        TabButton {
-            text: qsTr("Main")
-        }
-        TabButton {
-            text: qsTr("Pairing")
-        }
-
+        onWidthChanged: console.log("SwipeView width: " + width + " height: " + height);
+        onHeightChanged: console.log("SwipeView width: " + width + " height: " + height);
     }
 }

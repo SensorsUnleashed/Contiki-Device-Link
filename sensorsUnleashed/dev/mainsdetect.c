@@ -51,7 +51,7 @@ static struct relayRuntime mainsdetectruntime[1];
 struct resourceconf mainsdetectconfig = {
 		.resolution = 1,
 		.version = 1,
-		.flags = METHOD_GET | METHOD_PUT,
+		.flags = METHOD_GET | METHOD_PUT | IS_OBSERVABLE | HAS_SUB_RESOURCES,
 		.max_pollinterval = 2,
 		.eventsActive = AboveEventActive | BelowEventActive,
 		.AboveEventAt = {

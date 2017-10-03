@@ -1,20 +1,20 @@
 /*******************************************************************************
  * Copyright (c) 2017, Ole Nissen.
- *  All rights reserved. 
- *  
- *  Redistribution and use in source and binary forms, with or without 
- *  modification, are permitted provided that the following conditions 
- *  are met: 
- *  1. Redistributions of source code must retain the above copyright 
- *  notice, this list of conditions and the following disclaimer. 
+ *  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *  1. Redistributions of source code must retain the above copyright
+ *  notice, this list of conditions and the following disclaimer.
  *  2. Redistributions in binary form must reproduce the above
  *  copyright notice, this list of conditions and the following
  *  disclaimer in the documentation and/or other materials provided
- *  with the distribution. 
+ *  with the distribution.
  *  3. The name of the author may not be used to endorse or promote
  *  products derived from this software without specific prior
- *  written permission.  
- *  
+ *  written permission.
+ *
  *  THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS
  *  OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  *  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -25,7 +25,7 @@
  *  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
  *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  *  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  
+ *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * This file is part of the Sensors Unleashed project
  *******************************************************************************/
@@ -80,6 +80,7 @@ void wsn::send(CoapPDU *pdu, uint16_t token, QByteArray payload){
     storedPDU->lastPDU = pdu;
     storedPDU->token = token;
     storedPDU->retranscount = 0;
+    storedPDU->keep = 0;
     activePDUs.append(storedPDU);
 
     /* Reset the progressbar */
@@ -99,37 +100,39 @@ void wsn::timeout(){
     QVector<uint16_t> delindex;
 
     for(int i=0; i<activePDUs.count(); i++){
-        if(activePDUs[i]->txtime.hasExpired(ackTimeout)){
-            if(activePDUs[i]->retranscount >= retransmissions){ //Give up trying
-                qDebug() << "Giving up on message";
-                //Mark PDU for Deletion pdu
-                delindex.append(activePDUs[i]->token);
-                nodeNotResponding(activePDUs[i]->token);
-            }
-            else{   //Try again
-                if(activePDUs[i]->lastPDU->getType() == CoapPDU::COAP_CONFIRMABLE){
+        if(activePDUs[i]->txtime.isValid()){
+            if(activePDUs[i]->txtime.hasExpired(ackTimeout)){
+                if(activePDUs[i]->retranscount >= retransmissions){ //Give up trying
+                    qDebug() << "Giving up on message";
+                    //Mark PDU for Deletion pdu
+                    delindex.append(activePDUs[i]->token);
+                    nodeNotResponding(activePDUs[i]->token);
+                }
+                else{   //Try again
+                    if(activePDUs[i]->lastPDU->getType() == CoapPDU::COAP_CONFIRMABLE){
 
-                    socket* conn = socket::getInstance();
-                    conn->send(addr, activePDUs[i]->lastPDU->getPDUPointer(), activePDUs[i]->lastPDU->getPDULength());
-                    activePDUs[i]->retranscount++;
-                    //reset timeout
-                    activePDUs[i]->txtime.start();
-                    if(nexttimeout == -1){
-                        nexttimeout = ackTimeout;
+                        socket* conn = socket::getInstance();
+                        conn->send(addr, activePDUs[i]->lastPDU->getPDUPointer(), activePDUs[i]->lastPDU->getPDULength());
+                        activePDUs[i]->retranscount++;
+                        //reset timeout
+                        activePDUs[i]->txtime.start();
+                        if(nexttimeout == -1){
+                            nexttimeout = ackTimeout;
+                        }
+                    }
+                    else{
+                        //It was a COAP_NON_CONFIRMABLE pdu. Remove it now
+                        delindex.append(activePDUs[i]->token);
                     }
                 }
-                else{
-                    //It was a COAP_NON_CONFIRMABLE pdu. Remove it now
-                    delindex.append(activePDUs[i]->token);
-                }
+                emit timeoutinfo(activePDUs[i]->retranscount, retransmissions);
             }
-            emit timeoutinfo(activePDUs[i]->retranscount, retransmissions);
-        }
-        else    //Not yet expired. Find next timeout - Wait at least 100ms
-        {
-            qint64 elabsed = activePDUs[i]->txtime.elapsed();
-            nexttimeout = nexttimeout < elabsed ? elabsed : nexttimeout;
-            nexttimeout = nexttimeout < 100 ? 100 : nexttimeout;
+            else    //Not yet expired. Find next timeout - Wait at least 100ms
+            {
+                qint64 elabsed = activePDUs[i]->txtime.elapsed();
+                nexttimeout = nexttimeout < elabsed ? elabsed : nexttimeout;
+                nexttimeout = nexttimeout < 100 ? 100 : nexttimeout;
+            }
         }
     }
 
@@ -144,9 +147,28 @@ void wsn::timeout(){
     }
 }
 
-void wsn::removePDU(uint16_t token){
+void wsn::disableTokenRemoval(uint16_t token){
     for(int i=0; i<activePDUs.count(); i++){
         if(activePDUs[i]->token == token){
+            activePDUs[i]->txtime.invalidate();
+            activePDUs[i]->keep = 1;
+            break;
+        }
+    }
+}
+
+void wsn::enableTokenRemoval(uint16_t token){
+    for(int i=0; i<activePDUs.count(); i++){
+        if(activePDUs[i]->token == token){
+            activePDUs[i]->keep = 0;
+            break;
+        }
+    }
+}
+
+void wsn::removePDU(uint16_t token){
+    for(int i=0; i<activePDUs.count(); i++){
+        if(activePDUs[i]->token == token && !activePDUs[i]->keep){
             delete activePDUs[i]->lastPDU;
             delete activePDUs[i];
             activePDUs.remove(i);
@@ -245,16 +267,50 @@ struct coapMessageStore_* wsn::findPDU(CoapPDU* pdu){
     return 0;
 }
 
+void wsn::send_RST(CoapPDU *recvPDU){
+    CoapPDU *rstPDU = new CoapPDU();
+
+    QByteArray uri(200, 0);
+    int urilen;
+    recvPDU->getURI(uri.data(), 200, &urilen);
+    rstPDU->setURI(uri.data(), urilen);
+    rstPDU->setMessageID(recvPDU->getMessageID());
+    rstPDU->setToken(recvPDU->getTokenPointer(), recvPDU->getTokenLength());
+    rstPDU->setType(CoapPDU::COAP_RESET);
+    socket* conn = socket::getInstance();
+    conn->send(addr, rstPDU->getPDUPointer(), rstPDU->getPDULength());
+    delete rstPDU;
+}
+
+void wsn::send_ACK(CoapPDU *recvPDU){
+    CoapPDU *ackPDU = new CoapPDU();
+
+    QByteArray uri(200, 0);
+    int urilen;
+    ackPDU->getURI(uri.data(), 200, &urilen);
+    ackPDU->setURI(uri.data(), urilen);
+    ackPDU->setMessageID(recvPDU->getMessageID());
+    ackPDU->setToken(recvPDU->getTokenPointer(), recvPDU->getTokenLength());
+    ackPDU->setType(CoapPDU::COAP_ACKNOWLEDGEMENT);
+    socket* conn = socket::getInstance();
+    conn->send(addr, ackPDU->getPDUPointer(), ackPDU->getPDULength());
+    delete ackPDU;
+}
+
 void wsn::parseData(QByteArray datagram){
     //processTheDatagram(datagram);
     CoapPDU *recvPDU = new CoapPDU((uint8_t*)datagram.data(),datagram.length());
     CoapPDU *txPDU; //Assign this pdu to the next pdu to send, and switch out with the one in the store
     CoapPDU::CoapOption* options = 0;
     int dotx = 0;
+
     if(recvPDU->validate()) {
 
         struct coapMessageStore_* storedPDUdata = findPDU(recvPDU);
 
+        if(recvPDU->getType() == CoapPDU::COAP_ACKNOWLEDGEMENT){
+            qDebug() << "its an ack";
+        }
         //We expected this message - handle it
         if(storedPDUdata != 0){
             CoapPDU::Code code = recvPDU->getCode();
@@ -349,7 +405,7 @@ void wsn::parseData(QByteArray datagram){
                     }
                 }
             }   //Block2 handling
-            else{   //Just a plain single message
+            else{   //Received a plain single message, handle it and ack if needed
                 if(recvPDU->getPayloadLength()){
                     uint8_t* pl = recvPDU->getPayloadPointer();
                     for(int i=0; i<recvPDU->getPayloadLength(); i++){
@@ -357,6 +413,12 @@ void wsn::parseData(QByteArray datagram){
                     }
                     //Handle single messages
                     parseMessage(storedPDUdata, code);
+
+                    //Acknowledge it if needed
+//                    if(recvPDU->getType() == CoapPDU::COAP_CONFIRMABLE){
+//                        qDebug() << "send an ACK!";
+//                        send_ACK(recvPDU);
+//                    }
                 }
             }
 
@@ -393,12 +455,18 @@ void wsn::parseData(QByteArray datagram){
                 removePDU(storedPDUdata->token);
             }
         }
+        else{   //Message unknown
+            qDebug() << "send a RST!";
+            //send_RST(recvPDU);
+        }
     }
+
     delete recvPDU;
 }
 
-void wsn::parseMessage(coapMessageStore_* message, CoapPDU::Code code){
-
+//Returns an acknowledment, if that is needed
+QVariant wsn::parseMessage(coapMessageStore_* message, CoapPDU::Code code){
+    QVariant ret(0);
     int ct = 0;
     CoapPDU::CoapOption* options = 0;
     options = coap_check_option(message->lastPDU, CoapPDU::COAP_OPTION_CONTENT_FORMAT);
@@ -410,7 +478,7 @@ void wsn::parseMessage(coapMessageStore_* message, CoapPDU::Code code){
     else{
         qDebug() << "Unknown content format - unable to parse";
         qDebug() << message->rx_payload;
-        return;
+        return ret;
     }
 
     switch(ct){
@@ -425,7 +493,7 @@ void wsn::parseMessage(coapMessageStore_* message, CoapPDU::Code code){
         qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_XML";
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET:
-        parseAppOctetFormat(message->token, message->rx_payload, code);
+        ret = parseAppOctetFormat(message->token, message->rx_payload, code);
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_EXI:
         parseAppExiFormat(message->token, message->rx_payload);
@@ -436,4 +504,5 @@ void wsn::parseMessage(coapMessageStore_* message, CoapPDU::Code code){
         qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_JSON";
         break;
     }
+    return ret;
 }

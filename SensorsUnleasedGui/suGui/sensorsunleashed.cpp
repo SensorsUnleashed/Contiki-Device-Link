@@ -105,6 +105,11 @@ QVariant sensorsunleashed::changeActiveSensor(QVariant sensorinfo){
     s->initSensor();
     qDebug() << "Active sensor changed to: " << s->getUri();
 
+
+//    //Add some dummy pairs!! //REMOVE
+//    s->addDummyPair("fd81:3daa:fb4a:f7ae:212:4b00:5af:82b7", "su/pulsecounter", "su/ledindicator");
+//    s->addDummyPair("fd81:3daa:fb4a:f7ae:212:4b00:5af:82b7", "large-update", "su/ledindicator");
+
     return QVariant(0);
 }
 

@@ -234,7 +234,7 @@ main(void)
   fade(LEDS_ORANGE);
 
   tps62730_init();
-//  tps62730_on();
+  tps62730_on();
 
   while(1) {
     uint8_t r;

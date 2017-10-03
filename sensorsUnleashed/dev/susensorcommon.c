@@ -37,6 +37,7 @@
  */
 #include "susensorcommon.h"
 
+
 int suconfig(struct susensors_sensor* this, int type, void* data){
 
 	int ret = 1;
@@ -165,6 +166,11 @@ int suconfig(struct susensors_sensor* this, int type, void* data){
 	return ret;
 }
 
+void setResource(struct susensors_sensor* this, resource_t* res){
+	this->data.resource = res;
+}
+
+
 int getActiveEventMsg(struct susensors_sensor* this, uint8_t* payload){
 	struct relayRuntime* d = (struct relayRuntime*)this->data.runtime;
 	int len = cp_encodeU8(payload, d->hasEvent);
@@ -185,16 +191,19 @@ int getActiveEventMsg(struct susensors_sensor* this, uint8_t* payload){
 void setEventU8(struct susensors_sensor* this, int dir, uint8_t step){
 	struct resourceconf* c = (struct resourceconf*)(this->data.config);
 	struct relayRuntime* r = (struct relayRuntime*)(this->data.runtime);
+	uint8_t event = 0;
 
 	r->hasEvent = NoEventActive;
 	if(dir < 0){
 		if(r->LastValue.as.u8 <= c->BelowEventAt.as.u8 && (c->eventsActive & BelowEventActive)){
 			r->hasEvent = BelowEventActive;
+			event |= SUSENSORS_BELOW_EVENT;
 		}
 	}
 	else{
 		if(r->LastValue.as.u8 >= c->AboveEventAt.as.u8 && (c->eventsActive & AboveEventActive)){
 			r->hasEvent = AboveEventActive;
+			event |= SUSENSORS_ABOVE_EVENT;
 		}
 	}
 
@@ -203,28 +212,32 @@ void setEventU8(struct susensors_sensor* this, int dir, uint8_t step){
 		r->ChangeEventAcc.as.u8 = 0;
 		if(c->eventsActive & ChangeEventActive){
 			r->hasEvent |= ChangeEventActive;
+			event |= SUSENSORS_CHANGE_EVENT;
 		}
 	}
 
 	if(r->hasEvent != NoEventActive){
 		r->LastEventValue = r->LastValue;
-		susensors_changed(this);
+		susensors_changed(this, event);
 	}
 }
 
 void setEventU16(struct susensors_sensor* this, int dir, uint8_t step){
 	struct resourceconf* c = (struct resourceconf*)(this->data.config);
 	struct relayRuntime* r = (struct relayRuntime*)(this->data.runtime);
+	uint8_t event = 0;
 
 	r->hasEvent = NoEventActive;
 	if(dir < 0){
 		if(r->LastValue.as.u16 <= c->BelowEventAt.as.u16 && (c->eventsActive & BelowEventActive)){
 			r->hasEvent = BelowEventActive;
+			event |= SUSENSORS_BELOW_EVENT;
 		}
 	}
 	else{
 		if(r->LastValue.as.u16 >= c->AboveEventAt.as.u16 && (c->eventsActive & AboveEventActive)){
 			r->hasEvent = AboveEventActive;
+			event |= SUSENSORS_ABOVE_EVENT;
 		}
 	}
 
@@ -233,11 +246,12 @@ void setEventU16(struct susensors_sensor* this, int dir, uint8_t step){
 		r->ChangeEventAcc.as.u16 = 0;
 		if(c->eventsActive & ChangeEventActive){
 			r->hasEvent |= ChangeEventActive;
+			event |= SUSENSORS_CHANGE_EVENT;
 		}
 	}
 
 	if(r->hasEvent != NoEventActive){
 		r->LastEventValue = r->LastValue;
-		susensors_changed(this);
+		susensors_changed(this, event);
 	}
 }

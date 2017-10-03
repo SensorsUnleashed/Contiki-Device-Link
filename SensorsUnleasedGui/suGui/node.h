@@ -45,6 +45,7 @@ enum request{
     req_RangeMaxValue,
 
     req_currentValue,
+    req_observe,
     req_aboveEventValue,
     req_belowEventValue,
     req_changeEventAt,
@@ -63,6 +64,9 @@ enum request{
 
     /* Used to test a device event handler*/
     req_testevent,
+
+    /* Internal gui events */
+    observe_monitor,
 };
 
 struct msgid_s{
@@ -92,6 +96,8 @@ public:
     Q_INVOKABLE void requestRangeMax();
 
     Q_INVOKABLE void requestValue();
+    Q_INVOKABLE QVariant requestObserve();
+    Q_INVOKABLE void abortObserve(QVariant token);
     Q_INVOKABLE void requestAboveEventLvl();
     Q_INVOKABLE void requestBelowEventLvl();
     Q_INVOKABLE void requestChangeEventLvl();
@@ -108,6 +114,8 @@ public:
     int parsePairList(cmp_ctx_t* cmp);
     pairlist* getPairListModel() { return pairings; }
 
+    int addDummyPair(QString ip, QString dsturi, QString url);
+
     Q_INVOKABLE void testEvents(QVariant event, QVariant value);
 
     void handleReturnCode(uint16_t token, CoapPDU::Code code);
@@ -115,6 +123,7 @@ public:
     QVariant parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU::Code code);
 
     virtual QVariant getClassType(){ return "SensorInformation.qml"; }
+    Q_INVOKABLE virtual QVariant getActionModel() { return "DefaultActions.qml"; }
 protected:
     QString uri;
 
@@ -135,10 +144,12 @@ private:
     cmp_object_t RangeMin;		//What is the minimum value this device can read
     cmp_object_t RangeMax;		//What is the maximum value this device can read
 
-    void get_request(CoapPDU *pdu, enum request req, QByteArray payload=0);
+    uint16_t get_request(CoapPDU *pdu, enum request req, QByteArray payload=0);
 
 signals:
     void currentValueChanged(QVariant result);
+    void observe_started(QVariant result, uint16_t token);
+    void observe_failed(uint16_t token);
     void aboveEventValueChanged(QVariant result);
     void belowEventValueChanged(QVariant result);
     void changeEventValueChanged(QVariant result);

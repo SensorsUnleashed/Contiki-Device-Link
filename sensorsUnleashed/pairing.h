@@ -56,13 +56,19 @@ struct __attribute__ ((__packed__)) joinpair_s{
 	struct joinpair_s *next;	/* for LIST, points to next resource defined */
 
 	struct mmem dsturl;
+	char* dsturlAbove;
+	char* dsturlBelow;
+	char* dsturlChange;
 	struct mmem srcurl;	//Used only to determine at boot, which resource we are a pair of.
+	int8_t triggers[3];
 	enum datatype_e devicetype;
 	void* deviceptr;
 	uip_ip6addr_t destip;
 };
 
 typedef struct joinpair_s joinpair_t;
+
+uint8_t parseMessage(joinpair_t* pair);
 
 list_t pairing_get_pairs(void);
 joinpair_t* getUartSensorPair(uartsensors_device_t* p);

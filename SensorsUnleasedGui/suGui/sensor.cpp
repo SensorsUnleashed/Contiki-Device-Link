@@ -122,7 +122,7 @@ int findToken(uint16_t token, QVector<msgid> tokenlist){
 
 /******** Sensor requests ***************/
 
-void sensor::get_request(CoapPDU *pdu, enum request req, QByteArray payload){
+uint16_t sensor::get_request(CoapPDU *pdu, enum request req, QByteArray payload){
     msgid t;
     t.req = req;
     t.number = qrand();
@@ -135,9 +135,16 @@ void sensor::get_request(CoapPDU *pdu, enum request req, QByteArray payload){
     pdu->addOption(CoapPDU::COAP_OPTION_CONTENT_FORMAT,1,(uint8_t*)&ct);
     pdu->setMessageID(t.number);
 
+    token.append(t);
+
+
+    char tmp[30];
+    int len;
+    pdu->getURI(tmp,30, &len);
+
     send(pdu, t.number, payload);
 
-    token.append(t);
+    return t.number;
 }
 
 uint16_t sensor::put_request(CoapPDU *pdu, enum request req, QByteArray payload){
@@ -147,7 +154,11 @@ uint16_t sensor::put_request(CoapPDU *pdu, enum request req, QByteArray payload)
 
     pdu->setType(CoapPDU::COAP_CONFIRMABLE);
     pdu->setCode(CoapPDU::COAP_PUT);
-    pdu->setToken((uint8_t*)&t.number,2);
+
+    //Set the token, if it is not set beforehand
+    if(pdu->getTokenLength() <= 0){
+        pdu->setToken((uint8_t*)&t.number,2);
+    }
 
     enum CoapPDU::ContentFormat ct = CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET;
     pdu->addOption(CoapPDU::COAP_OPTION_CONTENT_FORMAT,1,(uint8_t*)&ct);
@@ -166,6 +177,25 @@ void sensor::requestValue(){
     CoapPDU *pdu = new CoapPDU();
     pdu->setURI((char*)uristring, strlen(uristring));
     get_request(pdu, req_currentValue);
+}
+
+QVariant sensor::requestObserve(){
+    uint8_t id = 0;
+    const char* uristring = "su/powerrelay/above";
+    //const char* uristring = uri.toLatin1().data();
+    CoapPDU *pdu = new CoapPDU();
+    pdu->setURI((char*)uristring, strlen(uristring));
+    pdu->addOption(CoapPDU::COAP_OPTION_OBSERVE, 1, &id);
+    return get_request(pdu, req_observe);
+
+}
+
+void sensor::abortObserve(QVariant token){
+    /*
+        Removing a token, will render the next
+        pdu as unknown and retransmit a RST command
+    */
+    enableTokenRemoval(token.toUInt());
 }
 
 void sensor::requestAboveEventLvl(){   
@@ -285,9 +315,27 @@ QVariant sensor::pair(QVariant pairdata){
     QVariantMap map = pairdata.toMap();
 
     //Find out if all neccessary informations is available
+    if(!map.contains("triggers")) return QVariant(-1);
     if(!map.contains("addr")) return QVariant(-1);
     if(!map.contains("url")) return QVariant(-1);
 
+    QByteArray triggersetup;
+    triggersetup[0] = -1;
+    triggersetup[1] = -1;
+    triggersetup[2] = -1;
+
+    QVariantList triggers = map["triggers"].toList();
+    foreach (QVariant trigger, triggers) {
+        if(trigger.toMap()["eventname"].toString().compare("Above event") == 0)
+            triggersetup[0] = trigger.toMap()["actionenum"].toInt();
+        if(trigger.toMap()["eventname"].toString().compare("Below event") == 0)
+            triggersetup[1] = trigger.toMap()["actionenum"].toInt();
+        if(trigger.toMap()["eventname"].toString().compare("Change event") == 0)
+            triggersetup[2] = trigger.toMap()["actionenum"].toInt();
+    }
+
+    //QString testip = "fd81:3daa:fb4a:f7ae:b3c0:94d4:956:69ab";
+    //QByteArray pairaddrstr = testip.toLatin1();
     QByteArray pairaddrstr = map["addr"].toString().toLatin1();
     if(!helper::uiplib_ip6addrconv(pairaddrstr.data(), &pairaddr)) return QVariant(-1);
 
@@ -306,6 +354,13 @@ QVariant sensor::pair(QVariant pairdata){
     }
 
     cmp_write_str(&cmp, pairurlstr.data(), pairurlstr.length());
+
+    //Add the event triggers
+    cmp_write_array(&cmp, 3);
+    cmp_write_s8(&cmp, triggersetup[0]);    //Above action pointer
+    cmp_write_s8(&cmp, triggersetup[1]);    //Below action pointer
+    cmp_write_s8(&cmp, triggersetup[2]);    //Change action pointer
+
     payload.resize((uint8_t*)cmp.buf - (uint8_t*)payload.data());
 
     const char* uristring = uri.toLatin1().data();
@@ -361,8 +416,11 @@ void sensor::handleReturnCode(uint16_t token, CoapPDU::Code code){
         }
     }
     else if(this->token.at(index).req == req_removepairingitems){
-        qDebug() << "handleReturnCode req_clearparings";
+        qDebug() << "handleReturnCode req_removepairingitems";
         pairings->removePairingsAck();
+    }
+    else if(this->token.at(index).req == req_observe){
+        qDebug() << "handleReturnCode req_observe: " << code;
     }
 }
 
@@ -380,6 +438,7 @@ QVariant sensor::parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU
     cmp_ctx_t cmp;
     cmp_init(&cmp, payload.data(), buf_reader, 0);
     int index = findToken(token, this->token);
+    int keep = 0;
     do{
         cmp_object_t obj;
         if(!cmp_read_object(&cmp, &obj)) return QVariant(0);
@@ -397,9 +456,22 @@ QVariant sensor::parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU
                 RangeMax = obj;
                 emit rangeMaxValueReceived(result);
                 break;
+            case observe_monitor:
+                keep = 1;
             case req_currentValue:
                 LastValue = obj;
                 emit currentValueChanged(result);
+                break;
+            case req_observe:
+                if(code < 128){
+                    emit observe_started(result, token);
+                    disableTokenRemoval(token);
+                    this->token[index].req = observe_monitor;
+                    keep = 1;
+                }
+                else{
+                    emit observe_failed(token);
+                }
                 break;
             case req_aboveEventValue:
                 AboveEventAt = obj;
@@ -460,7 +532,7 @@ QVariant sensor::parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU
         }
     }while(cmp.buf < payload.data() + payload.length() && cont);
 
-    this->token.remove(index);
+    if(keep == 0) this->token.remove(index);
     return QVariant(0);
 }
 
@@ -492,10 +564,23 @@ int sensor::parsePairList(cmp_ctx_t* cmp){
     if(!cmp_read_str(cmp, url.data(), &size)) return 4;
     url.resize(size);
     pl["srcuri"] = QString(url);
+    
+    //Read the triggers in.
+    
+    
 
     pairings->append(pl);
     return 0;
 }
+
+int sensor::addDummyPair(QString ip, QString dsturi, QString url){
+    QVariantMap pl;
+    pl["addr"] = ip;
+    pl["dsturi"] = dsturi;
+    pl["srcuri"] = url;
+    pairings->append(pl);
+}
+
 
 /*************** Helpers ******************************************/
 

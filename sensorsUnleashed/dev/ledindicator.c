@@ -41,7 +41,7 @@
 struct resourceconf ledindicatorconfig = {
 		.resolution = 1,
 		.version = 1,
-		.flags = METHOD_GET | METHOD_PUT,
+		.flags = METHOD_GET | METHOD_PUT | IS_OBSERVABLE,
 		.max_pollinterval = 2,
 		.eventsActive = 0,
 		.AboveEventAt = {

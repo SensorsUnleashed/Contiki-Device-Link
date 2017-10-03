@@ -62,7 +62,7 @@ static struct relayRuntime pulseinputruntime[1];
 struct resourceconf pulseconfig = {
 		.resolution = 100,	//0.1W
 		.version = 1,		//Q22.10
-		.flags = METHOD_GET | METHOD_PUT,			//Flags - which handle do we serve: Get/Post/PUT/Delete
+		.flags = METHOD_GET | METHOD_PUT | IS_OBSERVABLE | HAS_SUB_RESOURCES,			//Flags - which handle do we serve: Get/Post/PUT/Delete
 		.max_pollinterval = 30, 					//How often can you ask for a new reading
 
 		.eventsActive = ChangeEventActive,

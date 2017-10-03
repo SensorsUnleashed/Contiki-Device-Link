@@ -70,7 +70,7 @@ typedef uint32_t rtimer_clock_t;
  * @{
  */
 #ifndef SYS_CTRL_CONF_OSC32K_USE_XTAL
-#define SYS_CTRL_CONF_OSC32K_USE_XTAL   0 /**< Use the on-board 32.768-kHz crystal */
+#define SYS_CTRL_CONF_OSC32K_USE_XTAL   1 /**< Use the on-board 32.768-kHz crystal */
 #endif
 /** @} */
 /*---------------------------------------------------------------------------*/

@@ -27,7 +27,8 @@ RESOURCES += \
     widgets.qrc \
     qml.qrc \
     sensorwidgets.qrc \
-    nodewidgets.qrc
+    nodewidgets.qrc \
+    pairwidgets.qrc
 
 # Additional import path used to resolve QML modules in Qt Creator's code model
 QML_IMPORT_PATH =

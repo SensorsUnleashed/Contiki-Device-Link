@@ -39,6 +39,6 @@
 #ifndef SENSORSUNLEASHED_RESOURCES_RES_SUSENSORS_H_
 #define SENSORSUNLEASHED_RESOURCES_RES_SUSENSORS_H_
 
-int res_susensor_activate(const struct susensors_sensor* sensor);
+resource_t* res_susensor_activate(const struct susensors_sensor* sensor);
 
 #endif /* SENSORSUNLEASHED_RESOURCES_RES_SUSENSORS_H_ */

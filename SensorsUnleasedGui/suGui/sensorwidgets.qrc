@@ -1,12 +1,9 @@
 <RCC>
     <qresource prefix="/">
         <file>Sensor.qml</file>
-        <file>SensorInformation.qml</file>
         <file>SensorConfig.qml</file>
         <file>PowerRelay.qml</file>
         <file>PulseCounter.qml</file>
-        <file>SensorPairing.qml</file>
-        <file>SensorList.qml</file>
         <file>LedIndicator.qml</file>
     </qresource>
 </RCC>
