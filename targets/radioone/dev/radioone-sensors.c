@@ -45,14 +45,14 @@
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
 #include "dev/cc2538-sensors.h"
-#include "dev/button-sensor.h"
+//#include "dev/button-sensor.h"
 
 #include <string.h>
 /*---------------------------------------------------------------------------*/
 /**
  * \brief Exports a global symbol to be used by the sensor API
  */
-SENSORS(&button_sensor, &cc2538_temp_sensor);
+SENSORS(&cc2538_temp_sensor);
 /*---------------------------------------------------------------------------*/
 /**
  * @}

@@ -190,7 +190,6 @@ susensors_sensor_t* addASUMainsDetector(const char* name, struct resourceconf* c
 	d.value = set;
 	d.configure = configure;
 	d.eventhandler = eventHandler;
-	d.getActiveEventMsg = getActiveEventMsg;
 	d.suconfig = suconfig;
 	d.data.config = config;
 

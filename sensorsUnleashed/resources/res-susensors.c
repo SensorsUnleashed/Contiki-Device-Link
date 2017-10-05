@@ -49,7 +49,7 @@
 #define MAX_RESOURCES	20
 MEMB(coap_resources, resource_t, MAX_RESOURCES);
 
-//#define DEBUG 1
+#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -295,7 +295,7 @@ res_susensor_puthandler(void *request, void *response, uint8_t *buffer, uint16_t
 //Return 3 the sensor was NULL
 resource_t* res_susensor_activate(const struct susensors_sensor* sensor){
 
-	if(sensor == NULL) return 3;
+	if(sensor == NULL) return NULL;
 	const struct extras* extra = &sensor->data;
 	struct resourceconf* config;
 
@@ -303,7 +303,7 @@ resource_t* res_susensor_activate(const struct susensors_sensor* sensor){
 	//Create the resource for the coap engine
 	resource_t* r = (resource_t*)memb_alloc(&coap_resources);
 	if(r == 0)
-		return 2;
+		return NULL;
 
 	r->url = config->type;
 	r->attributes = config->attr;

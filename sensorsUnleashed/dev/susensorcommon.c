@@ -170,14 +170,6 @@ void setResource(struct susensors_sensor* this, resource_t* res){
 	this->data.resource = res;
 }
 
-
-int getActiveEventMsg(struct susensors_sensor* this, uint8_t* payload){
-	struct relayRuntime* d = (struct relayRuntime*)this->data.runtime;
-	int len = cp_encodeU8(payload, d->hasEvent);
-	len += cp_encodeObject(payload + len, &d->LastEventValue);
-	return len;
-}
-
 /**
  *
  * @param this

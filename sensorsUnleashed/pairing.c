@@ -47,7 +47,7 @@
 #include "lib/memb.h"
 #include "susensors.h"
 
-#define DEBUG 0
+#define DEBUG 1
 #if DEBUG
 #include <stdio.h>
 #define PRINTF(...) printf(__VA_ARGS__)
@@ -352,10 +352,9 @@ uint8_t pairing_handle(susensors_sensor_t* s){
 	//Finally store pairing info into flash
 	store_SensorPair(s, payload, bufsize);
 
+	PRINTF("Pair dst: %s, triggers: 0x%X\n", (char*)MMEM_PTR(&p->dsturl), (unsigned int)p->triggers);
 	//Signal to the susensor class, that a new pair/binding is ready.
 	process_post(&susensors_process, susensors_pair, p);
-
-	//coap_obs_request_registration(&p->destip, 5683, (char*)MMEM_PTR(&p->dsturl), s->notification_callback, s);
 
 	return 0;
 }

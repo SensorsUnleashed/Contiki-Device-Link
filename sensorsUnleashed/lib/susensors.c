@@ -113,6 +113,43 @@ susensors_find(const char *prefix, unsigned short len)
 	}
 	return NULL;
 }
+
+static void notification_callback(coap_observee_t *obs, void *notification,
+                      coap_notification_flag_t flag){
+
+	struct susensors_sensor* this = notification;
+	  int len = 0;
+	  const uint8_t *payload = NULL;
+
+	  printf("Notification handler\n");
+	  printf("Observee URI: %s\n", obs->url);
+	  if(notification) {
+	    len = coap_get_payload(notification, &payload);
+	  }
+	  switch(flag) {
+	  case NOTIFICATION_OK:
+	    printf("NOTIFICATION OK: %*s\n", len, (char *)payload);
+	    break;
+	  case OBSERVE_OK: /* server accepeted observation request */
+	    printf("OBSERVE_OK: %*s\n", len, (char *)payload);
+	    break;
+	  case OBSERVE_NOT_SUPPORTED:
+	    printf("OBSERVE_NOT_SUPPORTED: %*s\n", len, (char *)payload);
+	    obs = NULL;
+	    break;
+	  case ERROR_RESPONSE_CODE:
+	    printf("ERROR_RESPONSE_CODE: %*s\n", len, (char *)payload);
+	    obs = NULL;
+	    break;
+	  case NO_REPLY_FROM_SERVER:
+	    printf("NO_REPLY_FROM_SERVER: "
+	           "removing observe registration with token %x%x\n",
+	           obs->token[0], obs->token[1]);
+	    obs = NULL;
+	    break;
+	  }
+}
+
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(susensors_process, ev, data)
 {
@@ -140,13 +177,16 @@ PROCESS_THREAD(susensors_process, ev, data)
 		if(ev == susensors_pair){
 			joinpair_t* pair = (joinpair_t*) data;
 			if(pair->triggers[0] != -1){	//Above
-				coap_obs_request_registration(&pair->destip, UIP_HTONS(5683), pair->dsturlAbove, ((susensors_sensor_t*)(pair->deviceptr))->notification_callback, pair->deviceptr);
+				coap_obs_request_registration(&pair->destip, UIP_HTONS(COAP_DEFAULT_PORT), pair->dsturlAbove,
+						notification_callback, pair->deviceptr);
 			}
 			if(pair->triggers[1] != -1){	//Below
-				coap_obs_request_registration(&pair->destip, UIP_HTONS(5683), pair->dsturlBelow, ((susensors_sensor_t*)(pair->deviceptr))->notification_callback, pair->deviceptr);
+				coap_obs_request_registration(&pair->destip, UIP_HTONS(COAP_DEFAULT_PORT), pair->dsturlBelow,
+						notification_callback, pair->deviceptr);
 			}
 			if(pair->triggers[2] != -1){	//Change
-				coap_obs_request_registration(&pair->destip, UIP_HTONS(5683), pair->dsturlChange, ((susensors_sensor_t*)(pair->deviceptr))->notification_callback, pair->deviceptr);
+				coap_obs_request_registration(&pair->destip, UIP_HTONS(COAP_DEFAULT_PORT), pair->dsturlChange,
+						notification_callback, pair->deviceptr);
 			}
 		}
 		else {
@@ -154,28 +194,20 @@ PROCESS_THREAD(susensors_process, ev, data)
 			events = 0;
 			for(d = susensors_first(); d; d = susensors_next(d)) {
 				resource_t* resource = d->data.resource;
-				if(d->event_flag & SUSENSORS_CHANGE_EVENT){
-					d->event_flag &= ~SUSENSORS_CHANGE_EVENT;
-					coap_notify_observers_sub(resource, strAbove);
+				if(resource != NULL){
+					if(d->event_flag & SUSENSORS_CHANGE_EVENT){
+						d->event_flag &= ~SUSENSORS_CHANGE_EVENT;
+						coap_notify_observers_sub(resource, strChange);
+					}
+					if(d->event_flag & SUSENSORS_BELOW_EVENT){
+						d->event_flag &= ~SUSENSORS_BELOW_EVENT;
+						coap_notify_observers_sub(resource, strBelow);
+					}
+					if(d->event_flag & SUSENSORS_ABOVE_EVENT){
+						d->event_flag &= ~SUSENSORS_ABOVE_EVENT;
+						coap_notify_observers_sub(resource, strAbove);
+					}
 				}
-				if(d->event_flag & SUSENSORS_BELOW_EVENT){
-					d->event_flag &= ~SUSENSORS_BELOW_EVENT;
-					coap_notify_observers_sub(resource, strBelow);
-				}
-				if(d->event_flag & SUSENSORS_ABOVE_EVENT){
-					d->event_flag &= ~SUSENSORS_ABOVE_EVENT;
-					coap_notify_observers_sub(resource, strChange);
-				}
-
-//				if(d->event_flag & FLAG_CHANGED){
-//					for(pair = list_head(d->pairs); pair; pair = pair->next) {
-//						if(process_post(PROCESS_BROADCAST, susensors_event, (void *)pair) == PROCESS_ERR_OK) {
-//							PROCESS_WAIT_EVENT_UNTIL(ev == susensors_event);
-//						}
-//					}
-//					d->event_flag &= ~FLAG_CHANGED;
-//					events++;
-//				}
 				d->event_flag = SUSENSORS_NO_EVENT;
 			}
 		} while(events);

@@ -33,11 +33,11 @@
  */
 /*---------------------------------------------------------------------------*/
 /**
- * \addtogroup openmote-button-sensor
+ * \addtogroup radioone-button-sensor
  * @{
  *
  * \file
- * Driver for for the OpenMote-CC2538 user button
+ * Driver for for the RadioOne-CC2538 user button
  */
 /*---------------------------------------------------------------------------*/
 #include "contiki.h"
@@ -48,9 +48,44 @@
 #include "sys/timer.h"
 #include "sys/ctimer.h"
 #include "sys/process.h"
+#include "susensorcommon.h"
 
 #include <stdint.h>
 #include <string.h>
+
+struct resourceconf pushbuttonconfig = {
+		.resolution = 1,
+		.version = 1,
+		.flags = METHOD_GET | IS_OBSERVABLE | HAS_SUB_RESOURCES,
+		.max_pollinterval = 2,
+		.eventsActive = ChangeEventActive,
+		.AboveEventAt = {
+				.type = CMP_TYPE_UINT8,
+				.as.u8 = 1
+		},
+		.BelowEventAt = {
+				.type = CMP_TYPE_UINT8,
+				.as.u8 = 0
+		},
+		.ChangeEvent = {
+				.type = CMP_TYPE_UINT8,
+				.as.u8 = 1
+		},
+		.RangeMin = {
+				.type = CMP_TYPE_UINT8,
+				.as.u8 = 0
+		},
+		.RangeMax = {
+				.type = CMP_TYPE_UINT8,
+				.as.u8 = 1
+		},
+
+		.unit = "",
+		.spec = "Push button; OFF=0, ON=1, TOGGLE=2",
+		.type = BUTTON_SENSOR,
+		.attr = "title=\"Relay output\" ;rt=\"Control\"",
+};
+
 /*---------------------------------------------------------------------------*/
 #define BUTTON_USER_PORT_BASE  GPIO_PORT_TO_BASE(BUTTON_USER_PORT)
 #define BUTTON_USER_PIN_MASK   GPIO_PIN_MASK(BUTTON_USER_PIN)
@@ -62,7 +97,7 @@ static struct timer debouncetimer;
 static clock_time_t press_duration = 0;
 static struct ctimer press_counter;
 static uint8_t press_event_counter;
-
+static struct susensors_sensor* thisptr;
 process_event_t button_press_duration_exceeded;
 /*---------------------------------------------------------------------------*/
 static void
@@ -82,8 +117,7 @@ duration_exceeded_callback(void *data)
  *             type == BUTTON_SENSOR_VALUE_TYPE_PRESS_DURATION
  *             respectively
  */
-static int
-value(int type)
+static int get(struct susensors_sensor* this, int type, void* data)
 {
   switch(type) {
   case BUTTON_SENSOR_VALUE_TYPE_LEVEL:
@@ -113,7 +147,7 @@ btn_callback(uint8_t port, uint8_t pin)
 
   if(press_duration) {
     press_event_counter = 0;
-    if(value(BUTTON_SENSOR_VALUE_TYPE_LEVEL) == BUTTON_SENSOR_PRESSED_LEVEL) {
+    if(get(thisptr, BUTTON_SENSOR_VALUE_TYPE_LEVEL, NULL) == BUTTON_SENSOR_PRESSED_LEVEL) {
       ctimer_set(&press_counter, press_duration, duration_exceeded_callback,
                  NULL);
     } else {
@@ -121,7 +155,7 @@ btn_callback(uint8_t port, uint8_t pin)
     }
   }
 
-  sensors_changed(&button_sensor);
+  susensors_changed(thisptr, SUSENSORS_CHANGE_EVENT);
 }
 /*---------------------------------------------------------------------------*/
 /**
@@ -132,11 +166,10 @@ btn_callback(uint8_t port, uint8_t pin)
  * \param value Depends on the value of the type argument
  * \return Depends on the value of the type argument
  */
-static int
-config_user(int type, int value)
+static int configure(struct susensors_sensor* this, int type, int value)
 {
   switch(type) {
-  case SENSORS_HW_INIT:
+  case SUSENSORS_HW_INIT:
     button_press_duration_exceeded = process_alloc_event();
 
     /* Software controlled */
@@ -156,8 +189,9 @@ config_user(int type, int value)
 
     gpio_register_callback(btn_callback, BUTTON_USER_PORT, BUTTON_USER_PIN);
     break;
-  case SENSORS_ACTIVE:
+  case SUSENSORS_ACTIVE:
     if(value) {
+      thisptr = this;
       GPIO_ENABLE_INTERRUPT(BUTTON_USER_PORT_BASE, BUTTON_USER_PIN_MASK);
       NVIC_EnableIRQ(BUTTON_USER_VECTOR);
     } else {
@@ -174,7 +208,18 @@ config_user(int type, int value)
 
   return 1;
 }
-/*---------------------------------------------------------------------------*/
-SENSORS_SENSOR(button_sensor, BUTTON_SENSOR, value, config_user, NULL);
-/*---------------------------------------------------------------------------*/
+
+susensors_sensor_t* addASUButtonSensor(const char* name, struct resourceconf* config){
+	susensors_sensor_t d;
+	d.type = (char*)name;
+	d.status = get;
+	d.value = NULL;
+	d.configure = configure;
+	d.eventhandler = NULL;
+	d.suconfig = suconfig;
+	d.data.config = config;
+
+	return addSUDevices(&d);
+}
+
 /** @} */

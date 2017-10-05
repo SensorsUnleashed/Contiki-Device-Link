@@ -50,11 +50,14 @@
 #ifndef BUTTON_SENSOR_H_
 #define BUTTON_SENSOR_H_
 /*---------------------------------------------------------------------------*/
-#include "lib/sensors.h"
-/*---------------------------------------------------------------------------*/
-#define BUTTON_SENSOR "Button"
+#include "lib/susensors.h"
 
-extern const struct sensors_sensor button_sensor;
+extern struct resourceconf pushbuttonconfig;
+
+susensors_sensor_t* addASUButtonSensor(const char* name, struct resourceconf* config);
+
+/*---------------------------------------------------------------------------*/
+
 /*---------------------------------------------------------------------------*/
 extern process_event_t button_press_duration_exceeded;
 /*---------------------------------------------------------------------------*/
@@ -65,6 +68,9 @@ extern process_event_t button_press_duration_exceeded;
 
 #define BUTTON_SENSOR_PRESSED_LEVEL             0
 #define BUTTON_SENSOR_RELEASED_LEVEL            8
+
+#define BUTTON_SENSOR "su/pushbutton"
+
 /*---------------------------------------------------------------------------*/
 #endif /* BUTTON_SENSOR_H_ */
 /*---------------------------------------------------------------------------*/

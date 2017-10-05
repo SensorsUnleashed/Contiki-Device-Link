@@ -1,5 +1,5 @@
 CONTIKI_PROJECT = er-uart-server
-PROJECT_SOURCEFILES += susensors.c pairing.c pulsesensor.c relay.c susensorcommon.c ledindicator.c mainsdetect.c
+PROJECT_SOURCEFILES += susensors.c pairing.c pulsesensor.c relay.c susensorcommon.c ledindicator.c mainsdetect.c button-sensor.c
 
 all: $(CONTIKI_PROJECT)
 

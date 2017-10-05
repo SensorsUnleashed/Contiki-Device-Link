@@ -41,9 +41,9 @@
 struct resourceconf ledindicatorconfig = {
 		.resolution = 1,
 		.version = 1,
-		.flags = METHOD_GET | METHOD_PUT | IS_OBSERVABLE,
+		.flags = METHOD_GET | METHOD_PUT | IS_OBSERVABLE | HAS_SUB_RESOURCES,
 		.max_pollinterval = 2,
-		.eventsActive = 0,
+		.eventsActive = ChangeEventActive,
 		.AboveEventAt = {
 				.type = CMP_TYPE_UINT8,
 				.as.u8 = 1
@@ -67,27 +67,23 @@ struct resourceconf ledindicatorconfig = {
 
 		.unit = "",
 		.spec = "LED indicator",
-		.type = LED_INDICATOR,
+		//.type = LED_INDICATOR,
 		.attr = "title=\"LED indicator\" ;rt=\"Indicator\"",
 };
 
 static int set(struct susensors_sensor* this, int type, void* data){
 	int ret = 1;
 
-	if(type == toggleLED_RED){
-		leds_toggle(LEDS_RED);
+	if(type == setToggle){
+		leds_toggle(((struct ledRuntime*)(this->data.runtime))->mask);
 		ret = 0;
 	}
-	else if(type == toggleLED_GREEN){
-		leds_toggle(LEDS_GREEN);
+	else if(type == setOn){
+		leds_on(((struct ledRuntime*)(this->data.runtime))->mask);
 		ret = 0;
 	}
-	else if(type == toggleLED_ORANGE){
-		leds_toggle(LEDS_ORANGE);
-		ret = 0;
-	}
-	else if(type == toggleLED_YELLOW){
-		leds_toggle(LEDS_YELLOW);
+	else if(type == setOff){
+		leds_off(((struct ledRuntime*)(this->data.runtime))->mask);
 		ret = 0;
 	}
 
@@ -104,7 +100,7 @@ int get(struct susensors_sensor* this, int type, void* data){
 
 	if((enum up_parameter) type == ActualValue){
 		obj->type = CMP_TYPE_UINT8;
-		obj->as.u8 = leds_get() & LEDS_CONF_ALL;
+		obj->as.u8 = (leds_get() & ((struct ledRuntime*)(this->data.runtime))->mask) > 0;
 		ret = 0;
 	}
 	return ret;
@@ -121,30 +117,32 @@ static int eventHandler(struct susensors_sensor* this, int len, uint8_t* payload
 	if(cp_decodeObject(payload, &eventval, &parselen) != 0) return 2;
 
 	if(event & AboveEventActive){
-		this->value(this, toggleLED_RED, NULL);
+		this->value(this, setOn, NULL);
 	}
 	else if(event & BelowEventActive){
-		this->value(this, toggleLED_YELLOW, NULL);
+		this->value(this, setOff, NULL);
 	}
 
 	if(event & ChangeEventActive){
-		this->value(this, toggleLED_ORANGE, NULL);
+		this->value(this, setToggle, NULL);
 	}
 
 	return 0;
 }
 
-susensors_sensor_t* addASULedIndicator(const char* name, struct resourceconf* config){
+susensors_sensor_t* addASULedIndicator(const char* name, struct resourceconf* config, struct ledRuntime* extra){
 	susensors_sensor_t d;
 	d.type = (char*)name;
 	d.status = get;
 	d.value = set;
 	d.configure = configure;
 	d.eventhandler = eventHandler;
-	d.getActiveEventMsg = getActiveEventMsg;
 	d.suconfig = suconfig;
 	d.data.config = config;
-	d.data.runtime = (void*)0;
+	d.data.runtime = extra;
+	d.data.runtime = (void*) extra;
+
+	config->type = (char*)name;
 
 	return addSUDevices(&d);
 }

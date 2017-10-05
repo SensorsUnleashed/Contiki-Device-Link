@@ -79,6 +79,10 @@ struct relayRuntime {
 	cmp_object_t ChangeEventAcc;	///Accumulated steps; for determining if event should be fired
 };
 
+struct ledRuntime {
+	uint8_t mask;
+};
+
 /* Used for extra material needed for using a sensor */
 struct extras{
 	int type;
@@ -102,10 +106,8 @@ struct susensors_sensor {
 	/* Received an event from another device - handle it */
 	int (* eventhandler)		(struct susensors_sensor* this, int len, uint8_t* payload);
 
-	notification_callback_t notification_callback;
+	//notification_callback_t notification_callback;
 
-	/* Get the date from the last event emittet */
-	int (* getActiveEventMsg)	(struct susensors_sensor* this, uint8_t* payload);
 	/* Get/set device suconfig (common to all devices) */
 	int (* suconfig)  			(struct susensors_sensor* this, int type, void* data);
 

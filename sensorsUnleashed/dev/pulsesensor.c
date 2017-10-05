@@ -220,7 +220,6 @@ susensors_sensor_t* addASUPulseInputRelay(const char* name, struct resourceconf*
 	d.value = set;
 	d.configure = configure;
 	d.eventhandler = eventHandler;
-	d.getActiveEventMsg = getActiveEventMsg;
 	d.suconfig = suconfig;
 	d.data.config = config;
 

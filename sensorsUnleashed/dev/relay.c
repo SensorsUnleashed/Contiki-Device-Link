@@ -48,9 +48,6 @@ struct susensors_sensor relay;
 static struct relayRuntime relayruntime[2];
 int noofrelays = 0;
 
-static void notification_callback(coap_observee_t *obs, void *notification,
-                      coap_notification_flag_t flag);
-
 struct resourceconf relayconfigs = {
 		.resolution = 1,
 		.version = 1,
@@ -185,8 +182,6 @@ static int configure(struct susensors_sensor* this, int type, int value)
 			GPIO_SET_INPUT(RELAY_PORT_BASE, RELAY_PIN_MASK);
 			((struct relayRuntime*)this->data.runtime)->enabled = 0;
 		}
-
-		this->notification_callback = notification_callback;
 		break;
 	}
 
@@ -216,43 +211,6 @@ static int eventHandler(struct susensors_sensor* this, int len, uint8_t* payload
 	return 0;
 }
 
-static void notification_callback(coap_observee_t *obs, void *notification,
-                      coap_notification_flag_t flag){
-
-	struct susensors_sensor* this = notification;
-	  int len = 0;
-	  const uint8_t *payload = NULL;
-
-	  printf("Notification handler\n");
-	  printf("Observee URI: %s\n", obs->url);
-	  if(notification) {
-	    len = coap_get_payload(notification, &payload);
-	  }
-	  switch(flag) {
-	  case NOTIFICATION_OK:
-	    printf("NOTIFICATION OK: %*s\n", len, (char *)payload);
-	    break;
-	  case OBSERVE_OK: /* server accepeted observation request */
-	    printf("OBSERVE_OK: %*s\n", len, (char *)payload);
-	    break;
-	  case OBSERVE_NOT_SUPPORTED:
-	    printf("OBSERVE_NOT_SUPPORTED: %*s\n", len, (char *)payload);
-	    obs = NULL;
-	    break;
-	  case ERROR_RESPONSE_CODE:
-	    printf("ERROR_RESPONSE_CODE: %*s\n", len, (char *)payload);
-	    obs = NULL;
-	    break;
-	  case NO_REPLY_FROM_SERVER:
-	    printf("NO_REPLY_FROM_SERVER: "
-	           "removing observe registration with token %x%x\n",
-	           obs->token[0], obs->token[1]);
-	    obs = NULL;
-	    break;
-	  }
-}
-
-
 susensors_sensor_t* addASURelay(const char* name, struct resourceconf* config){
 	susensors_sensor_t d;
 	d.type = (char*)name;
@@ -260,13 +218,12 @@ susensors_sensor_t* addASURelay(const char* name, struct resourceconf* config){
 	d.value = set;
 	d.configure = configure;
 	d.eventhandler = eventHandler;
-	d.getActiveEventMsg = getActiveEventMsg;
 	d.suconfig = suconfig;
 	d.data.config = config;
 
 	relayruntime[noofrelays].enabled = 0;
 	relayruntime[noofrelays].hasEvent = 0,
-			relayruntime[noofrelays].LastEventValue.type = CMP_TYPE_UINT8;
+	relayruntime[noofrelays].LastEventValue.type = CMP_TYPE_UINT8;
 	relayruntime[noofrelays].LastEventValue.as.u8 = 0;
 	relayruntime[noofrelays].ChangeEventAcc.as.u8 = 0;
 	d.data.runtime = (void*) &relayruntime[noofrelays++];

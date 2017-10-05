@@ -61,10 +61,9 @@ enum suactions {
 	setRelay_toggle,
 
 	/* LED indicator */
-	toggleLED_RED = 10,
-	toggleLED_GREEN,
-	toggleLED_ORANGE,
-	toggleLED_YELLOW,
+	setOff = 10,
+	setOn,
+	setToggle,
 };
 enum up_parameter{
 	/* Sensor specifics reading */

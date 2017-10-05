@@ -37,7 +37,7 @@
 #include <stdlib.h>
 
 //#include "uartsensors.h"
-#include "button-sensor.h"
+#include "dev/button-sensor.h"
 #include "dev/relay.h"
 #include "dev/ledindicator.h"
 #include "dev/mainsdetect.h"
@@ -46,7 +46,7 @@
 #include "resources/res-susensors.h"
 #include "dev/susensorcommon.h"
 
-//#include "lib/sensors.h"
+#include "lib/sensors.h"
 
 extern process_event_t sensors_event;
 
@@ -62,6 +62,10 @@ extern process_event_t sensors_event;
 #define PRINTLLADDR(addr)
 #endif
 
+struct ledRuntime led_red = { LEDS_RED };
+struct ledRuntime led_green = { LEDS_GREEN };
+struct ledRuntime led_orange = { LEDS_ORANGE };
+struct ledRuntime led_yellow = { LEDS_YELLOW };
 
 /*
  * Resources to be activated need to be imported through the extern keyword.
@@ -72,53 +76,6 @@ extern process_event_t sensors_event;
 PROCESS(er_uart_server, "Erbium Uart Server");
 AUTOSTART_PROCESSES(&er_uart_server);
 
-#define REMOTE_PORT     UIP_HTONS(COAP_DEFAULT_PORT)
-
-static coap_packet_t request[1];      /* This way the packet can be treated as pointer as usual. */
-
-static uint8_t payload[50];
-static uint8_t coapTx[60];
-
-/* This function is will be passed to COAP_BLOCKING_REQUEST() to handle responses. */
-static void
-client_chunk_handler(void *response)
-{
-	const uint8_t *chunk;
-
-	int len = coap_get_payload(response, &chunk);
-	(void)(len);
-
-	//  PRINTF("|%.*s", len, (char *)chunk);
-}
-
-void printInfo(susensors_sensor_t* test){
-
-//	int i;
-//	printf("Rime configured with address ");
-//	for(i = 0; i < LINKADDR_SIZE - 1; i++) {
-//		printf("%02x:", linkaddr_node_addr.u8[i]);
-//	}
-//	printf("%02x\n", linkaddr_node_addr.u8[i]);
-
-	//coap_notify_observers_sub(test, "/above");
-
-	//REST.notify_subscribers(test);
-
-	uip_ipaddr_t addr;
-	addr.u16[0] = (uint16_t)33277;
-	addr.u16[1] = (uint16_t)43581;
-	addr.u16[2] = (uint16_t)19195;
-	addr.u16[3] = (uint16_t)44791;
-	addr.u16[4] = (uint16_t)4610;
-	addr.u16[5] = (uint16_t)75;
-	addr.u16[6] = (uint16_t)7684;
-	addr.u16[7] = (uint16_t)32940;
-
-	coap_obs_request_registration(&addr, 5683, "su/powerrelay/above", test->notification_callback, test);
-
-}
-susensors_sensor_t* test;
-joinpair_t *pair;
 PROCESS_THREAD(er_uart_server, ev, data)
 {
 
@@ -133,22 +90,36 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	rest_init_engine();
 	coap_init_engine();
 
-
 	susensors_sensor_t* d;
 	d = addASURelay(RELAY_ACTUATOR, &relayconfigs);
 	if(d != NULL) {
-		test = d;
 		setResource(d, res_susensor_activate(d));
 	}
-//	d = addASULedIndicator(LED_INDICATOR, &ledindicatorconfig);
+//	d = addASULedIndicator("su/led_red", &ledindicatorconfig, &led_red);
 //	if(d != NULL){
 //		setResource(d, res_susensor_activate(d));
 //	}
+//	d = addASULedIndicator("su/led_green", &ledindicatorconfig, &led_green);
+//	if(d != NULL){
+//		setResource(d, res_susensor_activate(d));
+//	}
+//	d = addASULedIndicator("su/led_orange", &ledindicatorconfig, &led_orange);
+//	if(d != NULL){
+//		setResource(d, res_susensor_activate(d));
+//	}
+	d = addASULedIndicator("su/led_yellow", &ledindicatorconfig, &led_yellow);
+	if(d != NULL){
+		setResource(d, res_susensor_activate(d));
+	}
 	d = addASUPulseInputRelay(PULSE_SENSOR, &pulseconfig);
 	if(d != NULL){
 		setResource(d, res_susensor_activate(d));
 	}
 	d = addASUMainsDetector(MAINSDETECT_ACTUATOR, &mainsdetectconfig);
+	if(d != NULL){
+		setResource(d, res_susensor_activate(d));
+	}
+	d = addASUButtonSensor(BUTTON_SENSOR, &pushbuttonconfig);
 	if(d != NULL){
 		setResource(d, res_susensor_activate(d));
 	}
@@ -181,33 +152,8 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	while(1) {
 		PROCESS_YIELD();
 
-		if(ev == susensors_event) {
-			/*joinpair_t* */ pair = (joinpair_t*)data;
-			susensors_sensor_t* p = (susensors_sensor_t*)pair->deviceptr;
-			int len = p->getActiveEventMsg(p, payload);
-
-			//Use this instead
-			//			REST.notify_subscribers(&res_push);
-
-			coap_message_type_t type = COAP_TYPE_NON;
-
-			coap_init_message(request, type, COAP_PUT, coap_get_mid());
-
-			coap_set_header_uri_path(request, (char*)MMEM_PTR(&pair->dsturl));
-			coap_set_header_uri_query(request, "postEvent"); //eventstr);
-			REST.set_header_content_type(request, APPLICATION_OCTET_STREAM);
-			coap_set_payload(request, payload, len);	//Its already msgpack encoded.
-
-			len = coap_serialize_message(request, &coapTx[0]);
-			//if(type == COAP_TYPE_NON)
-			//coap_send_message(&pair->destip, REMOTE_PORT, &coapTx[0], len);
-			//else
-			leds_toggle(LEDS_GREEN);
-			COAP_BLOCKING_REQUEST(&pair->destip, REMOTE_PORT, request, client_chunk_handler);
-		}
-		else if(ev == sensors_event){	//Button was pressed
+		if(ev == sensors_event){	//Button was pressed
 			PRINTF("Button press\n");
-			printInfo(test);
 		}
 	}
 	PROCESS_END();
