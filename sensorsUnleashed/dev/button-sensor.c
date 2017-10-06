@@ -53,6 +53,8 @@
 #include <stdint.h>
 #include <string.h>
 
+typedef enum su_basic_actions su_button_actions;
+
 struct resourceconf pushbuttonconfig = {
 		.resolution = 1,
 		.version = 1,

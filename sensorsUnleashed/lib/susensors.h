@@ -49,6 +49,17 @@ extern const char* strAbove;
 extern const char* strBelow;
 extern const char* strChange;
 
+enum su_basic_events {
+	aboveEvent,
+	belowEvent,
+	changeEvent
+};
+enum su_basic_actions {
+	setOn,
+	setOff,
+	setToggle,
+};
+
 enum susensors_configcmd {
 	SUSENSORS_EVENTSETUP_SET,
 	SUSENSORS_EVENTSETUP_GET,
@@ -105,6 +116,11 @@ struct susensors_sensor {
 	int (* status)    			(struct susensors_sensor* this, int type, void* data);
 	/* Received an event from another device - handle it */
 	int (* eventhandler)		(struct susensors_sensor* this, int len, uint8_t* payload);
+
+	int (* aboveEventhandler)	(struct susensors_sensor* this, int len, const uint8_t* payload);
+	int (* belowEventhandler)	(struct susensors_sensor* this, int len, const uint8_t* payload);
+	int (* changeEventhandler)	(struct susensors_sensor* this, int len, const uint8_t* payload);
+	int (* setEventhandlers)	(struct susensors_sensor* this, int8_t triggers[]);
 
 	//notification_callback_t notification_callback;
 

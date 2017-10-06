@@ -54,17 +54,6 @@ enum req_cmd {
 	debugstring,
 };
 
-enum suactions {
-	/* Relay */
-	setRelay_off = 1,
-	setRelay_on,
-	setRelay_toggle,
-
-	/* LED indicator */
-	setOff = 10,
-	setOn,
-	setToggle,
-};
 enum up_parameter{
 	/* Sensor specifics reading */
 	ActualValue,

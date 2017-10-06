@@ -117,9 +117,11 @@ susensors_find(const char *prefix, unsigned short len)
 static void notification_callback(coap_observee_t *obs, void *notification,
                       coap_notification_flag_t flag){
 
-	struct susensors_sensor* this = notification;
 	  int len = 0;
 	  const uint8_t *payload = NULL;
+
+	  susensors_sensor_t* this = (susensors_sensor_t*)obs->data;
+
 
 	  printf("Notification handler\n");
 	  printf("Observee URI: %s\n", obs->url);
@@ -129,6 +131,29 @@ static void notification_callback(coap_observee_t *obs, void *notification,
 	  switch(flag) {
 	  case NOTIFICATION_OK:
 	    printf("NOTIFICATION OK: %*s\n", len, (char *)payload);
+//	    int url_len = strlen(obs->url);
+//	    int elen = strlen(strChange);	//The longest event name
+//	    if(url_len > elen){
+//	    	if(strncmp(obs->url+url_len-elen, strChange, elen) == 0){	//Was it the change event
+//	    		if(this->changeEventhandler != 0){
+//	    			this->changeEventhandler(this, len, payload);
+//	    		}
+//	    	}
+//	    	else{
+//	    		elen = strlen(strAbove);	//Same size for both above and below
+//		    	if(strncmp(obs->url+url_len-elen, strAbove, elen) == 0){	//Was it the change event
+//		    		if(this->aboveEventhandler != 0){
+//		    			this->aboveEventhandler(this, len, payload);
+//		    		}
+//		    	}
+//		    	else if(strncmp(obs->url+url_len-elen, strAbove, elen) == 0){	//Was it the change event
+//		    		if(this->belowEventhandler != 0){
+//		    			this->belowEventhandler(this, len, payload);
+//		    		}
+//		    	}
+//	    	}
+//	    }
+
 	    break;
 	  case OBSERVE_OK: /* server accepeted observation request */
 	    printf("OBSERVE_OK: %*s\n", len, (char *)payload);
@@ -149,6 +174,76 @@ static void notification_callback(coap_observee_t *obs, void *notification,
 	    break;
 	  }
 }
+
+static void above_notificationcb(coap_observee_t *obs, void *notification,
+                      coap_notification_flag_t flag){
+
+	int len = 0;
+	const uint8_t *payload = NULL;
+
+	if(flag == NOTIFICATION_OK){
+
+		if(notification) {
+			len = coap_get_payload(notification, &payload);
+		}
+
+		susensors_sensor_t* this = (susensors_sensor_t*)obs->data;
+		if(this->aboveEventhandler != 0){
+			this->aboveEventhandler(this, len, payload);
+		}
+
+	}
+	else{
+		notification_callback(obs, notification, flag);
+	}
+}
+
+static void below_notificationcb(coap_observee_t *obs, void *notification,
+                      coap_notification_flag_t flag){
+	int len = 0;
+	const uint8_t *payload = NULL;
+
+	if(flag == NOTIFICATION_OK){
+
+		if(notification) {
+			len = coap_get_payload(notification, &payload);
+		}
+
+		susensors_sensor_t* this = (susensors_sensor_t*)obs->data;
+		if(this->belowEventhandler != 0){
+			this->belowEventhandler(this, len, payload);
+		}
+
+	}
+	else{
+		notification_callback(obs, notification, flag);
+	}
+
+}
+
+static void change_notificationcb(coap_observee_t *obs, void *notification,
+                      coap_notification_flag_t flag){
+	int len = 0;
+	const uint8_t *payload = NULL;
+
+	if(flag == NOTIFICATION_OK){
+
+		if(notification) {
+			len = coap_get_payload(notification, &payload);
+		}
+
+		susensors_sensor_t* this = (susensors_sensor_t*)obs->data;
+		if(this->changeEventhandler != 0){
+			this->changeEventhandler(this, len, payload);
+		}
+
+	}
+	else{
+		notification_callback(obs, notification, flag);
+	}
+}
+
+
 
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(susensors_process, ev, data)
@@ -176,18 +271,21 @@ PROCESS_THREAD(susensors_process, ev, data)
 
 		if(ev == susensors_pair){
 			joinpair_t* pair = (joinpair_t*) data;
+			susensors_sensor_t* this = (susensors_sensor_t*) pair->deviceptr;
 			if(pair->triggers[0] != -1){	//Above
 				coap_obs_request_registration(&pair->destip, UIP_HTONS(COAP_DEFAULT_PORT), pair->dsturlAbove,
-						notification_callback, pair->deviceptr);
+						above_notificationcb, pair->deviceptr);
 			}
 			if(pair->triggers[1] != -1){	//Below
 				coap_obs_request_registration(&pair->destip, UIP_HTONS(COAP_DEFAULT_PORT), pair->dsturlBelow,
-						notification_callback, pair->deviceptr);
+						below_notificationcb, pair->deviceptr);
 			}
 			if(pair->triggers[2] != -1){	//Change
 				coap_obs_request_registration(&pair->destip, UIP_HTONS(COAP_DEFAULT_PORT), pair->dsturlChange,
-						notification_callback, pair->deviceptr);
+						change_notificationcb, pair->deviceptr);
 			}
+
+			this->setEventhandlers(this, pair->triggers);
 		}
 		else {
 			do {
@@ -217,3 +315,4 @@ PROCESS_THREAD(susensors_process, ev, data)
 	PROCESS_END();
 }
 /*---------------------------------------------------------------------------*/
+

@@ -48,6 +48,8 @@ struct susensors_sensor relay;
 static struct relayRuntime relayruntime[2];
 int noofrelays = 0;
 
+typedef enum su_basic_actions su_relay_actions;
+
 struct resourceconf relayconfigs = {
 		.resolution = 1,
 		.version = 1,
@@ -140,17 +142,17 @@ static int set(struct susensors_sensor* this, int type, void* data)
 {
 	int enabled = ((struct relayRuntime*)this->data.runtime)->enabled;
 	int ret = 1;
-	if((enum suactions)type == setRelay_off && enabled){
+	if((su_relay_actions)type == setOff && enabled){
 		if((ret = relay_off(this)) == 0){	//The relay changed from 1 -> 0
 			setEventU8(this, -1, 1);
 		}
 	}
-	else if((enum suactions)type == setRelay_on && enabled){
+	else if((su_relay_actions)type == setOn && enabled){
 		if((ret = relay_on(this)) == 0){	//The relay changed from 0 -> 1
 			setEventU8(this, 1, 1);
 		}
 	}
-	else if((enum suactions)type == setRelay_toggle && enabled){
+	else if((su_relay_actions)type == setToggle && enabled){
 		if(GPIO_READ_PIN(RELAY_PORT_BASE, RELAY_PIN_MASK) > 0){
 			if((ret = relay_off(this)) == 0){
 				setEventU8(this, -1, 1);
@@ -199,13 +201,13 @@ static int eventHandler(struct susensors_sensor* this, int len, uint8_t* payload
 	if(cp_decodeObject(payload, &eventval, &parselen) != 0) return 2;
 
 	if(event & AboveEventActive){
-		this->value(this, setRelay_on, NULL);
+		this->value(this, setOn, NULL);
 	}
 	else if(event & BelowEventActive){
-		this->value(this, setRelay_off, NULL);
+		this->value(this, setOff, NULL);
 	}
 	else if(event & ChangeEventActive){
-		this->value(this, setRelay_toggle, NULL);
+		this->value(this, setToggle, NULL);
 	}
 
 	return 0;

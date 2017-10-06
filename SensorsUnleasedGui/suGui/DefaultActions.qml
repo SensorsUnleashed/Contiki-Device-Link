@@ -4,11 +4,11 @@ ListModel{
     ListElement {
         actions: [
             ListElement {
-                name: "Turn ON"
+                name: "Set ON"
                 actionenum: 0;
             },
             ListElement {
-                name: "Turn OFF"
+                name: "Set OFF"
                 actionenum: 1;
             },
             ListElement {

@@ -38,6 +38,8 @@
 #include "susensorcommon.h"
 #include "board.h"
 
+typedef enum su_basic_actions su_led_actions;
+
 struct resourceconf ledindicatorconfig = {
 		.resolution = 1,
 		.version = 1,
@@ -130,6 +132,50 @@ static int eventHandler(struct susensors_sensor* this, int len, uint8_t* payload
 	return 0;
 }
 
+static int  setOnhandler(struct susensors_sensor* this, int len, const uint8_t* payload){
+
+	return 0;
+}
+static int  setOffhandler(struct susensors_sensor* this, int len, const uint8_t* payload){
+	return 0;
+}
+static int  setChangehandler(struct susensors_sensor* this, int len, const uint8_t* payload){
+	this->value(this, setToggle, NULL);
+	return 0;
+}
+
+
+/* Return the function to call when a specified trigger is in use */
+static void* getFunctionPtr(su_led_actions trig){
+
+	if(trig >= setOn && trig <= setToggle){
+		switch(trig){
+		case setOn:
+			return setOnhandler;
+			break;
+		case setOff:
+			return setOffhandler;
+			break;
+		case setToggle:
+			return setChangehandler;
+			break;
+		default:
+			return NULL;
+		}
+	}
+
+	return NULL;
+}
+
+static int setEventhandlers(struct susensors_sensor* this, int8_t triggers[]){
+
+	this->aboveEventhandler = getFunctionPtr(triggers[aboveEvent]);
+	this->belowEventhandler = getFunctionPtr(triggers[belowEvent]);
+	this->changeEventhandler = getFunctionPtr(triggers[changeEvent]);
+
+	return 0;
+}
+
 susensors_sensor_t* addASULedIndicator(const char* name, struct resourceconf* config, struct ledRuntime* extra){
 	susensors_sensor_t d;
 	d.type = (char*)name;
@@ -138,6 +184,12 @@ susensors_sensor_t* addASULedIndicator(const char* name, struct resourceconf* co
 	d.configure = configure;
 	d.eventhandler = eventHandler;
 	d.suconfig = suconfig;
+
+	d.aboveEventhandler = NULL;
+	d.belowEventhandler = NULL;
+	d.changeEventhandler = NULL;
+	d.setEventhandlers = setEventhandlers;
+
 	d.data.config = config;
 	d.data.runtime = extra;
 	d.data.runtime = (void*) extra;
