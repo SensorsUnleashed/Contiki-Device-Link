@@ -1,5 +1,5 @@
 eclipse.preferences.version=1
-indexer/indexAllFiles=true
+indexer/indexAllFiles=false
 indexer/indexAllHeaderVersions=false
 indexer/indexAllVersionsSpecificHeaders=
 indexer/indexOnOpen=false
@@ -12,4 +12,4 @@ indexer/skipIncludedFilesLargerThanMB=16
 indexer/skipMacroReferences=false
 indexer/skipReferences=false
 indexer/skipTypeReferences=false
-indexer/useHeuristicIncludeResolution=false
+indexer/useHeuristicIncludeResolution=true

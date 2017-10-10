@@ -58,9 +58,9 @@ typedef enum su_basic_actions su_button_actions;
 struct resourceconf pushbuttonconfig = {
 		.resolution = 1,
 		.version = 1,
-		.flags = METHOD_GET | IS_OBSERVABLE | HAS_SUB_RESOURCES,
+		.flags = METHOD_GET | METHOD_PUT | IS_OBSERVABLE | HAS_SUB_RESOURCES,
 		.max_pollinterval = 2,
-		.eventsActive = ChangeEventActive,
+		.eventsActive = BelowEventActive,
 		.AboveEventAt = {
 				.type = CMP_TYPE_UINT8,
 				.as.u8 = 1
@@ -93,6 +93,7 @@ struct resourceconf pushbuttonconfig = {
 #define BUTTON_USER_PIN_MASK   GPIO_PIN_MASK(BUTTON_USER_PIN)
 /*---------------------------------------------------------------------------*/
 #define DEBOUNCE_DURATION (CLOCK_SECOND >> 4)
+#define BUTTON_PRESS_EVENT_INTERVAL	(CLOCK_SECOND)	//Long press
 
 static struct timer debouncetimer;
 /*---------------------------------------------------------------------------*/
@@ -102,6 +103,9 @@ static uint8_t press_event_counter;
 static struct susensors_sensor* thisptr;
 process_event_t button_press_duration_exceeded;
 /*---------------------------------------------------------------------------*/
+
+//Long press event - postes a new event every second.
+//Use this for reset, reconnect etc..
 static void
 duration_exceeded_callback(void *data)
 {
@@ -125,7 +129,7 @@ static int get(struct susensors_sensor* this, int type, void* data)
   case BUTTON_SENSOR_VALUE_TYPE_LEVEL:
     return GPIO_READ_PIN(BUTTON_USER_PORT_BASE, BUTTON_USER_PIN_MASK);
   case BUTTON_SENSOR_VALUE_TYPE_PRESS_DURATION:
-    return press_event_counter;
+    return 0; //press_event_counter;
   }
 
   return 0;
@@ -152,12 +156,17 @@ btn_callback(uint8_t port, uint8_t pin)
     if(get(thisptr, BUTTON_SENSOR_VALUE_TYPE_LEVEL, NULL) == BUTTON_SENSOR_PRESSED_LEVEL) {
       ctimer_set(&press_counter, press_duration, duration_exceeded_callback,
                  NULL);
+      if(((struct resourceconf*)(thisptr->data.config))->eventsActive & BelowEventActive)
+    	  susensors_changed(thisptr, SUSENSORS_BELOW_EVENT);
     } else {
       ctimer_stop(&press_counter);
+      if(((struct resourceconf*)(thisptr->data.config))->eventsActive & AboveEventActive)
+    	  susensors_changed(thisptr, SUSENSORS_ABOVE_EVENT);
     }
   }
 
-  susensors_changed(thisptr, SUSENSORS_CHANGE_EVENT);
+  if(((struct resourceconf*)(thisptr->data.config))->eventsActive & ChangeEventActive)
+	  susensors_changed(thisptr, SUSENSORS_CHANGE_EVENT);
 }
 /*---------------------------------------------------------------------------*/
 /**
@@ -220,6 +229,13 @@ susensors_sensor_t* addASUButtonSensor(const char* name, struct resourceconf* co
 	d.eventhandler = NULL;
 	d.suconfig = suconfig;
 	d.data.config = config;
+
+	d.aboveEventhandler = NULL;
+	d.belowEventhandler = NULL;
+	d.changeEventhandler = NULL;
+	d.setEventhandlers = NULL;
+
+	d.configure(&d, BUTTON_SENSOR_CONFIG_TYPE_INTERVAL, BUTTON_PRESS_EVENT_INTERVAL);
 
 	return addSUDevices(&d);
 }

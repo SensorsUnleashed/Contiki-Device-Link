@@ -120,9 +120,6 @@ static void notification_callback(coap_observee_t *obs, void *notification,
 	  int len = 0;
 	  const uint8_t *payload = NULL;
 
-	  susensors_sensor_t* this = (susensors_sensor_t*)obs->data;
-
-
 	  printf("Notification handler\n");
 	  printf("Observee URI: %s\n", obs->url);
 	  if(notification) {
@@ -131,29 +128,6 @@ static void notification_callback(coap_observee_t *obs, void *notification,
 	  switch(flag) {
 	  case NOTIFICATION_OK:
 	    printf("NOTIFICATION OK: %*s\n", len, (char *)payload);
-//	    int url_len = strlen(obs->url);
-//	    int elen = strlen(strChange);	//The longest event name
-//	    if(url_len > elen){
-//	    	if(strncmp(obs->url+url_len-elen, strChange, elen) == 0){	//Was it the change event
-//	    		if(this->changeEventhandler != 0){
-//	    			this->changeEventhandler(this, len, payload);
-//	    		}
-//	    	}
-//	    	else{
-//	    		elen = strlen(strAbove);	//Same size for both above and below
-//		    	if(strncmp(obs->url+url_len-elen, strAbove, elen) == 0){	//Was it the change event
-//		    		if(this->aboveEventhandler != 0){
-//		    			this->aboveEventhandler(this, len, payload);
-//		    		}
-//		    	}
-//		    	else if(strncmp(obs->url+url_len-elen, strAbove, elen) == 0){	//Was it the change event
-//		    		if(this->belowEventhandler != 0){
-//		    			this->belowEventhandler(this, len, payload);
-//		    		}
-//		    	}
-//	    	}
-//	    }
-
 	    break;
 	  case OBSERVE_OK: /* server accepeted observation request */
 	    printf("OBSERVE_OK: %*s\n", len, (char *)payload);
@@ -243,7 +217,9 @@ static void change_notificationcb(coap_observee_t *obs, void *notification,
 	}
 }
 
+void requestRegistration(joinpair_t* pair, susensors_sensor_t* this){
 
+}
 
 /*---------------------------------------------------------------------------*/
 PROCESS_THREAD(susensors_process, ev, data)
@@ -284,8 +260,9 @@ PROCESS_THREAD(susensors_process, ev, data)
 				coap_obs_request_registration(&pair->destip, UIP_HTONS(COAP_DEFAULT_PORT), pair->dsturlChange,
 						change_notificationcb, pair->deviceptr);
 			}
-
-			this->setEventhandlers(this, pair->triggers);
+			if(this->setEventhandlers != NULL){
+				this->setEventhandlers(this, pair->triggers);
+			}
 		}
 		else {
 			do {

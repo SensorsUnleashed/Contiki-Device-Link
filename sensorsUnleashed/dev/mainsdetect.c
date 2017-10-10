@@ -193,6 +193,11 @@ susensors_sensor_t* addASUMainsDetector(const char* name, struct resourceconf* c
 	d.suconfig = suconfig;
 	d.data.config = config;
 
+	d.aboveEventhandler = NULL;
+	d.belowEventhandler = NULL;
+	d.changeEventhandler = NULL;
+	d.setEventhandlers = NULL;
+
 	mainsdetectruntime[0].enabled = 0;
 	mainsdetectruntime[0].hasEvent = 0,
 	mainsdetectruntime[0].LastEventValue.type = CMP_TYPE_UINT8;

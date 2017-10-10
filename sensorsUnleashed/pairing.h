@@ -42,7 +42,7 @@
 #include "contiki.h"
 #include "mmem.h"
 #include "net/ip/uiplib.h"
-#include "uartsensors.h"
+//#include "uartsensors.h"
 #include "lib/list.h"
 #include "lib/susensors.h"
 
@@ -71,8 +71,8 @@ typedef struct joinpair_s joinpair_t;
 uint8_t parseMessage(joinpair_t* pair);
 
 list_t pairing_get_pairs(void);
-joinpair_t* getUartSensorPair(uartsensors_device_t* p);
-void activateUartSensorPairing(uartsensors_device_t* p);
+//joinpair_t* getUartSensorPair(uartsensors_device_t* p);
+//void activateUartSensorPairing(uartsensors_device_t* p);
 void activateSUSensorPairing(susensors_sensor_t* p);
 
 uint8_t pairing_assembleMessage(const uint8_t* data, uint32_t len, uint32_t num);

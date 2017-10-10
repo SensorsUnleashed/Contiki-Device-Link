@@ -218,6 +218,8 @@ main(void)
   energest_init();
   ENERGEST_ON(ENERGEST_TYPE_CPU);
 
+  cfs_coffee_format();
+
   autostart_start(autostart_processes);
 
   //watchdog_start();

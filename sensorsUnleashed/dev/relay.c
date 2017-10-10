@@ -213,6 +213,51 @@ static int eventHandler(struct susensors_sensor* this, int len, uint8_t* payload
 	return 0;
 }
 
+static int  setOnhandler(struct susensors_sensor* this, int len, const uint8_t* payload){
+	this->value(this, setOn, NULL);
+	return 0;
+}
+static int  setOffhandler(struct susensors_sensor* this, int len, const uint8_t* payload){
+	this->value(this, setOff, NULL);
+	return 0;
+}
+static int  setChangehandler(struct susensors_sensor* this, int len, const uint8_t* payload){
+	this->value(this, setToggle, NULL);
+	return 0;
+}
+
+
+/* Return the function to call when a specified trigger is in use */
+static void* getFunctionPtr(su_relay_actions trig){
+
+	if(trig >= setOn && trig <= setToggle){
+		switch(trig){
+		case setOn:
+			return setOnhandler;
+			break;
+		case setOff:
+			return setOffhandler;
+			break;
+		case setToggle:
+			return setChangehandler;
+			break;
+		default:
+			return NULL;
+		}
+	}
+
+	return NULL;
+}
+
+static int setEventhandlers(struct susensors_sensor* this, int8_t triggers[]){
+
+	this->aboveEventhandler = getFunctionPtr(triggers[aboveEvent]);
+	this->belowEventhandler = getFunctionPtr(triggers[belowEvent]);
+	this->changeEventhandler = getFunctionPtr(triggers[changeEvent]);
+
+	return 0;
+}
+
 susensors_sensor_t* addASURelay(const char* name, struct resourceconf* config){
 	susensors_sensor_t d;
 	d.type = (char*)name;
@@ -222,6 +267,11 @@ susensors_sensor_t* addASURelay(const char* name, struct resourceconf* config){
 	d.eventhandler = eventHandler;
 	d.suconfig = suconfig;
 	d.data.config = config;
+
+	d.aboveEventhandler = NULL;
+	d.belowEventhandler = NULL;
+	d.changeEventhandler = NULL;
+	d.setEventhandlers = setEventhandlers;
 
 	relayruntime[noofrelays].enabled = 0;
 	relayruntime[noofrelays].hasEvent = 0,

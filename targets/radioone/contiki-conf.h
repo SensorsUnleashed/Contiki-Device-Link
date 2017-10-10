@@ -73,6 +73,17 @@ typedef uint32_t rtimer_clock_t;
 #define SYS_CTRL_CONF_OSC32K_USE_XTAL   1 /**< Use the on-board 32.768-kHz crystal */
 #endif
 /** @} */
+
+/**
+ * \name CFS configuration
+ *
+ * @{
+ */
+#ifndef COFFEE_CONF_SIZE
+#define COFFEE_CONF_SIZE            (4 * COFFEE_SECTOR_SIZE)
+#endif
+/** @} */
+
 /*---------------------------------------------------------------------------*/
 /**
  * \name Watchdog Timer configuration

@@ -35,7 +35,7 @@
 #include <QObject>
 
 #include <QHostAddress>
-#include "../../apps/uartsensors/uart_protocolhandler.h"
+#include "../../sensorsUnleashed/lib/cmp_helpers.h"
 #include "wsn.h"
 #include "pairlist.h"
 #include "sensorstore.h"

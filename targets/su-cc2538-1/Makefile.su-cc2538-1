@@ -22,6 +22,8 @@ ifndef SMALL
   SMALL = 1
 endif
 
+CFLAGS += -g -O0 -gdwarf-2
+
 ### Define the CPU directory
 CONTIKI_CPU=$(CONTIKI)/cpu/cc2538
 include $(CONTIKI_CPU)/Makefile.cc2538

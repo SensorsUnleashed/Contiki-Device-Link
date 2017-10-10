@@ -40,7 +40,8 @@
 
 #include "contiki.h"
 #include "cfs/cfs.h"
-#include "../apps/uartsensors/cmp.h"
+#include "cmp.h"
+#include "cmp_helpers.h"
 #include <string.h>
 #include <stdio.h>
 #include "net/ip/uip.h"
@@ -382,8 +383,8 @@ void restore_SensorPairs(susensors_sensor_t* s){
 
 	struct file_s read;
 	list_t pairings_list = s->pairs;
-	char filename[30];
-	memset(filename, 0, 30);
+	char filename[40];
+	memset(filename, 0, 40);
 	sprintf(filename, "pairs_%s", s->type);
 
 	read.fd = cfs_open(filename, CFS_READ);
@@ -402,6 +403,9 @@ void restore_SensorPairs(susensors_sensor_t* s){
 			PRINTF("SrcUri: %s -> DstUri: %s\n", (char*)MMEM_PTR(&pair->srcurl), (char*)MMEM_PTR(&pair->dsturl));
 			pair->deviceptr = s;
 			list_add(pairings_list, pair);
+
+			//Signal to the susensor class, that a new pair/binding is ready.
+			process_post(&susensors_process, susensors_pair, pair);
 		}
 		else{
 			memb_free(&pairings, pair);

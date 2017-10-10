@@ -86,7 +86,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="contiki/doc|contiki/apps/uartsensor|uartsensors|dev|lib" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="contiki/examples|contiki/doc|contiki/apps/uartsensor|uartsensors|dev|lib" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>
@@ -145,7 +145,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="contiki/doc|contiki/apps/uartsensor|uartsensors|dev|lib|sensorsUnleashed/dev|sensorsUnleashed/lib" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="contiki/examples|contiki/doc|contiki/apps/uartsensor|uartsensors|dev|lib|sensorsUnleashed/dev|sensorsUnleashed/lib" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="sensorsUnleashed/dev"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="sensorsUnleashed/lib"/>
 					</sourceEntries>
@@ -206,7 +206,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="contiki/doc|contiki/apps/uartsensor|uartsensors|dev|lib|sensorsUnleashed/dev|sensorsUnleashed/lib" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="contiki/examples|contiki/doc|contiki/apps/uartsensor|uartsensors|dev|lib|sensorsUnleashed/dev|sensorsUnleashed/lib" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="sensorsUnleashed/dev"/>
 						<entry flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name="sensorsUnleashed/lib"/>
 					</sourceEntries>
@@ -248,7 +248,6 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/sensorsUnleashed}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc2538/usb}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc2538}&quot;"/>
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc2538/dev}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/core}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/targets/radioone/dev}&quot;"/>
@@ -257,9 +256,13 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/apps/er-coap}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/apps/rest-engine}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc253x/usb/common}&quot;"/>
-									<listOptionValue builtIn="false" value="/SensorsUnleased_radio/contiki/cpu/cc253x/usb/common/cdc-acm"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/core/lib}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/arm/common/CMSIS}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/core/cfs}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/sensorsUnleashed/dev}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/sensorsUnleashed/lib}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/sensorsUnleashed/resources}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/SensorsUnleased_radio/contiki/cpu/cc253x/usb/common/cdc-acm}&quot;"/>
 								</option>
 								<option id="gnu.c.compiler.option.preprocessor.def.symbols.416261559" name="Defined symbols (-D)" superClass="gnu.c.compiler.option.preprocessor.def.symbols" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="AUTOSTART_ENABLE=1"/>
@@ -292,7 +295,7 @@
 						</toolChain>
 					</folderInfo>
 					<sourceEntries>
-						<entry excluding="contiki/doc|contiki/apps/uartsensor|uartsensors|dev|lib" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
+						<entry excluding="contiki/examples|contiki/doc|contiki/apps/uartsensor|uartsensors|dev|lib" flags="VALUE_WORKSPACE_PATH|RESOLVED" kind="sourcePath" name=""/>
 					</sourceEntries>
 				</configuration>
 			</storageModule>

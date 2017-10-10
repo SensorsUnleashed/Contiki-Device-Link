@@ -39,7 +39,7 @@
 #include "pulsesensor.h"
 #include "contiki.h"
 
-#include "susensors.h"
+#include "lib/susensors.h"
 #include "dev/sys-ctrl.h"
 #include "dev/ioc.h"
 #include "../../apps/uartsensors/uart_protocolhandler.h"
@@ -222,6 +222,11 @@ susensors_sensor_t* addASUPulseInputRelay(const char* name, struct resourceconf*
 	d.eventhandler = eventHandler;
 	d.suconfig = suconfig;
 	d.data.config = config;
+
+	d.aboveEventhandler = NULL;
+	d.belowEventhandler = NULL;
+	d.changeEventhandler = NULL;
+	d.setEventhandlers = NULL;
 
 	pulseinputruntime[0].enabled = 0;
 	pulseinputruntime[0].hasEvent = 0,

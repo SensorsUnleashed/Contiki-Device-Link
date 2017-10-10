@@ -30,7 +30,7 @@
  * This file is part of the Sensors Unleashed project
  *******************************************************************************/
 #include "sensorsunleashed.h"
-#include "../../apps/uartsensors/uart_protocolhandler.h"
+#include "../../sensorsUnleashed/lib/cmp_helpers.h"
 
 #include "helper.h"
 

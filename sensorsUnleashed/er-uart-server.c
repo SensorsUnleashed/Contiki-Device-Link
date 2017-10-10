@@ -42,7 +42,6 @@
 #include "dev/ledindicator.h"
 #include "dev/mainsdetect.h"
 #include "../sensorsUnleashed/pairing.h"
-#include "resources/res-uartsensor.h"
 #include "resources/res-susensors.h"
 #include "dev/susensorcommon.h"
 
@@ -154,6 +153,15 @@ PROCESS_THREAD(er_uart_server, ev, data)
 
 		if(ev == sensors_event){	//Button was pressed
 			PRINTF("Button press\n");
+		}
+		else if(ev == button_press_duration_exceeded){
+			if(*((uint8_t*)data) == 1){
+				PRINTF("Button long-press - 1 sec \n");
+			}
+			else if(*((uint8_t*)data) == 5){
+				PRINTF("Button long-press - 5 sec \n");
+			}
+
 		}
 	}
 	PROCESS_END();

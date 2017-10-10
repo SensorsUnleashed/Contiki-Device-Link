@@ -133,10 +133,11 @@ static int eventHandler(struct susensors_sensor* this, int len, uint8_t* payload
 }
 
 static int  setOnhandler(struct susensors_sensor* this, int len, const uint8_t* payload){
-
+	this->value(this, setOn, NULL);
 	return 0;
 }
 static int  setOffhandler(struct susensors_sensor* this, int len, const uint8_t* payload){
+	this->value(this, setOff, NULL);
 	return 0;
 }
 static int  setChangehandler(struct susensors_sensor* this, int len, const uint8_t* payload){

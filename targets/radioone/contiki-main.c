@@ -222,9 +222,7 @@ main(void)
 
   adc_init();
 
-  //process_start(&sensors_process, NULL);
-  //SENSORS_ACTIVATE(button_sensor);
-
+  //cfs_coffee_format();
   energest_init();
   ENERGEST_ON(ENERGEST_TYPE_CPU);
 

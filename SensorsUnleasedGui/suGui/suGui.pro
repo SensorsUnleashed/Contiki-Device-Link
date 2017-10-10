@@ -8,9 +8,9 @@ SOURCES += main.cpp \
     coaphandler.cpp \
     sensorsunleashed.cpp \
     database.cpp \
-    ../../apps/uartsensors/cmp.c \
+    ../../sensorsUnleashed/lib/cmp.c \
     ../../contiki/core/lib/crc16.c \
-    ../../apps/uartsensors/uart_protocolhandler.c \
+    ../../sensorsUnleashed/lib/cmp_helpers.c \
     node.cpp \
     wsn.cpp \
     socket.cpp \
@@ -46,7 +46,7 @@ HEADERS += \
     sensorsunleashed.h \
     cantcoap/sysdep.h \
     database.h \
-    ../../apps/uartsensors/cmp.h \
+    ../../sensorsUnleashed/lib/cmp.h \
     ../../contiki/core/lib/crc16.h \
     node.h \
     wsn.h \

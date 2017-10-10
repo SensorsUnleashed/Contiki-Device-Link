@@ -41,7 +41,7 @@ void powerrelay::toggleRelay(){
     const char* uristring = uri.toLatin1().data();
     CoapPDU *pdu = new CoapPDU();
     pdu->setURI((char*)uristring, strlen(uristring));
-    pdu->addURIQuery((char*)"setCommand=3");
+    pdu->addURIQuery((char*)"setCommand=2");
     put_request(pdu, req_setCommand, 0);
 }
 
@@ -49,7 +49,7 @@ void powerrelay::setOn(){
     const char* uristring = uri.toLatin1().data();
     CoapPDU *pdu = new CoapPDU();
     pdu->setURI((char*)uristring, strlen(uristring));
-    pdu->addURIQuery((char*)"setCommand=2");
+    pdu->addURIQuery((char*)"setCommand=0");
     put_request(pdu, req_setCommand, 0);
 }
 
