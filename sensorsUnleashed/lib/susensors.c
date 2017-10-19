@@ -101,56 +101,56 @@ susensors_find(const char *prefix, unsigned short len)
 	for(i = susensors_first(); i; i = susensors_next(i)) {
 		uint8_t su_url_len = strlen(i->type);
 
-	    if((su_url_len == len
-	        || (len > su_url_len
-	            && (((struct resourceconf*)(i->data.config))->flags & HAS_SUB_RESOURCES)
-	            && prefix[su_url_len] == '/'))
-	       && strncmp(prefix, i->type, su_url_len-1) == 0) {
+		if((su_url_len == len
+				|| (len > su_url_len
+						&& (((struct resourceconf*)(i->data.config))->flags & HAS_SUB_RESOURCES)
+						&& prefix[su_url_len] == '/'))
+				&& strncmp(prefix, i->type, su_url_len-1) == 0) {
 
-	    	return i;
+			return i;
 
-	    }
+		}
 	}
 	return NULL;
 }
 
 static void notification_callback(coap_observee_t *obs, void *notification,
-                      coap_notification_flag_t flag){
+		coap_notification_flag_t flag){
 
-	  int len = 0;
-	  const uint8_t *payload = NULL;
+	int len = 0;
+	const uint8_t *payload = NULL;
 
-	  printf("Notification handler\n");
-	  printf("Observee URI: %s\n", obs->url);
-	  if(notification) {
-	    len = coap_get_payload(notification, &payload);
-	  }
-	  switch(flag) {
-	  case NOTIFICATION_OK:
-	    printf("NOTIFICATION OK: %*s\n", len, (char *)payload);
-	    break;
-	  case OBSERVE_OK: /* server accepeted observation request */
-	    printf("OBSERVE_OK: %*s\n", len, (char *)payload);
-	    break;
-	  case OBSERVE_NOT_SUPPORTED:
-	    printf("OBSERVE_NOT_SUPPORTED: %*s\n", len, (char *)payload);
-	    obs = NULL;
-	    break;
-	  case ERROR_RESPONSE_CODE:
-	    printf("ERROR_RESPONSE_CODE: %*s\n", len, (char *)payload);
-	    obs = NULL;
-	    break;
-	  case NO_REPLY_FROM_SERVER:
-	    printf("NO_REPLY_FROM_SERVER: "
-	           "removing observe registration with token %x%x\n",
-	           obs->token[0], obs->token[1]);
-	    obs = NULL;
-	    break;
-	  }
+	printf("Notification handler\n");
+	printf("Observee URI: %s\n", obs->url);
+	if(notification) {
+		len = coap_get_payload(notification, &payload);
+	}
+	switch(flag) {
+	case NOTIFICATION_OK:
+		printf("NOTIFICATION OK: %*s\n", len, (char *)payload);
+		break;
+	case OBSERVE_OK: /* server accepeted observation request */
+		printf("OBSERVE_OK: %*s\n", len, (char *)payload);
+		break;
+	case OBSERVE_NOT_SUPPORTED:
+		printf("OBSERVE_NOT_SUPPORTED: %*s\n", len, (char *)payload);
+		obs = NULL;
+		break;
+	case ERROR_RESPONSE_CODE:
+		printf("ERROR_RESPONSE_CODE: %*s\n", len, (char *)payload);
+		obs = NULL;
+		break;
+	case NO_REPLY_FROM_SERVER:
+		printf("NO_REPLY_FROM_SERVER: "
+				"removing observe registration with token %x%x\n",
+				obs->token[0], obs->token[1]);
+		obs = NULL;
+		break;
+	}
 }
 
 static void above_notificationcb(coap_observee_t *obs, void *notification,
-                      coap_notification_flag_t flag){
+		coap_notification_flag_t flag){
 
 	int len = 0;
 	const uint8_t *payload = NULL;
@@ -173,7 +173,7 @@ static void above_notificationcb(coap_observee_t *obs, void *notification,
 }
 
 static void below_notificationcb(coap_observee_t *obs, void *notification,
-                      coap_notification_flag_t flag){
+		coap_notification_flag_t flag){
 	int len = 0;
 	const uint8_t *payload = NULL;
 
@@ -196,7 +196,7 @@ static void below_notificationcb(coap_observee_t *obs, void *notification,
 }
 
 static void change_notificationcb(coap_observee_t *obs, void *notification,
-                      coap_notification_flag_t flag){
+		coap_notification_flag_t flag){
 	int len = 0;
 	const uint8_t *payload = NULL;
 
@@ -266,26 +266,26 @@ PROCESS_THREAD(susensors_process, ev, data)
 		}
 		else {
 			do {
-			events = 0;
-			for(d = susensors_first(); d; d = susensors_next(d)) {
-				resource_t* resource = d->data.resource;
-				if(resource != NULL){
-					if(d->event_flag & SUSENSORS_CHANGE_EVENT){
-						d->event_flag &= ~SUSENSORS_CHANGE_EVENT;
-						coap_notify_observers_sub(resource, strChange);
+				events = 0;
+				for(d = susensors_first(); d; d = susensors_next(d)) {
+					resource_t* resource = d->data.resource;
+					if(resource != NULL){
+						if(d->event_flag & SUSENSORS_CHANGE_EVENT){
+							d->event_flag &= ~SUSENSORS_CHANGE_EVENT;
+							coap_notify_observers_sub(resource, strChange);
+						}
+						if(d->event_flag & SUSENSORS_BELOW_EVENT){
+							d->event_flag &= ~SUSENSORS_BELOW_EVENT;
+							coap_notify_observers_sub(resource, strBelow);
+						}
+						if(d->event_flag & SUSENSORS_ABOVE_EVENT){
+							d->event_flag &= ~SUSENSORS_ABOVE_EVENT;
+							coap_notify_observers_sub(resource, strAbove);
+						}
 					}
-					if(d->event_flag & SUSENSORS_BELOW_EVENT){
-						d->event_flag &= ~SUSENSORS_BELOW_EVENT;
-						coap_notify_observers_sub(resource, strBelow);
-					}
-					if(d->event_flag & SUSENSORS_ABOVE_EVENT){
-						d->event_flag &= ~SUSENSORS_ABOVE_EVENT;
-						coap_notify_observers_sub(resource, strAbove);
-					}
+					d->event_flag = SUSENSORS_NO_EVENT;
 				}
-				d->event_flag = SUSENSORS_NO_EVENT;
-			}
-		} while(events);
+			} while(events);
 		}
 	}
 

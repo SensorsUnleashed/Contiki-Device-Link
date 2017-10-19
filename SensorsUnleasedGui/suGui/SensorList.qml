@@ -32,16 +32,14 @@ Item{
         model: sensorlistmodel;
 
         highlight: Rectangle {
-            color: "grey";
+            color: "lightgrey";
         }
         highlightFollowsCurrentItem: true;
         focus: true
 
-        delegate: Rectangle{
+        delegate: Item{
             width: parent.width;
             height: item.height;
-            //color: index % 2 == 0 ? suPalette.base : suPalette.alternateBase;
-            color: "transparent";
             Column{
                 id: item;
                 Text {
@@ -81,7 +79,6 @@ Item{
                 text: "CANCEL"
                 width: (parent.width - parent.spacing) / 2 -1;
                 onClicked: {
-                    //globalpopup.sourceComponent = undefined;
                     cancel();
                 }
             }

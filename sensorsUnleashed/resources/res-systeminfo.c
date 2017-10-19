@@ -35,30 +35,24 @@
  *  Created on: 07/10/2016
  *      Author: omn
  */
-#ifndef NATIVE
 #include <string.h>
 #include "contiki.h"
 #include "rest-engine.h"
 #include "dev/leds.h"
 #include "board.h"
 
+extern process_event_t systemchange;
 
 static void res_sysinfo_gethandler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
-
+static void res_sysinfo_puthandler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 /* A simple actuator example. Toggles the red led */
 RESOURCE(res_sysinfo,
-         "title=\"Radio info\";rt=\"Info\"",
-		 res_sysinfo_gethandler,
-         NULL,
-         NULL,
-         NULL);
+		"title=\"Nodeinfo\"",
+		res_sysinfo_gethandler,
+		NULL,
+		res_sysinfo_puthandler,
+		NULL);
 
-/*
- * Get the info about the radio:
- * 	IP address
- * 	rssi
- * 	MAC Address
- */
 static void
 res_sysinfo_gethandler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 	REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
@@ -66,9 +60,32 @@ res_sysinfo_gethandler(void *request, void *response, uint8_t *buffer, uint16_t 
 
 	int len = 0;
 	//Pay attention to the max payload length
-//	len = sprintf((char*)buffer, "Contiki version: %s\n", CONTIKI_VERSION_STRING);
+	//	len = sprintf((char*)buffer, "Contiki version: %s\n", CONTIKI_VERSION_STRING);
 	len += sprintf((char*)(buffer+len), "Board: %s\n", BOARD_STRING);
 	len += sprintf((char*)(buffer+len), "Version: 0.0.1\n");
 	REST.set_response_payload(response, buffer, len);
 }
-#endif
+
+#include "er-coap.h"
+static void res_sysinfo_puthandler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
+
+	const char *str = NULL;
+	unsigned int ct = -1;
+	REST.get_header_content_type(request, &ct);
+
+	if(ct != REST.type.APPLICATION_OCTET_STREAM) {
+		REST.set_response_status(response, REST.status.BAD_REQUEST);
+		const char *error_msg = "msgPacked, octet-stream only";
+		REST.set_response_payload(response, error_msg, strlen(error_msg));
+		return;
+	}
+
+	int len = REST.get_query(request, &str);
+	if(len > 0){
+		if(strncmp(str, "cfsformat", len) == 0){
+			process_post(PROCESS_BROADCAST, systemchange, NULL);
+
+			REST.set_response_status(response, REST.status.OK);
+		}
+	}
+}

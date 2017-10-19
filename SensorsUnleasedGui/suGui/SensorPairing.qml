@@ -37,21 +37,25 @@ ColumnLayout{
         Layout.fillWidth: true;
         Layout.fillHeight: true;
 
-        SensorListofPairs{
+        SensorListofPairs{  //Index 0
             anchors.fill: parent;
             onAddNew:{  //Show the edit event/actions page
                 pairingsstack.currentIndex = 1;
                 headerbutton.text = "Add a new sensor pair";
             }
             onSelect: {
-                eventsensorSetup.setSource("ActionsSetup.qml", {actionmodel: activeSensor.getActionModel(), dstsensor: data});
+                eventsensorSetup.setSource("ActionsSetup.qml",
+                                           {
+                                               actionmodel: activeSensor.getActionModel(),
+                                               dstsensor: data
+                                           });
                 headerbutton.text = data['url'] + " events trigger actions...";
                 pairingsstack.currentIndex = 2;
             }
-
+            onVisibleChanged: if(visible) refreshbutton.visible = true;
         }
 
-        SensorList{
+        SensorList{ //Index 1
             anchors.fill: parent;
             onCancel: {
                 pairingsstack.currentIndex = 0;
@@ -62,9 +66,11 @@ ColumnLayout{
                 headerbutton.text = data['url'] + " events trigger actions...";
                 pairingsstack.currentIndex = 2;
             }
+
+            onVisibleChanged: if(visible) refreshbutton.visible = false;
         }
 
-        Loader{
+        Loader{ //Index 2
             id: eventsensorSetup;
             anchors.fill: parent;
         }
@@ -78,6 +84,12 @@ ColumnLayout{
             onSubmit: {
                 pairingsstack.currentIndex = 0;
                 headerbutton.text = "PAIRINGS";
+            }
+        }
+
+        onVisibleChanged: {
+            if(visible){
+                currentIndex = 0;
             }
         }
     }

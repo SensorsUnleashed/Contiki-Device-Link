@@ -32,13 +32,14 @@
 #include "node.h"
 #include "socket.h"
 #include "helper.h"
+#include "sumessage.h"
 
 QVariant cmpobjectToVariant(cmp_object_t obj);
 int encode(char* buffer, cmp_object_t objTemplate, QVariant value);
 static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit);
 static uint32_t buf_writer(cmp_ctx_t* ctx, const void *data, uint32_t count);
 
-sensor::sensor(node* parent, QString uri, QVariantMap attributes, sensorstore *p) : wsn(parent->getAddress())
+sensor::sensor(node* parent, QString uri, QVariantMap attributes, sensorstore *p) : suinterface(parent->getAddress())
 {
     qDebug() << "Sensor: " << uri << " with attribute: " << attributes << " created";
     this->parent = parent;
@@ -64,7 +65,7 @@ sensor::sensor(node* parent, QString uri, QVariantMap attributes, sensorstore *p
 }
 
 /* We create a dummy sensor, used only if a pairing could not be resolved */
-sensor::sensor(QString ipaddr, QString uri): wsn(QHostAddress(ipaddr)){
+sensor::sensor(QString ipaddr, QString uri): suinterface(QHostAddress(ipaddr)){
     ip = QHostAddress(ipaddr);
     this->uri = uri;
     parent = 0;
@@ -110,7 +111,7 @@ QVariant sensor::getConfigValues(){
 }
 
 
-//Return index of the token, -1 if not found
+////Return index of the token, -1 if not found
 int findToken(uint16_t token, QVector<msgid> tokenlist){
     for(int i=0; i<tokenlist.count(); i++){
         if(tokenlist.at(i).number == token){
@@ -119,58 +120,6 @@ int findToken(uint16_t token, QVector<msgid> tokenlist){
     }
     return -1;
 }
-
-/******** Sensor requests ***************/
-
-uint16_t sensor::get_request(CoapPDU *pdu, enum request req, QByteArray payload){
-    msgid t;
-    t.req = req;
-    t.number = qrand();
-
-    pdu->setType(CoapPDU::COAP_CONFIRMABLE);
-    pdu->setCode(CoapPDU::COAP_GET);
-    pdu->setToken((uint8_t*)&t.number,2);
-
-    enum CoapPDU::ContentFormat ct = CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET;
-    pdu->addOption(CoapPDU::COAP_OPTION_CONTENT_FORMAT,1,(uint8_t*)&ct);
-    pdu->setMessageID(t.number);
-
-    token.append(t);
-
-
-    char tmp[30];
-    int len;
-    pdu->getURI(tmp,30, &len);
-
-    send(pdu, t.number, payload);
-
-    return t.number;
-}
-
-uint16_t sensor::put_request(CoapPDU *pdu, enum request req, QByteArray payload){
-    msgid t;
-    t.req = req;
-    t.number = qrand();
-
-    pdu->setType(CoapPDU::COAP_CONFIRMABLE);
-    pdu->setCode(CoapPDU::COAP_PUT);
-
-    //Set the token, if it is not set beforehand
-    if(pdu->getTokenLength() <= 0){
-        pdu->setToken((uint8_t*)&t.number,2);
-    }
-
-    enum CoapPDU::ContentFormat ct = CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET;
-    pdu->addOption(CoapPDU::COAP_OPTION_CONTENT_FORMAT,1,(uint8_t*)&ct);
-    pdu->setMessageID(t.number);
-
-    send(pdu, t.number, payload);
-
-    token.append(t);
-
-    return t.number;
-}
-
 
 void sensor::requestValue(){
     const char* uristring = uri.toLatin1().data();
@@ -280,7 +229,7 @@ void sensor::getpairingslist(){
     get_request(pdu, req_pairingslist);
 }
 
-uint16_t sensor::clearpairingslist(){
+QVariant sensor::clearpairingslist(){
     const char* uristring = uri.toLatin1().data();
     CoapPDU *pdu = new CoapPDU();
     pdu->setURI((char*)uristring, strlen(uristring));
@@ -412,7 +361,7 @@ void sensor::handleReturnCode(uint16_t token, CoapPDU::Code code){
 
     if(this->token.at(index).req == req_clearparings){
         if(code == CoapPDU::COAP_CHANGED){
-            pairings->removePairingsAck();
+            pairings->clear();
         }
     }
     else if(this->token.at(index).req == req_removepairingitems){
@@ -544,6 +493,7 @@ int sensor::parsePairList(cmp_ctx_t* cmp){
     QHostAddress ip;
     QByteArray url;
     uint16_t addr[8];
+    int8_t triggers[3];
     uint32_t size;
 
     if(!cmp_read_array(cmp, &size)) return 1;
@@ -553,21 +503,46 @@ int sensor::parsePairList(cmp_ctx_t* cmp){
     ip.setAddress((uint8_t*)&addr);
     pl["addr"] = ip.toString();
 
-    size = 30;
-    url.reserve(30);
-    if(!cmp_read_str(cmp, url.data(), &size)) return 3;
+    size = 40;
+    url.reserve(size);
+    if(!cmp_read_str(cmp, url.data(), &size)) return 4;
     url.resize(size);
     pl["dsturi"] = QString(url);
 
-    size = 30;
-    url.reserve(30);
-    if(!cmp_read_str(cmp, url.data(), &size)) return 4;
-    url.resize(size);
-    pl["srcuri"] = QString(url);
-    
     //Read the triggers in.
-    
-    
+    if(!cmp_read_array(cmp, &size)) return 2;
+    if(size != 3) return 3;
+    for(uint8_t i=0; i<size; i++){
+        if(!cmp_read_s8(cmp, &triggers[i])) return 3;
+    }
+
+    QVariantList triggerslist;
+    if(triggers[0] != -1){
+        QVariantMap event;
+        event["eventname"] = "Above event";
+        event["actionenum"] = triggers[0];
+        triggerslist.append(event);
+    }
+    if(triggers[1] != -1){
+        QVariantMap event;
+        event["eventname"] = "Below event";
+        event["actionenum"] = triggers[1];
+        triggerslist.append(event);
+    }
+    if(triggers[2] != -1){
+        QVariantMap event;
+        event["eventname"] = "Change event";
+        event["actionenum"] = triggers[2];
+        triggerslist.append(event);
+    }
+
+    pl["triggers"] = triggerslist;
+
+    size = 40;
+    url.reserve(size);
+    if(!cmp_read_str(cmp, url.data(), &size)) return 5;
+    url.resize(size);
+    pl["srcuri"] = QString(url); 
 
     pairings->append(pl);
     return 0;

@@ -7,7 +7,7 @@ RowLayout{
         text: qsTr("Toggle");
         width: 150;
         onClicked: {
-            activeSensor.toggleRelay();
+            activeSensor.setToggle();
         }
     }
     SUButton{

@@ -18,9 +18,10 @@ SOURCES += main.cpp \
     sensor.cpp \
     powerrelay.cpp \
     pulsecounter.cpp \
-    ledindicator.cpp \
     pairlist.cpp \
-    sensorstore.cpp
+    sensorstore.cpp \
+    sumessage.cpp \
+    suinterface.cpp
 
 RESOURCES += \
     pages.qrc \
@@ -54,7 +55,8 @@ HEADERS += \
     coapheaders.h \
     helper.h \
     pairlist.h \
-    sensorstore.h
+    sensorstore.h \
+    sumessage.h
 
 copydata.commands = $(COPY_DIR) $$PWD/Database/setup.db $$OUT_PWD/Database/setup.db
 first.depends = $(first) copydata

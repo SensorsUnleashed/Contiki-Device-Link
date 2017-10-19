@@ -46,8 +46,12 @@
 #include "dev/susensorcommon.h"
 
 #include "lib/sensors.h"
+#include "cfs-coffee-arch.h"
+#include "rpl.h"
 
 extern process_event_t sensors_event;
+process_event_t systemchange;
+
 
 #define DEBUG 1
 #if DEBUG
@@ -70,13 +74,35 @@ struct ledRuntime led_yellow = { LEDS_YELLOW };
  * Resources to be activated need to be imported through the extern keyword.
  * The build system automatically compiles the resources in the corresponding sub-directory.
  */
-//extern  resource_t  res_large_update, res_sysinfo;
+extern  resource_t  res_sysinfo;
 
 PROCESS(er_uart_server, "Erbium Uart Server");
 AUTOSTART_PROCESSES(&er_uart_server);
 
+void
+collect_common_net_print(void)
+{
+  rpl_dag_t *dag;
+  uip_ds6_route_t *r;
+
+  /* Let's suppose we have only one instance */
+  dag = rpl_get_any_dag();
+  if(dag->preferred_parent != NULL) {
+    PRINTF("Preferred parent: ");
+    PRINT6ADDR(rpl_get_parent_ipaddr(dag->preferred_parent));
+    PRINTF("\n");
+  }
+  for(r = uip_ds6_route_head();
+      r != NULL;
+      r = uip_ds6_route_next(r)) {
+    PRINT6ADDR(&r->ipaddr);
+  }
+  PRINTF("---\n");
+}
+
 PROCESS_THREAD(er_uart_server, ev, data)
 {
+	static struct etimer et;
 
 	PROCESS_BEGIN();
 
@@ -123,29 +149,27 @@ PROCESS_THREAD(er_uart_server, ev, data)
 		setResource(d, res_susensor_activate(d));
 	}
 
+	rest_activate_resource(&res_sysinfo, "su/nodeinfo");
+	systemchange = process_alloc_event();
+
+	etimer_set(&et, CLOCK_SECOND*10);
+	PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+
+
+	//Wait for the routing table to be ready
+	leds_on(LEDS_RED);
+	while(1){
+		etimer_set(&et, CLOCK_SECOND);
+		PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+		leds_toggle(LEDS_RED);
+
+		if(rpl_has_downward_route()){
+			break;
+		}
+	}
+
 	process_start(&susensors_process, NULL);
 
-#ifndef NATIVE
-	process_start(&sensors_process, NULL);
-	rest_activate_resource(&res_sysinfo, "SU/SystemInfo");
-#endif
-	//rest_activate_resource(&res_large_update, "large-update");
-
-	//Activate all attached sensors
-	//	SUSENSORS_ACTIVATE(pulse_sensor);
-	//	res_susensor_activate(&pulse_sensor);
-	//	activateSUSensorPairing(&pulse_sensor);
-
-	//	uartsensors_init();
-	//	while(1) {	//Wait until uartsensors has been initialized
-	//		PROCESS_WAIT_EVENT_UNTIL(ev == uartsensors_event);
-	//		if(data != NULL){
-	//			res_uartsensors_activate((uartsensors_device_t*)data);
-	//			activateUartSensorPairing((uartsensors_device_t*)data);
-	//		}
-	//		else
-	//			break;
-	//	}
 	leds_on(LEDS_RED);
 
 	while(1) {
@@ -157,11 +181,17 @@ PROCESS_THREAD(er_uart_server, ev, data)
 		else if(ev == button_press_duration_exceeded){
 			if(*((uint8_t*)data) == 1){
 				PRINTF("Button long-press - 1 sec \n");
+
+				collect_common_net_print();
+
 			}
 			else if(*((uint8_t*)data) == 5){
 				PRINTF("Button long-press - 5 sec \n");
 			}
 
+		}
+		else if(ev == systemchange){
+			cfs_coffee_format();
 		}
 	}
 	PROCESS_END();

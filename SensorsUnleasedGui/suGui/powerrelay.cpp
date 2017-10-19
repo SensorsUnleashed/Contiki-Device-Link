@@ -31,13 +31,13 @@
  *******************************************************************************/
 #include "node.h"
 
-powerrelay::powerrelay(node* parent, QString uri, QVariantMap attributes, sensorstore *p) :
+defaultdevice::defaultdevice(node* parent, QString uri, QVariantMap attributes, sensorstore *p) :
     sensor(parent, uri, attributes, p){
 
 }
 
 /* Move this to the relay class */
-void powerrelay::toggleRelay(){
+void defaultdevice::setToggle(){
     const char* uristring = uri.toLatin1().data();
     CoapPDU *pdu = new CoapPDU();
     pdu->setURI((char*)uristring, strlen(uristring));
@@ -45,7 +45,7 @@ void powerrelay::toggleRelay(){
     put_request(pdu, req_setCommand, 0);
 }
 
-void powerrelay::setOn(){
+void defaultdevice::setOn(){
     const char* uristring = uri.toLatin1().data();
     CoapPDU *pdu = new CoapPDU();
     pdu->setURI((char*)uristring, strlen(uristring));
@@ -53,7 +53,7 @@ void powerrelay::setOn(){
     put_request(pdu, req_setCommand, 0);
 }
 
-void powerrelay::setOff(){
+void defaultdevice::setOff(){
     const char* uristring = uri.toLatin1().data();
     CoapPDU *pdu = new CoapPDU();
     pdu->setURI((char*)uristring, strlen(uristring));

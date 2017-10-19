@@ -12,19 +12,103 @@ ApplicationWindow {
     }
 
     visible: true
-    width: 1024; //;Screen.width;
+    width: 768; //;Screen.width;
     height: 768; //Screen.height;
-    color: suPalette.dark;
-    title: qsTr("Sensors Unleased")
+    color: suPalette.window;
+    title: qsTr("Sensors Unleased Setup Tool")
 
-    SwipeView {
-        id: swipeView
-        anchors.fill: parent
+    property Component prevBottombar;
 
-        NodesPage{
+    function resetHeader(){
+        header.headerleft = frontheader_left;
+        header.headermid = frontheader_mid;
+        header.headerright = frontheader_right;
+    }
 
+    Item{
+        id: header;
+        anchors.top: parent.top;
+        anchors.right: parent.right;
+        anchors.left: parent.left;
+        anchors.margins: 10;
+        height: 50;
+
+        property Component headerleft: frontheader_left;
+        property Component headermid: frontheader_mid;
+        property Component headerright: frontheader_right;
+
+        Loader{
+            sourceComponent: header.headerleft;
+            anchors.left: parent.left;
+            anchors.verticalCenter: parent.verticalCenter;
         }
-        onWidthChanged: console.log("SwipeView width: " + width + " height: " + height);
-        onHeightChanged: console.log("SwipeView width: " + width + " height: " + height);
+        Loader{
+            sourceComponent: header.headermid;
+            anchors.horizontalCenter: parent.horizontalCenter;
+            anchors.verticalCenter: parent.verticalCenter;
+        }
+        Loader{
+            sourceComponent: header.headerright;
+            anchors.right: parent.right;
+            anchors.verticalCenter: parent.verticalCenter;
+        }
+    }
+
+    NodesPage{
+        anchors.top: header.bottom;
+        anchors.bottom: bottombar.top;
+        anchors.right: parent.right;
+        anchors.left: parent.left;
+        anchors.margins: 10;
+    }
+
+    Flow{
+        id:  bottombar;
+
+        anchors.bottom: parent.bottom;
+        anchors.right: parent.right;
+        anchors.left: parent.left;
+        height: 50;
+        anchors.margins: 10;
+        layoutDirection: Qt.RightToLeft;
+        spacing: 20;
+
+        SUButton{
+            id: backbutton;
+            property var command: null;
+            visible: false;
+            text: qsTr("Back");
+            onClicked:{
+                if(command !== null)
+                    command();
+            }
+        }
+    }
+
+
+    Component{
+        id: frontheader_left;
+        Label{
+            text: ""
+            font.pointSize: 18;
+        }
+    }
+
+    Component{
+        id: frontheader_mid;
+        Label{
+            text: "Sensors Unleashed"
+            font.pointSize: 18;
+            font.italic: true;
+            font.underline: true;
+        }
+    }
+
+    Component{
+        id: frontheader_right;
+        Label{
+            text: ""
+            font.pointSize: 18;
+        }
     }
 }

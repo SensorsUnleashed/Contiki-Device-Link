@@ -43,7 +43,7 @@ enum roles {
     nodename,
     nodeip,
     selected,
-    eventSetupQML,
+    eventSetup,
 };
 
 QHash<int, QByteArray> pairlist::roleNames() const{
@@ -52,7 +52,7 @@ QHash<int, QByteArray> pairlist::roleNames() const{
     rolelist.insert(nodename, QByteArray("nodename"));
     rolelist.insert(nodeip, QByteArray("nodeip"));
     rolelist.insert(selected, QByteArray("selected"));
-    rolelist.insert(eventSetupQML, QByteArray("eventSetupQML"));
+    rolelist.insert(eventSetup, QByteArray("eventSetup"));
     return rolelist;
 }
 
@@ -77,8 +77,8 @@ QVariant pairlist::data(const QModelIndex& index, int role) const{
     else if(role == selected){
         return pairs.at(index.row())->selected;
     }
-    else if(role == eventSetupQML){
-        return pairs.at(index.row())->eventSetupQMLlnk;
+    else if(role == eventSetup){
+        return pairs.at(index.row())->info["triggers"];
     }
 
     return QVariant();
@@ -143,7 +143,7 @@ void pairlist::append(QVariantMap dstinfo){
     p->dst = dst;
     p->id = rowCount(); //Workaround for now!! dstinfo["id"].toUInt();
     p->selected = 0;
-    p->eventSetupQMLlnk = "PowerRelayEventSetup.qml";
+    p->info = dstinfo;
 
     if(!pairs.contains(p)){
         beginInsertRows(QModelIndex(), rowCount(), rowCount());
@@ -161,7 +161,7 @@ void pairlist::removePairings(){
     }
 
     if(a.size() == rowCount()){ //Just wipe out the remote pairingsfile
-        lastcmd.number = owner->clearpairingslist();
+        lastcmd.number = owner->clearpairingslist().toUInt();
     }
     else{
         lastcmd.number = owner->removeItems(a);

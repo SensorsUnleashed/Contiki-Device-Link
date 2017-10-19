@@ -7,7 +7,7 @@ Item{
     function addNode(info){
         var nodeComponent = Qt.createComponent("Node.qml");
         if(nodeComponent.status === Component.Ready) {
-        var node = nodeComponent.createObject(layout);
+            var node = nodeComponent.createObject(layout);
             for(var i in info){
                 node.nodeinfo = info;
                 if(i === "name")
@@ -23,13 +23,9 @@ Item{
         }
     }
 
-    Rectangle {
+    StackLayout {
         id: nodepage;
-        color: suPalette.window;
-
-        width: parent.width -10;
-        height: parent.height -10;
-        anchors.centerIn: parent;
+        anchors.fill: parent;
 
         Flow {
             id: layout;
@@ -43,17 +39,33 @@ Item{
                 source: "NewNodeScreen.qml";
             }
         }
+
+        Loader{
+            id: popover;
+            anchors.fill: parent;
+
+            onStatusChanged: {
+                if(popover.status == Loader.Ready){
+                    nodepage.currentIndex = 1;
+                    backbutton.visible = true;
+                }
+                else if(popover.status == Loader.Null){
+                    nodepage.currentIndex = 0;
+                    backbutton.visible = false;
+                }
+            }
+        }
     }
 
-    DropShadow {
-        anchors.fill: nodepage
-        horizontalOffset: 3
-        verticalOffset: 3
-        radius: 8.0
-        samples: 17
-        color: suPalette.shadow;
-        source: nodepage;
-    }
+    //    DropShadow {
+    //        anchors.fill: nodepage
+    //        horizontalOffset: 3
+    //        verticalOffset: 3
+    //        radius: 8.0
+    //        samples: 17
+    //        color: suPalette.shadow;
+    //        source: nodepage;
+    //    }
 
     Connections {
         target: su
@@ -64,32 +76,6 @@ Item{
 
     Component.onCompleted: {
         su.initNodelist();
-    }
-
-    onWidthChanged: console.log("NodesPage width: " + width + " height: " + height);
-    onHeightChanged: console.log("NodesPage width: " + width + " height: " + height);
-
-    Loader{
-        id: popover;
-        width: parent.width - 10;
-        height: parent.height - 10;
-        anchors.centerIn: parent;
-
-        onStatusChanged: {
-            if(popover.status == Loader.Ready)
-                nodepage.enabled = false;
-            else if(popover.status == Loader.Null)
-                nodepage.enabled = true;
-        }
-    }
-
-    Loader{
-        id: globalpopup;
-
-        width: parent.width;
-        height: parent.height;
-
-        anchors.centerIn: parent;
     }
 }
 

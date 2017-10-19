@@ -142,7 +142,13 @@ Item{
     }
 
     Component.onCompleted: {
-        dstsensor['triggers'] = [];
+        if(dstsensor['triggers'] === undefined) dstsensor['triggers'] = [];
+
+        var len = dstsensor['triggers'].length;
+        for(var i=0; i<len; i++){
+            addAction();    //First add the actionmodel
+            //TODO: Set the comboboxes to the right Event/Action binding
+        }
     }
 }
 

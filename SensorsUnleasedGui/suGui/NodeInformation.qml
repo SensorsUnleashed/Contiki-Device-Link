@@ -1,8 +1,19 @@
 import QtQuick 2.3
 import QtQuick.Controls 2.0
 import QtQuick.Dialogs 1.2
+import QtQuick.Layouts 1.3
 
-Item{
+StackLayout{
+    function back(){
+        activeNode.stopListening();
+        popover.source = "";
+    }
+
+    function refresh(){
+        activeNode.requestLinks();
+        layout.children = "";
+    }
+
     function addSensor(info, source){
         var sensorComponent = Qt.createComponent("Sensor.qml");
         if(sensorComponent.status === Component.Ready) {
@@ -19,68 +30,18 @@ Item{
     property string nodeaddr: "";
     property var nodeinfo;  //As received from the database
 
-    Rectangle {
-        id: nodeinfoscreen;
-        color: suPalette.window;
-        border.color: suPalette.buttonText;
-        anchors.margins: 20;
+    //Rectangle {
+    id: nodeinfoscreen;
+    anchors.fill: parent;
+
+    ColumnLayout  { //Index 0
         anchors.fill: parent;
-
-        Column{
-            width: 400;
-            anchors.top: parent.top;
-            anchors.left: parent.left;
-            anchors.margins: 20;
-            spacing: 15;
-            Label{
-                id: namefield;
-                width: parent.width;
-                font.pointSize: 14;
-                text: nodeinfo["name"] + " ( " + nodeinfo["location"] + " )";
-            }
-
-            Label{
-                id: addressfield;
-                width: parent.width;
-                font.pointSize: 10;
-                font.italic: true;
-                text: nodeinfo["address"];
-            }
-
-            Row{
-                spacing: 30;
-
-                SUButton{
-                    text: qsTr("Refresh");
-                    width: 100;
-                    onClicked: {
-                        activeNode.requestLinks();
-                        layout.children = "";
-                    }
-                }
-
-                SUButton{
-                    text: qsTr("Back");
-                    onClicked:{
-                        activeNode.stopListening();
-                        popover.source = "";
-                    }
-                }
-            }
-
-            Flow {
-                id: layout;
-                spacing: 10
-            }
-
-            CoapCommStatus{
-                deviceptr: activeNode;
-            }
-        }
-
-        Component.onCompleted: {
-            //Get the info from the node class in c++
-            activeNode.getSensorslist();
+        spacing: 15;
+        Flow {
+            id: layout;
+            spacing: 10
+            Layout.fillHeight: true;
+            Layout.fillWidth: true;
         }
 
         Connections{
@@ -89,17 +50,83 @@ Item{
                 addSensor(sensorinfo, source);
             }
         }
+        onVisibleChanged: {
+            if(visible){
+                header.headerleft = nodesheaderleft;
+                header.headerright = nodesheaderright;
+                header.headermid = frontheader_mid;;
+            }
+        }
     }
 
-    Loader{
+    Loader{ //Index 1
         id: sensorpopover;
         anchors.fill: parent;
-        anchors.margins: 40;    //Rethink this - quick temp fix.
         onStatusChanged: {
             if(sensorpopover.status == Loader.Ready)
-                nodeinfoscreen.enabled = false;
-            else if(sensorpopover.status == Loader.Null)
-                nodeinfoscreen.enabled = true;
+                parent.currentIndex = 1;
+            else if(sensorpopover.status == Loader.Null){
+                parent.currentIndex = 0;
+                backbutton.command = back;
+                refreshbutton.command = refresh;
+            }
+        }
+    }
+
+    Component.onCompleted: {
+        //Get the info from the node class in c++
+        activeNode.getSensorslist();
+        backbutton.command = back;
+        refreshbutton.command = refresh;
+    }
+
+    SUButton{
+        id: refreshbutton;
+        parent: bottombar       
+        property var command: null;
+        visible: true;
+        text: qsTr("Refresh");
+        onClicked:{
+            if(command !== null)
+                command();
+        }
+    }
+
+    SUButton{
+        parent: bottombar
+        property var command: null;
+        visible: true;
+        text: qsTr("Format");
+        onClicked:{
+            activeNode.request_cfs_format();
+        }
+    }
+
+    Component{
+        id: nodesheaderleft;
+        ColumnLayout  {
+            spacing: 5;
+
+            Label{
+                id: namefield;
+                font.pointSize: 14;
+                text: nodeinfo["name"] + " ( " + nodeinfo["location"] + " )";
+            }
+
+            Label{
+                id: addressfield;
+                font.pointSize: 10;
+                font.italic: true;
+                text: nodeinfo["address"];
+            }
+        }
+    }
+
+    Component{
+        id: nodesheaderright
+
+        CoapCommStatus{
+            deviceptr: activeNode;
         }
     }
 }

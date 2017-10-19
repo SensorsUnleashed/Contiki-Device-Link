@@ -2,8 +2,8 @@
     <qresource prefix="/">
         <file>Sensor.qml</file>
         <file>SensorConfig.qml</file>
-        <file>PowerRelay.qml</file>
+        <file>DefaultDevice.qml</file>
         <file>PulseCounter.qml</file>
-        <file>LedIndicator.qml</file>
+        <file>DefaultSensor.qml</file>
     </qresource>
 </RCC>

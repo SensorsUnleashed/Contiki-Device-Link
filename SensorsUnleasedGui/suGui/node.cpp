@@ -117,16 +117,25 @@ QVariant node::parseAppLinkFormat(uint16_t token, QByteArray payload){
 }
 
 void node::addSensor(QString uri, QVariantMap attributes){
-    if(uri.compare(".well-known/core") != 0){
+    if(uri.compare("su/nodeinfo") == 0){
+        //This is a special device, we use to handle special commands, like
+        //Format the filesystem, factory reset, hw/sw version request. etc
+        nodesetup = new nodeinfo(this, uri, attributes);
+    }
+    else if(uri.compare(".well-known/core") != 0){
         sensor* s;
-        if(uri.compare("su/powerrelay") == 0){
-            s = new powerrelay(this, uri, attributes, allsensorslist);
-        }
-        else if(uri.compare("su/pulsecounter") == 0){
+        if(uri.compare("su/pulsecounter") == 0){
             s = new pulsecounter(this, uri, attributes, allsensorslist);
         }
-        else if(uri.compare("su/ledindicator") == 0){
-            s = new ledindicator(this, uri, attributes, allsensorslist);
+        else if(
+                uri.compare("su/powerrelay") == 0 ||
+                uri.compare("su/ledindicator") == 0 ||
+                uri.compare("su/led_yellow") == 0 ||
+                uri.compare("su/led_red") == 0 ||
+                uri.compare("su/led_orange") == 0 ||
+                uri.compare("su/led_green") == 0
+        ){
+            s = new defaultdevice(this, uri, attributes, allsensorslist);
         }
         else{
             s = new sensor(this, uri, attributes, allsensorslist);
@@ -145,3 +154,27 @@ QVariant node::parseAppOctetFormat(uint16_t token, QByteArray payload){
     qDebug() << "node: parseAppOctetFormat";
     return QVariant(0);
 }
+
+
+nodeinfo::nodeinfo(node *parent, QString uri, QVariantMap attributes) : suinterface(parent->getAddress()){
+
+    qDebug() << "Nodeinfo: " << uri << " with attribute: " << attributes << " created";
+
+    this->parent = parent;
+    this->uri = uri;
+}
+
+uint16_t nodeinfo::request_cfs_format(){
+
+    const char* uristring = uri.toLatin1().data();
+    CoapPDU *pdu = new CoapPDU();
+    pdu->setURI((char*)uristring, strlen(uristring));
+    pdu->addURIQuery((char*)"cfsformat");
+
+    return put_request(pdu, format_filesystem);
+}
+
+void nodeinfo::handleReturnCode(uint16_t token, CoapPDU::Code code){
+    qDebug() << "Got token again";
+}
+

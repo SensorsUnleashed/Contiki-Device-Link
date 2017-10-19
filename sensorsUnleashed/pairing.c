@@ -69,7 +69,7 @@ static bool file_reader(cmp_ctx_t *ctx, void *data, uint32_t limit);
 static uint32_t file_writer(cmp_ctx_t* ctx, const void *data, uint32_t count);
 
 #define BUFFERSIZE	300
-static uint8_t buffer[BUFFERSIZE] = { 0 };
+static uint8_t buffer[BUFFERSIZE] __attribute__ ((aligned (4))) = { 0 };
 static uint32_t bufsize = 0;
 
 MEMB(pairings, joinpair_t, 20);
@@ -179,9 +179,9 @@ uint8_t pairing_remove(susensors_sensor_t* s, uint32_t len, uint8_t* indexbuffer
 	uint8_t arr[indexlen];
 	for(int i=0; i<indexlen; i++){
 		if(!cmp_read_u8(&cmpindex, &arr[i])){
-				cfs_close(orig.fd);
-				cfs_close(temp.fd);
-				return 4;
+			cfs_close(orig.fd);
+			cfs_close(temp.fd);
+			return 4;
 		}
 	}
 	index = &arr[0];
@@ -212,8 +212,8 @@ uint8_t pairing_remove(susensors_sensor_t* s, uint32_t len, uint8_t* indexbuffer
 	orig.offset = 0;
 	if(orig.fd < 0) return 1;
 
-//	//Start writing from the end
-//	cfs_seek(temp.fd, 0, CFS_SEEK_SET);
+	//	//Start writing from the end
+	//	cfs_seek(temp.fd, 0, CFS_SEEK_SET);
 
 	//Next copy the temp data back to the original file
 	while(cmp_read_bin(&cmptmp, buffer, &bufsize)){
@@ -335,17 +335,13 @@ uint8_t pairing_handle(susensors_sensor_t* s){
 	joinpair_t* pair = NULL;
 
 	for(pair = (joinpair_t *)list_head(pairings_list); pair; pair = pair->next) {
-		if(pair->deviceptr == p->deviceptr){		//Is it the same sensor
-			if(pair->dsturl.size == p->dsturl.size){
-				if(strncmp((char*)MMEM_PTR(&pair->dsturl),(char*)MMEM_PTR(&p->dsturl), pair->dsturl.size) == 0){
-					memb_free(&pairings, p);
-					return 5;
-				}
+		if(pair->dsturl.size == p->dsturl.size){
+			if(strncmp((char*)MMEM_PTR(&pair->dsturl),(char*)MMEM_PTR(&p->dsturl), pair->dsturl.size) == 0){
+				memb_free(&pairings, p);
+				return 5;
 			}
 		}
 	}
-
-
 
 	//Add pair to the list of pairs
 	list_add(pairings_list, p);
@@ -354,6 +350,7 @@ uint8_t pairing_handle(susensors_sensor_t* s){
 	store_SensorPair(s, payload, bufsize);
 
 	PRINTF("Pair dst: %s, triggers: 0x%X\n", (char*)MMEM_PTR(&p->dsturl), (unsigned int)p->triggers);
+
 	//Signal to the susensor class, that a new pair/binding is ready.
 	process_post(&susensors_process, susensors_pair, p);
 

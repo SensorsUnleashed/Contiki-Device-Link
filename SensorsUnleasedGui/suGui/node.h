@@ -67,6 +67,9 @@ enum request{
 
     /* Internal gui events */
     observe_monitor,
+
+    /* System control */
+    format_filesystem,
 };
 
 struct msgid_s{
@@ -78,7 +81,24 @@ typedef struct msgid_s msgid;
 class pairlist;
 class sensorstore;
 class node;
-class sensor : public wsn
+
+class suinterface : public wsn
+{
+    Q_OBJECT
+public:
+    suinterface(QHostAddress addr);
+
+protected:
+    QVector<msgid> token;
+
+    uint16_t get_request(CoapPDU *pdu, enum request req, QByteArray payload=0);
+    uint16_t put_request(CoapPDU *pdu, enum request req, QByteArray payload=0);
+
+private:
+
+};
+
+class sensor : public suinterface
 {
     Q_OBJECT
 public:
@@ -108,7 +128,7 @@ public:
 
     /* Pair this sensor with another. */
     Q_INVOKABLE void getpairingslist();
-    Q_INVOKABLE uint16_t clearpairingslist();
+    Q_INVOKABLE QVariant clearpairingslist();
     Q_INVOKABLE uint16_t removeItems(QByteArray arr);
     Q_INVOKABLE QVariant pair(QVariant pairdata);
     int parsePairList(cmp_ctx_t* cmp);
@@ -122,16 +142,17 @@ public:
     void nodeNotResponding(uint16_t token);
     QVariant parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU::Code code);
 
-    virtual QVariant getClassType(){ return "SensorInformation.qml"; }
+    virtual QVariant getClassType(){ return "DefaultSensor.qml"; }
     Q_INVOKABLE virtual QVariant getActionModel() { return "DefaultActions.qml"; }
+
 protected:
     QString uri;
 
-    uint16_t put_request(CoapPDU *pdu, enum request req, QByteArray payload);
+    //uint16_t put_request(CoapPDU *pdu, enum request req, QByteArray payload);
 private:
     node* parent;
     QVariantMap sensorinfo;
-    QVector<msgid> token;
+//    QVector<msgid> token;
     pairlist* pairings;
     QHostAddress ip;
     uint8_t init;   //Flag to indicate if sensor config has been requested or not
@@ -144,7 +165,7 @@ private:
     cmp_object_t RangeMin;		//What is the minimum value this device can read
     cmp_object_t RangeMax;		//What is the maximum value this device can read
 
-    uint16_t get_request(CoapPDU *pdu, enum request req, QByteArray payload=0);
+    //uint16_t get_request(CoapPDU *pdu, enum request req, QByteArray payload=0);
 
 signals:
     void currentValueChanged(QVariant result);
@@ -176,32 +197,32 @@ private slots:
 
 };
 
-class powerrelay : public sensor {
+class defaultdevice : public sensor {
     Q_OBJECT
 public:
-    powerrelay(node* parent, QString uri, QVariantMap attributes, sensorstore *p);
-    QVariant getClassType(){ return "PowerRelay.qml"; }
+    defaultdevice(node *parent, QString uri, QVariantMap attributes, sensorstore *p);
 
-    Q_INVOKABLE void toggleRelay();
+    QVariant getClassType(){ return "DefaultDevice.qml"; }
+
+    Q_INVOKABLE void setToggle();
     Q_INVOKABLE void setOn();
     Q_INVOKABLE void setOff();
-
-private:
 };
 
-class ledindicator : public sensor {
+class nodeinfo : public suinterface
+{
     Q_OBJECT
 public:
-    ledindicator(node *parent, QString uri, QVariantMap attributes, sensorstore *p);
-    QVariant getClassType(){ return "LedIndicator.qml"; }
+    nodeinfo(node *parent, QString uri, QVariantMap attributes);
 
-    Q_INVOKABLE void toggleRedLED();
-    Q_INVOKABLE void toggleGreenLED();
-    Q_INVOKABLE void toggleOrangeLED();
-    Q_INVOKABLE void toggleYellowLED();
+    uint16_t request_cfs_format();
+
+    void handleReturnCode(uint16_t token, CoapPDU::Code code);
+
+private:
+    node* parent;
+    QString uri;
 };
-
-
 
 class node : public wsn
 {
@@ -215,8 +236,11 @@ public:
     QString getAddressStr() {return ip.toString(); }
     sensor* getSensor(QString addr);
 
+    Q_INVOKABLE nodeinfo* getNodesetupdevice(){ return nodesetup; }
     Q_INVOKABLE void getSensorslist();
     Q_INVOKABLE void requestLinks();
+
+    Q_INVOKABLE void request_cfs_format(){ if(nodesetup) nodesetup->request_cfs_format(); }
 
     QVector<sensor*> getSensorslistRaw(){ return sensors; }
 
@@ -238,6 +262,8 @@ private:
 
     //TBD
     QVector<sensor*> sensors;
+
+    nodeinfo* nodesetup;
 
 signals:
     void sensorFound(QVariant sensorinfo, QVariant source);

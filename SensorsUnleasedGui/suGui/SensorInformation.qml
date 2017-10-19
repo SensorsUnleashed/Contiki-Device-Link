@@ -3,40 +3,30 @@ import QtQuick.Controls 2.0
 import QtQuick.Dialogs 1.2
 import QtQuick.Layouts 1.3
 
-Rectangle{
+Item{
+    anchors.margins: 20;
+    anchors.fill: parent;
+
     property string nodeaddr: "";
     property var nodeinfo;  //As received from the database
     property var source_sensor_specific;
 
-    color: suPalette.window;
-    border.color: suPalette.buttonText;
-
-    Component.onCompleted: {
-        console.log("SensorInformation width: " + width + " height: " + height);
-        console.log("SensorInformation width: " + width + " height: " + height);
-    }
-    onWidthChanged: console.log("SensorInformation changed width: " + width + " height: " + height);
-    onHeightChanged: console.log("SensorInformation changed width: " + width + " height: " + height);
-
-
-    SUButton{
-        id: backbutton;
-        anchors.right: parent.right;
-        text: qsTr("Back");
-        onClicked: {
-            activeSensor.stopListening();
-            sensorpopover.source = "";
-        }
+    function refresh(){
+        console.log("Implement this");
     }
 
-    CoapCommStatus{
-        anchors.right: backbutton.left;
-        deviceptr: activeSensor;
+    function goBack(){
+        activeSensor.stopListening();
+        sensorpopover.source = "";
     }
 
-    GridLayout {
-        id: grid
-        columns: 2
+    function endPair(){
+        sensorinfolayout.currentIndex = 0;
+    }
+
+    StackLayout {
+        id: sensorinfolayout;
+        //columns: 2
         anchors.top: parent.top;
         anchors.fill: parent;
         Layout.fillWidth: true;
@@ -44,27 +34,19 @@ Rectangle{
         Layout.preferredWidth: parent.width;
         Layout.preferredHeight: parent.height;
 
-        onWidthChanged: console.log("GridLayout width: " + width + " height: " + height);
-        onHeightChanged: console.log("GridLayout width: " + width + " height: " + height);
 
-        ColumnLayout{
+        ColumnLayout{   //Index 0
             id: sensorinfoscreen;
             Layout.fillWidth: false;
             Layout.preferredWidth: parent.width / 2;
             Layout.preferredHeight: parent.height;
 
             spacing: 15;
-            Label{
-                id: namefield;
-                anchors.left: parent.left;
-                //width: parent.width;
-                font.pointSize: 14;
-                text: nodeaddr;
-            }
 
             Row{
                 spacing: 25;
                 GroupBox{
+                    id: valuegroupbox;
                     width: 150;
                     height: 100;
                     title: qsTr("Value");
@@ -90,31 +72,15 @@ Rectangle{
                     }
                 }
 
-                CheckBox {
-                    id: observecheckbox;
-                    property var observetoken;
-                    width: 140;
-                    checked: false
-                    text: qsTr("Observe")
-                    onCheckedChanged: {
-                        if(checkState == Qt.Checked){
-                            observetoken = activeSensor.requestObserve();
-                            enabled = false;
-                        }
-                        else{
-                            activeSensor.abortObserve(observetoken);
-                        }
-                    }
-                    Connections{
-                        target: activeSensor;
-                        onObserve_started: {
-                            observecheckbox.checked = true;
-                            observecheckbox.enabled = true;
-                        }
-                        onObserve_failed: {
-                            observecheckbox.checked = false;
-                            observecheckbox.enabled = true;
-                        }
+                GroupBox{
+                    width: 150;
+                    height: 100;
+                    title: qsTr("Pairings/Bindings");
+
+                    SUButton{
+                        text: "Setup";
+                        anchors.centerIn: parent;
+                        onClicked: sensorinfolayout.currentIndex = 1;
                     }
                 }
             }
@@ -157,36 +123,48 @@ Rectangle{
             }
 
             GroupBox{
-                title: "Commands"
+                title: "Test Actions"
                 Loader{
                     source: source_sensor_specific;
                 }
             }
+            onVisibleChanged: if(visible){
+                                  backbutton.command = goBack;
+                                  refreshbutton.visible = true;
+                                  refreshbutton.command = refresh;
+                              }
         }
 
-        SensorPairing{
+        SensorPairing{  //Index 1
             id: pairingwidget;
             Layout.preferredWidth: parent.width / 2;
             Layout.preferredHeight: parent.height;
+
+            onVisibleChanged: if(visible) {
+                                  backbutton.command = endPair
+                              }
         }
     }
 
     Component{
-        id: valuebox;
-        GroupBox{
-            width: 150;
-            height: 100;
-            title: qsTr("Value");
-            Label{
-                width: parent.width;
-                height: parent.height;
-                horizontalAlignment: Text.AlignHCenter;
-                verticalAlignment: Text.AlignVCenter;
-                text: value;
-                font.pointSize: 16;
-
-            }
+        id: sensorheader_mid;
+        Label{
+            id: namefield;
+            font.pointSize: 14;
+            text: nodeaddr;
         }
+    }
+
+    Component{
+        id: sensorheader_right;
+        CoapCommStatus{
+            deviceptr: activeSensor;
+        }
+    }
+
+    Component.onCompleted: {
+        header.headermid = sensorheader_mid;
+        header.headerright = sensorheader_right;
     }
 }
 

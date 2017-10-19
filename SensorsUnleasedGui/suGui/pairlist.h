@@ -50,7 +50,7 @@ struct aPair{
     uint8_t id;
     sensor* dst;
     uint8_t selected;
-    QVariant eventSetupQMLlnk;
+    QVariantMap info;
 };
 
 
