@@ -152,8 +152,8 @@ PROCESS_THREAD(er_uart_server, ev, data)
 	rest_activate_resource(&res_sysinfo, "su/nodeinfo");
 	systemchange = process_alloc_event();
 
-	etimer_set(&et, CLOCK_SECOND*10);
-	PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
+//	etimer_set(&et, CLOCK_SECOND*10);
+//	PROCESS_WAIT_EVENT_UNTIL(etimer_expired(&et));
 
 
 	//Wait for the routing table to be ready

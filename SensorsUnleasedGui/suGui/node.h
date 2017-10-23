@@ -70,6 +70,9 @@ enum request{
 
     /* System control */
     format_filesystem,
+    observe_retry,
+    req_versions,
+    req_coapstatus,
 };
 
 struct msgid_s{
@@ -81,6 +84,8 @@ typedef struct msgid_s msgid;
 class pairlist;
 class sensorstore;
 class node;
+
+int findToken(uint16_t token, QVector<msgid> tokenlist);
 
 class suinterface : public wsn
 {
@@ -213,11 +218,16 @@ class nodeinfo : public suinterface
 {
     Q_OBJECT
 public:
-    nodeinfo(node *parent, QString uri, QVariantMap attributes);
+    nodeinfo(node *parent, QString uri);
 
-    uint16_t request_cfs_format();
+    Q_INVOKABLE QVariant request_cfs_format();
+    Q_INVOKABLE QVariant request_observe_retry();
+    Q_INVOKABLE QVariant request_versions();
+    Q_INVOKABLE QVariant request_coapstatus();
 
     void handleReturnCode(uint16_t token, CoapPDU::Code code);
+    void nodeNotResponding(uint16_t token);
+    QVariant parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU::Code code);
 
 private:
     node* parent;
@@ -240,10 +250,9 @@ public:
     Q_INVOKABLE void getSensorslist();
     Q_INVOKABLE void requestLinks();
 
-    Q_INVOKABLE void request_cfs_format(){ if(nodesetup) nodesetup->request_cfs_format(); }
-
     QVector<sensor*> getSensorslistRaw(){ return sensors; }
 
+    nodeinfo* getConfigdev(){ return nodesetup; }
 
     /* Virtual functions (wsn)*/
     void nodeNotResponding(uint16_t token);

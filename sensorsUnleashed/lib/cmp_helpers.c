@@ -218,6 +218,18 @@ uint32_t cp_encodeU8(uint8_t* buffer, uint8_t val){
 	return (uint32_t)((void*)cmp.buf - (void*)buffer);
 }
 
+uint32_t cp_encodeU8Array(uint8_t* buffer, uint8_t* data, uint32_t size, uint32_t* len){
+	cmp_ctx_t cmp;
+	cmp_init(&cmp, buffer, 0, buf_writer);
+
+	cmp_write_array(&cmp, size);
+	for(int i=0; i<size; i++){
+		cmp_write_u8(&cmp, *(data+i));
+	}
+	*len += (uint8_t*)cmp.buf - buffer;
+	return 0;
+}
+
 uint32_t cp_encodeU16Array(uint8_t* buffer, uint16_t* data, uint32_t size, uint32_t* len){
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, buffer, 0, buf_writer);

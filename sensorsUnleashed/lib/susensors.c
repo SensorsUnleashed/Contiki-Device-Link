@@ -45,6 +45,7 @@ const char* strChange = "/change";
 
 process_event_t susensors_event;
 process_event_t susensors_pair;
+process_event_t susensors_service;
 
 PROCESS(susensors_process, "Sensors");
 
@@ -231,6 +232,7 @@ PROCESS_THREAD(susensors_process, ev, data)
 
 	susensors_event = process_alloc_event();
 	susensors_pair = process_alloc_event();
+	susensors_service = process_alloc_event();
 
 	for(d = susensors_first(); d; d = susensors_next(d)) {
 		d->event_flag = 0;
@@ -262,6 +264,25 @@ PROCESS_THREAD(susensors_process, ev, data)
 			}
 			if(this->setEventhandlers != NULL){
 				this->setEventhandlers(this, pair->triggers);
+			}
+		}
+		else if(ev == susensors_service){	//Retry all the observers (TODO: Only do this for broken links)
+			for(d = susensors_first(); d; d = susensors_next(d)) {
+				list_t pairs = d->pairs;
+				for(joinpair_t*pair = (joinpair_t *)list_head(pairs); pair; pair = pair->next) {
+					if(pair->triggers[0] != -1){	//Above
+						coap_obs_request_registration(&pair->destip, UIP_HTONS(COAP_DEFAULT_PORT), pair->dsturlAbove,
+								above_notificationcb, pair->deviceptr);
+					}
+					if(pair->triggers[1] != -1){	//Below
+						coap_obs_request_registration(&pair->destip, UIP_HTONS(COAP_DEFAULT_PORT), pair->dsturlBelow,
+								below_notificationcb, pair->deviceptr);
+					}
+					if(pair->triggers[2] != -1){	//Change
+						coap_obs_request_registration(&pair->destip, UIP_HTONS(COAP_DEFAULT_PORT), pair->dsturlChange,
+								change_notificationcb, pair->deviceptr);
+					}
+				}
 			}
 		}
 		else {

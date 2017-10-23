@@ -34,7 +34,7 @@
 
 #include "contiki.h"
 #include "lib/list.h"
-#include "../../apps/uartsensors/uart_protocolhandler.h"
+#include "lib/cmp_helpers.h"
 
 #include "er-coap-observe-client.h"
 #define DEVICES_MAX		10
@@ -144,6 +144,7 @@ void susensors_changed(susensors_sensor_t* s, uint8_t event);
 
 extern process_event_t susensors_event;
 extern process_event_t susensors_pair;
+extern process_event_t susensors_service;
 PROCESS_NAME(susensors_process);
 
 #endif /* SENSORS_H_ */

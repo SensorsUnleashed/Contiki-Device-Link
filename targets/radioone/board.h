@@ -196,7 +196,7 @@
  * \name Device string used on startup
  * @{
  */
-#define BOARD_STRING "SU RadioOne"
+#define BOARD_STRING "SU-RadioOne"
 /** @} */
 
 #endif /* BOARD_H_ */

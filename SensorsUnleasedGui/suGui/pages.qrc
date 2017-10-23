@@ -5,5 +5,6 @@
         <file>SensorInformation.qml</file>
         <file>NewNodeScreen.qml</file>
         <file>NodeInformation.qml</file>
+        <file>NodeConfig.qml</file>
     </qresource>
 </RCC>

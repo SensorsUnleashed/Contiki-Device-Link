@@ -39,6 +39,17 @@ int encode(char* buffer, cmp_object_t objTemplate, QVariant value);
 static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit);
 static uint32_t buf_writer(cmp_ctx_t* ctx, const void *data, uint32_t count);
 
+////Return index of the token, -1 if not found
+int findToken(uint16_t token, QVector<msgid> tokenlist){
+    for(int i=0; i<tokenlist.count(); i++){
+        if(tokenlist.at(i).number == token){
+            return i;
+        }
+    }
+    return -1;
+}
+
+
 sensor::sensor(node* parent, QString uri, QVariantMap attributes, sensorstore *p) : suinterface(parent->getAddress())
 {
     qDebug() << "Sensor: " << uri << " with attribute: " << attributes << " created";
@@ -108,17 +119,6 @@ QVariant sensor::getConfigValues(){
     list.append(result);
 
     return list;
-}
-
-
-////Return index of the token, -1 if not found
-int findToken(uint16_t token, QVector<msgid> tokenlist){
-    for(int i=0; i<tokenlist.count(); i++){
-        if(tokenlist.at(i).number == token){
-            return i;
-        }
-    }
-    return -1;
 }
 
 void sensor::requestValue(){

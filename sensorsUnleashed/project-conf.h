@@ -33,6 +33,7 @@
 #ifndef PROJECT_CONF_H_
 #define PROJECT_CONF_H_
 
+#define SUVERSION "0.0.1"
 //#define UART_CONF_ENABLE	0
 
 //Enable uart receive
@@ -107,4 +108,5 @@
 
 /* Enable client-side support for COAP observe */
 #define COAP_OBSERVE_CLIENT 1
+
 #endif /* __PROJECT_ERBIUM_CONF_H__ */

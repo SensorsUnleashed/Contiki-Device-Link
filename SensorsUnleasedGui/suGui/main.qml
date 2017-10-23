@@ -62,12 +62,21 @@ ApplicationWindow {
         anchors.margins: 10;
     }
 
+    Item{
+        id: settingsplaceholder;
+        anchors.bottom: parent.bottom;
+        anchors.left: parent.left;
+        height: bottombar.height;
+        anchors.margins: 10;
+        width: 100;
+    }
+
     Flow{
         id:  bottombar;
 
         anchors.bottom: parent.bottom;
         anchors.right: parent.right;
-        anchors.left: parent.left;
+        anchors.left: settingsplaceholder.right;
         height: 50;
         anchors.margins: 10;
         layoutDirection: Qt.RightToLeft;

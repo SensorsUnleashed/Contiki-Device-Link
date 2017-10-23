@@ -49,6 +49,7 @@
 									<listOptionValue builtIn="false" value="CONTIKI_WITH_IPV6=1"/>
 									<listOptionValue builtIn="false" value="NATIVE=0"/>
 									<listOptionValue builtIn="false" value="COAP_OBSERVE_CLIENT=1"/>
+									<listOptionValue builtIn="false" value="SUVERSION=&quot;0.0.1&quot;"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.1721034232" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>

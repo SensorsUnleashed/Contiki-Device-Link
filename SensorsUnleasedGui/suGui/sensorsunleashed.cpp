@@ -53,7 +53,7 @@ sensorsunleashed::sensorsunleashed(database *db, coaphandler *coap, QQmlContext 
 
     result.clear();
     querystring = "select * from sensors;";
-    //Read settings from the database
+    //Read sensors from the database
     if(db->query(querystring, &result) == 0){
         for(int i=0; i<result.count(); i++){
             QVariantMap s = result.at(i).toMap();
@@ -64,7 +64,7 @@ sensorsunleashed::sensorsunleashed(database *db, coaphandler *coap, QQmlContext 
         }
     }
 
-    /* Start listening to the */
+    /* Start listening for new sensors */
     connect(allsensorslist, SIGNAL(sensorAdded(sensor*)), this, SLOT(updateDB(sensor*)));
 }
 
@@ -89,6 +89,7 @@ void sensorsunleashed::changeActiveNode(QVariant nodeinfo){
 
     if(n ==0) return;
     context->setContextProperty("activeNode", n);
+    context->setContextProperty("configdev", n->getConfigdev());
     qDebug() << "Active node changed to: " << n->getAddressStr();
 }
 

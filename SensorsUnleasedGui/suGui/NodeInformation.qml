@@ -4,6 +4,9 @@ import QtQuick.Dialogs 1.2
 import QtQuick.Layouts 1.3
 
 StackLayout{
+    id: nodeinfoscreen;
+    anchors.fill: parent;
+
     function back(){
         activeNode.stopListening();
         popover.source = "";
@@ -30,10 +33,6 @@ StackLayout{
     property string nodeaddr: "";
     property var nodeinfo;  //As received from the database
 
-    //Rectangle {
-    id: nodeinfoscreen;
-    anchors.fill: parent;
-
     ColumnLayout  { //Index 0
         anchors.fill: parent;
         spacing: 15;
@@ -54,7 +53,9 @@ StackLayout{
             if(visible){
                 header.headerleft = nodesheaderleft;
                 header.headerright = nodesheaderright;
-                header.headermid = frontheader_mid;;
+                header.headermid = frontheader_mid;
+                backbutton.command = back;
+                configbut.visible = true;
             }
         }
     }
@@ -73,6 +74,10 @@ StackLayout{
         }
     }
 
+    NodeConfig{ //Index 2
+        anchors.fill: parent;
+    }
+
     Component.onCompleted: {
         //Get the info from the node class in c++
         activeNode.getSensorslist();
@@ -82,7 +87,7 @@ StackLayout{
 
     SUButton{
         id: refreshbutton;
-        parent: bottombar       
+        parent: bottombar
         property var command: null;
         visible: true;
         text: qsTr("Refresh");
@@ -93,12 +98,11 @@ StackLayout{
     }
 
     SUButton{
-        parent: bottombar
-        property var command: null;
-        visible: true;
-        text: qsTr("Format");
-        onClicked:{
-            activeNode.request_cfs_format();
+        id: configbut;
+        parent: settingsplaceholder;
+        text: qsTr("Config");
+        onClicked: {
+            nodeinfoscreen.currentIndex = 2;
         }
     }
 

@@ -38,6 +38,9 @@ node::node(QHostAddress addr, QVariantMap data, sensorstore *p) : wsn(addr)
     databaseinfo = data;
     allsensorslist = p;
     ownsensorslist = new sensorstore;
+
+    nodesetup = new nodeinfo(this, QString("su/nodeinfo"));
+
     qDebug() << "Node: " << ip << " created";
 }
 
@@ -120,7 +123,8 @@ void node::addSensor(QString uri, QVariantMap attributes){
     if(uri.compare("su/nodeinfo") == 0){
         //This is a special device, we use to handle special commands, like
         //Format the filesystem, factory reset, hw/sw version request. etc
-        nodesetup = new nodeinfo(this, uri, attributes);
+        //Its always there, so we have already created this device during node
+        //creation
     }
     else if(uri.compare(".well-known/core") != 0){
         sensor* s;
@@ -156,15 +160,15 @@ QVariant node::parseAppOctetFormat(uint16_t token, QByteArray payload){
 }
 
 
-nodeinfo::nodeinfo(node *parent, QString uri, QVariantMap attributes) : suinterface(parent->getAddress()){
+nodeinfo::nodeinfo(node *parent, QString uri) : suinterface(parent->getAddress()){
 
-    qDebug() << "Nodeinfo: " << uri << " with attribute: " << attributes << " created";
+    qDebug() << "Nodeinfo: " << uri << " created";
 
     this->parent = parent;
     this->uri = uri;
 }
 
-uint16_t nodeinfo::request_cfs_format(){
+QVariant nodeinfo::request_cfs_format(){
 
     const char* uristring = uri.toLatin1().data();
     CoapPDU *pdu = new CoapPDU();
@@ -174,7 +178,49 @@ uint16_t nodeinfo::request_cfs_format(){
     return put_request(pdu, format_filesystem);
 }
 
+QVariant nodeinfo::request_observe_retry(){
+    const char* uristring = uri.toLatin1().data();
+    CoapPDU *pdu = new CoapPDU();
+    pdu->setURI((char*)uristring, strlen(uristring));
+    pdu->addURIQuery((char*)"obsretry");
+
+    return put_request(pdu, observe_retry);
+}
+
+QVariant nodeinfo::request_versions(){
+    const char* uristring = uri.toLatin1().data();
+    CoapPDU *pdu = new CoapPDU();
+    pdu->setURI((char*)uristring, strlen(uristring));
+    pdu->addURIQuery((char*)"Versions");
+
+    return get_request(pdu, req_versions);
+}
+
+QVariant nodeinfo::request_coapstatus(){
+    const char* uristring = uri.toLatin1().data();
+    CoapPDU *pdu = new CoapPDU();
+    pdu->setURI((char*)uristring, strlen(uristring));
+    pdu->addURIQuery((char*)"CoapStatus");
+
+    return get_request(pdu, req_coapstatus);
+}
+
 void nodeinfo::handleReturnCode(uint16_t token, CoapPDU::Code code){
     qDebug() << "Got token again";
+}
+
+void nodeinfo::nodeNotResponding(uint16_t token){
+    qDebug() << "Message timed out";
+
+    int index = findToken(token, this->token);
+    if(index != -1)
+        this->token.remove(index);
+}
+
+QVariant nodeinfo::parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU::Code code) {
+    qDebug() << uri << " got message!";
+    qDebug() << payload;
+
+    return QVariant(0);
 }
 

@@ -40,9 +40,13 @@
 #include "rest-engine.h"
 #include "dev/leds.h"
 #include "board.h"
+#include "er-coap-observe.h"
+#include "er-coap-observe-client.h"
+#include "lib/susensors.h"
+#include "lib/cmp_helpers.h"
 
 extern process_event_t systemchange;
-
+extern process_event_t susensors_service;
 static void res_sysinfo_gethandler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 static void res_sysinfo_puthandler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset);
 /* A simple actuator example. Toggles the red led */
@@ -55,18 +59,36 @@ RESOURCE(res_sysinfo,
 
 static void
 res_sysinfo_gethandler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
-	REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-	REST.set_header_max_age(response, 0);	//3 minutes
+	//REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
+	//REST.set_header_max_age(response, 0);	//3 minutes
 
+	const char *str = NULL;
 	int len = 0;
 	//Pay attention to the max payload length
-	//	len = sprintf((char*)buffer, "Contiki version: %s\n", CONTIKI_VERSION_STRING);
-	len += sprintf((char*)(buffer+len), "Board: %s\n", BOARD_STRING);
-	len += sprintf((char*)(buffer+len), "Version: 0.0.1\n");
-	REST.set_response_payload(response, buffer, len);
+	len = REST.get_query(request, &str);
+	if(len > 0){
+
+		if(strncmp(str, "Versions", len) == 0){
+			len = 0;
+			//cp_encodeString(buffer+len, CONTIKI_VERSION_STRING, strlen(CONTIKI_VERSION_STRING), (uint32_t*)&len);
+			cp_encodeString(buffer+len, BOARD_STRING, strlen(BOARD_STRING), (uint32_t*)&len);
+			cp_encodeString(buffer+len, SUVERSION, strlen(SUVERSION), (uint32_t*)&len);
+		}
+		else if(strncmp(str, "CoapStatus", len) == 0){
+			len = 0;
+			uint8_t arr[2];
+			arr[0] = list_length(coap_get_observers());
+			arr[1] = list_length(coap_get_observees());
+			cp_encodeU8Array(buffer, arr, 2, (uint32_t*)&len);
+		}
+		else if(strncmp(str, "RPLStatus", len) == 0){
+
+		}
+		REST.set_response_payload(response, buffer, len);
+	}
 }
 
-#include "er-coap.h"
+
 static void res_sysinfo_puthandler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset){
 
 	const char *str = NULL;
@@ -84,8 +106,14 @@ static void res_sysinfo_puthandler(void *request, void *response, uint8_t *buffe
 	if(len > 0){
 		if(strncmp(str, "cfsformat", len) == 0){
 			process_post(PROCESS_BROADCAST, systemchange, NULL);
-
 			REST.set_response_status(response, REST.status.OK);
+		}
+		else if(strncmp(str, "obsretry", len) == 0){
+			process_post(&susensors_process, susensors_service, NULL);
+			REST.set_response_status(response, REST.status.OK);
+		}
+		else{
+			REST.set_response_status(response, REST.status.BAD_REQUEST);
 		}
 	}
 }

@@ -192,7 +192,7 @@
  * \name Device string used on startup
  * @{
  */
-#define BOARD_STRING "SensorsUnleashed-CC2538"
+#define BOARD_STRING "SU-CC2538-1"
 /** @} */
 /*---------------------------------------------------------------------------*/
 #endif /* BOARD_H_ */
