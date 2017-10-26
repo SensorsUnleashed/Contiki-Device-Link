@@ -70,16 +70,30 @@ res_sysinfo_gethandler(void *request, void *response, uint8_t *buffer, uint16_t 
 
 		if(strncmp(str, "Versions", len) == 0){
 			len = 0;
-			//cp_encodeString(buffer+len, CONTIKI_VERSION_STRING, strlen(CONTIKI_VERSION_STRING), (uint32_t*)&len);
 			cp_encodeString(buffer+len, BOARD_STRING, strlen(BOARD_STRING), (uint32_t*)&len);
-			cp_encodeString(buffer+len, SUVERSION, strlen(SUVERSION), (uint32_t*)&len);
+
+			uint8_t arr[3];
+			arr[0] = SU_VER_MAJOR;
+			arr[1] = SU_VER_MINOR;
+			arr[2] = SU_VER_DEV;
+			cp_encodeU8Array(buffer+len, arr, sizeof(arr), (uint32_t*)&len);
 		}
 		else if(strncmp(str, "CoapStatus", len) == 0){
 			len = 0;
-			uint8_t arr[2];
+			uint8_t arr[3];
+			int pairtot = 0;
+
+			//Count the Total number of pairs
+			for(susensors_sensor_t* d = susensors_first(); d; d = susensors_next(d)) {
+				list_t pairs = d->pairs;
+				pairtot += list_length(pairs);
+			}
+
 			arr[0] = list_length(coap_get_observers());
 			arr[1] = list_length(coap_get_observees());
-			cp_encodeU8Array(buffer, arr, 2, (uint32_t*)&len);
+			arr[2] = pairtot;
+
+			cp_encodeU8Array(buffer, arr, sizeof(arr), (uint32_t*)&len);
 		}
 		else if(strncmp(str, "RPLStatus", len) == 0){
 

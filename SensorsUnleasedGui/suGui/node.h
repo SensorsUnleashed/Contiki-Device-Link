@@ -86,6 +86,8 @@ class sensorstore;
 class node;
 
 int findToken(uint16_t token, QVector<msgid> tokenlist);
+QVariant cmpobjectToVariant(cmp_object_t obj, cmp_ctx_t *cmp = 0);
+bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit);
 
 class suinterface : public wsn
 {
@@ -232,6 +234,10 @@ public:
 private:
     node* parent;
     QString uri;
+
+signals:
+    void requst_received(QString req, QVariantList result);
+
 };
 
 class node : public wsn

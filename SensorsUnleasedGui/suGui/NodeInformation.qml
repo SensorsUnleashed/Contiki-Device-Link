@@ -74,8 +74,19 @@ StackLayout{
         }
     }
 
-    NodeConfig{ //Index 2
+    Loader{
+        id: nodeconfig;
+        property var previndex;
         anchors.fill: parent;
+
+        onStatusChanged: {
+            if(status == Loader.Ready){
+                previndex = nodeinfoscreen.currentIndex;
+                nodeinfoscreen.currentIndex = 2;
+            }
+            else if(status == Loader.Null)
+                nodeinfoscreen.currentIndex = previndex;
+        }
     }
 
     Component.onCompleted: {
@@ -102,7 +113,7 @@ StackLayout{
         parent: settingsplaceholder;
         text: qsTr("Config");
         onClicked: {
-            nodeinfoscreen.currentIndex = 2;
+            nodeconfig.setSource("NodeConfig.qml");
         }
     }
 

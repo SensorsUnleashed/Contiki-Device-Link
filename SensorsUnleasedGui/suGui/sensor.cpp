@@ -34,9 +34,7 @@
 #include "helper.h"
 #include "sumessage.h"
 
-QVariant cmpobjectToVariant(cmp_object_t obj);
 int encode(char* buffer, cmp_object_t objTemplate, QVariant value);
-static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit);
 static uint32_t buf_writer(cmp_ctx_t* ctx, const void *data, uint32_t count);
 
 ////Return index of the token, -1 if not found
@@ -559,8 +557,11 @@ int sensor::addDummyPair(QString ip, QString dsturi, QString url){
 
 /*************** Helpers ******************************************/
 
-QVariant cmpobjectToVariant(cmp_object_t obj){
+QVariant cmpobjectToVariant(cmp_object_t obj, cmp_ctx_t* cmp){
     QVariantMap result;
+    uint32_t size = 200;
+    QByteArray str;
+    QVariantList arr;
     result["enum_no"] = obj.type;
 
     switch(obj.type){
@@ -624,9 +625,21 @@ QVariant cmpobjectToVariant(cmp_object_t obj){
         break;
     case CMP_TYPE_FIXARRAY:
         result["enum_str"] = "CMP_TYPE_FIXARRAY";
+        for(uint32_t i=0; i<obj.as.array_size; i++){
+            //fixme: Only handles byte arrays
+            int32_t s;
+            cmp_read_int(cmp, &s);
+            arr.append(s);
+        }
+        result["value"] = arr;
         break;
     case CMP_TYPE_FIXSTR:
         result["enum_str"] = "CMP_TYPE_FIXSTR";
+        str.reserve(size);
+        cmp->buf = cmp->buf - 1; //To read the string, we need to start at the size marker
+        if(!cmp_read_str(cmp, str.data(), &size)) return QVariant(0);
+        str.resize(size);
+        result["value"] = QString::fromLatin1(str.data());
         break;
     case CMP_TYPE_BIN8:
         result["enum_str"] = "CMP_TYPE_BIN8";
@@ -766,7 +779,7 @@ int encode(char* buffer, cmp_object_t objTemplate, QVariant value){
     return (char*)cmp.buf - buffer;
 }
 
-static bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit) {
+bool buf_reader(cmp_ctx_t *ctx, void *data, uint32_t limit) {
 
     uint8_t* dataptr = (uint8_t*)data;
     uint8_t* bufptr = (uint8_t*)ctx->buf;

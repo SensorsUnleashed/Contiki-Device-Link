@@ -33,7 +33,10 @@
 #ifndef PROJECT_CONF_H_
 #define PROJECT_CONF_H_
 
-#define SUVERSION "0.0.1"
+#define SU_VER_MAJOR	0	//Is increased when there has been changes to the protocol, which is not backwards compatible
+#define SU_VER_MINOR	0	//Is increased if the protocol is changed, but still backwards compatible
+#define SU_VER_DEV		1	//Is increased for every minor fix
+
 //#define UART_CONF_ENABLE	0
 
 //Enable uart receive
