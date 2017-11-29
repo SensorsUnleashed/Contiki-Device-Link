@@ -52,7 +52,7 @@ class CoapPDU {
             COAP_CONTINUE=0x5F,
 
             COAP_BAD_REQUEST=0x80,  //128
-			COAP_UNAUTHORIZED,
+            COAP_UNAUTHORIZED,      //129
 			COAP_BAD_OPTION,
 			COAP_FORBIDDEN,
             COAP_NOT_FOUND,     //132

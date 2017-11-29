@@ -37,6 +37,7 @@
 #include "node.h"
 #include <QObject>
 #include "sensorstore.h"
+#include "borderrouter.h"
 
 #include <QQmlContext>
 
@@ -56,7 +57,6 @@ public:
     Q_INVOKABLE void initNodelist();
 
     node* findNode(QString nodeid);
-    Q_INVOKABLE QVariant createNode(QVariant nodeinfo);
 
     Q_INVOKABLE QVariantList getAllSensorsList();
 
@@ -66,16 +66,16 @@ private:
     QVector<node*> nodes;
     sensorstore* allsensorslist;
     QQmlContext *context;
+    borderrouter *router;
+
 signals:
-
-
     void nodeCreated(QVariant nodeinfo);
 
 private slots:
     void updateDB(sensor* s);
 
 public slots:
-
+    QVariant createNode(QVariant nodeinfo);
 
 };
 

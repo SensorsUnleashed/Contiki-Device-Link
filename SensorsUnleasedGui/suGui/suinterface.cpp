@@ -21,7 +21,6 @@ uint16_t suinterface::get_request(CoapPDU *pdu, enum request req, QByteArray pay
 
     token.append(t);
 
-
     char tmp[30];
     int len;
     pdu->getURI(tmp,30, &len);

@@ -21,7 +21,8 @@ SOURCES += main.cpp \
     pairlist.cpp \
     sensorstore.cpp \
     sumessage.cpp \
-    suinterface.cpp
+    suinterface.cpp \
+    borderrouter.cpp
 
 RESOURCES += \
     pages.qrc \
@@ -56,7 +57,8 @@ HEADERS += \
     helper.h \
     pairlist.h \
     sensorstore.h \
-    sumessage.h
+    sumessage.h \
+    borderrouter.h
 
 copydata.commands = $(COPY_DIR) $$PWD/Database/setup.db $$OUT_PWD/Database/setup.db
 first.depends = $(first) copydata

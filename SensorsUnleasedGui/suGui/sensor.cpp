@@ -134,7 +134,6 @@ QVariant sensor::requestObserve(){
     pdu->setURI((char*)uristring, strlen(uristring));
     pdu->addOption(CoapPDU::COAP_OPTION_OBSERVE, 1, &id);
     return get_request(pdu, req_observe);
-
 }
 
 void sensor::abortObserve(QVariant token){

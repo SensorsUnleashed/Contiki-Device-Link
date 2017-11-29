@@ -23,6 +23,12 @@ Item{
         }
     }
 
+    function refreshNodeslist(){
+        console.log("refreshNodeslist")
+        borderrouter.getNodeslist();
+    }
+
+
     StackLayout {
         id: nodepage;
         anchors.fill: parent;
@@ -37,6 +43,10 @@ Item{
                 texttop: "New Node";
                 loader: popover;
                 source: "NewNodeScreen.qml";
+            }
+
+            onVisibleChanged: {
+                if(visible) refreshbutton.command = refreshNodeslist;
             }
         }
 
@@ -76,6 +86,7 @@ Item{
 
     Component.onCompleted: {
         su.initNodelist();
+        refreshbutton.command = refreshNodeslist;
     }
 }
 

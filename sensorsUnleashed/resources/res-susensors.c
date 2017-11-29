@@ -82,6 +82,16 @@ res_susensor_gethandler(void *request, void *response, uint8_t *buffer, uint16_t
 //		return;
 //	}
 
+//	coap_packet_t *const coap_req = (coap_packet_t *)request;
+//	if(IS_OPTION(coap_req, COAP_OPTION_OBSERVE)) {
+//		if(coap_req->observe == 0) {
+//
+//		}
+//		else if(coap_req->observe == 1){
+//
+//		}
+//	}
+
 	int len = REST.get_url(request, &url);
 	struct susensors_sensor *sensor = (struct susensors_sensor *)susensors_find(url, len);
 	if(sensor != NULL){

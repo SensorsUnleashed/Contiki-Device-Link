@@ -38,6 +38,9 @@ sensorsunleashed::sensorsunleashed(database *db, coaphandler *coap, QQmlContext 
 {
     this->db = db;
     this->context = context;
+
+    //TODO: Dont hard code the border router addr
+    router = new borderrouter(QHostAddress("fd81:3daa:fb4a:f7ae:212:4b00:60d:9aa4"));
     nodecomm = coap;
     allsensorslist = new sensorstore();
 
@@ -66,6 +69,10 @@ sensorsunleashed::sensorsunleashed(database *db, coaphandler *coap, QQmlContext 
 
     /* Start listening for new sensors */
     connect(allsensorslist, SIGNAL(sensorAdded(sensor*)), this, SLOT(updateDB(sensor*)));
+    connect(router, SIGNAL(nodefound(QVariant)), this, SLOT(createNode(QVariant)));
+
+    context->setContextProperty("borderrouter", router);
+
 }
 
 void sensorsunleashed::updateDB(sensor* s){
@@ -105,11 +112,6 @@ QVariant sensorsunleashed::changeActiveSensor(QVariant sensorinfo){
     context->setContextProperty("pairlist", s->getPairListModel());
     s->initSensor();
     qDebug() << "Active sensor changed to: " << s->getUri();
-
-
-//    //Add some dummy pairs!! //REMOVE
-//    s->addDummyPair("fd81:3daa:fb4a:f7ae:212:4b00:5af:82b7", "su/pulsecounter", "su/ledindicator");
-//    s->addDummyPair("fd81:3daa:fb4a:f7ae:212:4b00:5af:82b7", "large-update", "su/ledindicator");
 
     return QVariant(0);
 }

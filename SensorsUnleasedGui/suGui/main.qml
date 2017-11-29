@@ -92,6 +92,18 @@ ApplicationWindow {
                     command();
             }
         }
+
+        SUButton{
+            id: refreshbutton;
+            parent: bottombar
+            property var command: null;
+            visible: true;
+            text: qsTr("Refresh");
+            onClicked:{
+                if(command !== null)
+                    command();
+            }
+        }
     }
 
 

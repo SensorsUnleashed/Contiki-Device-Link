@@ -73,6 +73,10 @@ enum request{
     observe_retry,
     req_versions,
     req_coapstatus,
+
+    /*border router commnads */
+    req_nodeslist,
+    req_obs_nodeslist_change,
 };
 
 struct msgid_s{
