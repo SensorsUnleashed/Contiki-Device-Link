@@ -9,6 +9,7 @@ Button {
     property alias texttop: top.text;
     property alias textmid: mid.text;
     property alias textbot: bot.text;
+    property alias statbar:  statusbar.color;
 
     property var identification;
 
@@ -16,6 +17,15 @@ Button {
     property var source;
 
     property var nodeinfo;  //As received from the database
+
+    Rectangle{
+        id: statusbar;
+        anchors.bottom: parent.bottom;
+        anchors.left: parent.left;
+        anchors.right: parent.right;
+        height: 5;
+        color: "transparent";
+    }
 
     Column{
         anchors.centerIn: parent;
@@ -41,7 +51,7 @@ Button {
     }
 
     onClicked: {
-        su.changeActiveNode(nodeinfo);
+        su.changeActiveNode(identification);
         loader.setSource(source, {nodeaddr: identification, nodeinfo: nodeinfo});
     }
 }

@@ -19,13 +19,11 @@ uint16_t suinterface::get_request(CoapPDU *pdu, enum request req, QByteArray pay
     pdu->addOption(CoapPDU::COAP_OPTION_CONTENT_FORMAT,1,(uint8_t*)&ct);
     pdu->setMessageID(t.number);
 
-    token.append(t);
-
     char tmp[30];
     int len;
     pdu->getURI(tmp,30, &len);
 
-    send(pdu, t.number, payload);
+    send(pdu, t, payload);
 
     return t.number;
 }
@@ -47,9 +45,7 @@ uint16_t suinterface::put_request(CoapPDU *pdu, enum request req, QByteArray pay
     pdu->addOption(CoapPDU::COAP_OPTION_CONTENT_FORMAT,1,(uint8_t*)&ct);
     pdu->setMessageID(t.number);
 
-    send(pdu, t.number, payload);
-
-    token.append(t);
+    send(pdu, t, payload);
 
     return t.number;
 }

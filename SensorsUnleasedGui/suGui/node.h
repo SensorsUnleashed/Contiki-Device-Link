@@ -39,6 +39,7 @@
 #include "wsn.h"
 #include "pairlist.h"
 #include "sensorstore.h"
+#include <QDateTime>
 
 enum request{
     req_RangeMinValue,
@@ -77,13 +78,8 @@ enum request{
     /*border router commnads */
     req_nodeslist,
     req_obs_nodeslist_change,
+    req_obs_detect,
 };
-
-struct msgid_s{
-    uint16_t number;
-    enum request req;
-};
-typedef struct msgid_s msgid;
 
 class pairlist;
 class sensorstore;
@@ -100,8 +96,6 @@ public:
     suinterface(QHostAddress addr);
 
 protected:
-    QVector<msgid> token;
-
     uint16_t get_request(CoapPDU *pdu, enum request req, QByteArray payload=0);
     uint16_t put_request(CoapPDU *pdu, enum request req, QByteArray payload=0);
 
@@ -149,9 +143,9 @@ public:
 
     Q_INVOKABLE void testEvents(QVariant event, QVariant value);
 
-    void handleReturnCode(uint16_t token, CoapPDU::Code code);
-    void nodeNotResponding(uint16_t token);
-    QVariant parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU::Code code);
+    void handleReturnCode(msgid token, CoapPDU::Code code);
+    void nodeNotResponding(msgid token);
+    QVariant parseAppOctetFormat(msgid token, QByteArray payload, CoapPDU::Code code);
 
     virtual QVariant getClassType(){ return "DefaultSensor.qml"; }
     Q_INVOKABLE virtual QVariant getActionModel() { return "DefaultActions.qml"; }
@@ -231,9 +225,9 @@ public:
     Q_INVOKABLE QVariant request_versions();
     Q_INVOKABLE QVariant request_coapstatus();
 
-    void handleReturnCode(uint16_t token, CoapPDU::Code code);
-    void nodeNotResponding(uint16_t token);
-    QVariant parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU::Code code);
+    void handleReturnCode(msgid token, CoapPDU::Code code);
+    void nodeNotResponding(msgid token);
+    QVariant parseAppOctetFormat(msgid token, QByteArray payload, CoapPDU::Code code);
 
 private:
     node* parent;
@@ -264,10 +258,15 @@ public:
 
     nodeinfo* getConfigdev(){ return nodesetup; }
 
+    void updateLastSeenTime(int secSince){
+        lastSeen = QDateTime::currentDateTime().addSecs(-secSince);
+    }
+    QDateTime getLastSeenTime() { return lastSeen; }
+
     /* Virtual functions (wsn)*/
-    void nodeNotResponding(uint16_t token);
-    QVariant parseAppLinkFormat(uint16_t token, QByteArray payload);
-    QVariant parseAppOctetFormat(uint16_t token, QByteArray payload);
+    void nodeNotResponding(msgid token);
+    QVariant parseAppLinkFormat(msgid token, QByteArray payload);
+    QVariant parseAppOctetFormat(msgid token, QByteArray payload);
 
 private:
     QString name;
@@ -276,6 +275,7 @@ private:
     uint16_t token;
     sensorstore* allsensorslist;
     sensorstore* ownsensorslist;
+    QDateTime lastSeen;
 
     QVariantMap databaseinfo;
 

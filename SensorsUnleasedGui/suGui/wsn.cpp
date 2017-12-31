@@ -44,7 +44,7 @@ wsn::wsn(QHostAddress addr)
     connect(acktimer, SIGNAL(timeout()), this, SLOT(timeout()));
 }
 
-void wsn::send(CoapPDU *pdu, uint16_t token, QByteArray payload){
+void wsn::send(CoapPDU *pdu, msgid cmdref, QByteArray payload){
     struct coapMessageStore_* storedPDU = new struct coapMessageStore_;
 
     /*Add the payload if there is any */
@@ -78,7 +78,8 @@ void wsn::send(CoapPDU *pdu, uint16_t token, QByteArray payload){
 
     storedPDU->txtime.start();
     storedPDU->lastPDU = pdu;
-    storedPDU->token = token;
+    storedPDU->token = cmdref.number;
+    storedPDU->tokenref = cmdref;
     storedPDU->retranscount = 0;
     storedPDU->keep = 0;
     activePDUs.append(storedPDU);
@@ -106,7 +107,7 @@ void wsn::timeout(){
                     qDebug() << "Giving up on message";
                     //Mark PDU for Deletion pdu
                     delindex.append(activePDUs[i]->token);
-                    nodeNotResponding(activePDUs[i]->token);
+                    nodeNotResponding(activePDUs[i]->tokenref);
                 }
                 else{   //Try again
                     if(activePDUs[i]->lastPDU->getType() == CoapPDU::COAP_CONFIRMABLE){
@@ -451,7 +452,7 @@ void wsn::parseData(QByteArray datagram){
                 conn->send(addr, txPDU->getPDUPointer(), txPDU->getPDULength());
             }
             else{
-                handleReturnCode(storedPDUdata->token, code);
+                handleReturnCode(storedPDUdata->tokenref, code);
                 removePDU(storedPDUdata->token);
             }
         }
@@ -483,24 +484,24 @@ QVariant wsn::parseMessage(coapMessageStore_* message, CoapPDU::Code code){
 
     switch(ct){
     case CoapPDU::COAP_CONTENT_FORMAT_TEXT_PLAIN:
-        parseTextPlainFormat(message->token, message->rx_payload);
+        parseTextPlainFormat(message->tokenref, message->rx_payload);
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_LINK:
-        parseAppLinkFormat(message->token, message->rx_payload);
+        parseAppLinkFormat(message->tokenref, message->rx_payload);
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_XML:
-        parseAppXmlFormat(message->token, message->rx_payload);
+        parseAppXmlFormat(message->tokenref, message->rx_payload);
         qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_XML";
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_OCTET:
-        ret = parseAppOctetFormat(message->token, message->rx_payload, code);
+        ret = parseAppOctetFormat(message->tokenref, message->rx_payload, code);
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_EXI:
-        parseAppExiFormat(message->token, message->rx_payload);
+        parseAppExiFormat(message->tokenref, message->rx_payload);
         qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_EXI";
         break;
     case CoapPDU::COAP_CONTENT_FORMAT_APP_JSON:
-        parseAppJSonFormat(message->token, message->rx_payload);
+        parseAppJSonFormat(message->tokenref, message->rx_payload);
         qDebug() << "CoapPDU::COAP_CONTENT_FORMAT_APP_JSON";
         break;
     }

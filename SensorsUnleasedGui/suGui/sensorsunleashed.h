@@ -33,9 +33,9 @@
 #define SENSORSUNLEASHED_H
 
 #include "database.h"
-#include "coaphandler.h"
 #include "node.h"
 #include <QObject>
+#include "nodestore.h"
 #include "sensorstore.h"
 #include "borderrouter.h"
 
@@ -49,9 +49,9 @@ class sensorsunleashed : public QObject
 {
     Q_OBJECT
 public:
-    explicit sensorsunleashed(database* db, coaphandler* coap, QQmlContext *context);
+    explicit sensorsunleashed(database* db, QQmlContext *context);
 
-    Q_INVOKABLE void changeActiveNode(QVariant nodeinfo);
+    Q_INVOKABLE void changeActiveNode(QString ip);
     Q_INVOKABLE QVariant changeActiveSensor(QVariant sensorinfo);
 
     Q_INVOKABLE void initNodelist();
@@ -62,8 +62,9 @@ public:
 
 private:
     database *db;
-    coaphandler* nodecomm;
+
     QVector<node*> nodes;
+    nodestore* allnodeslist;
     sensorstore* allsensorslist;
     QQmlContext *context;
     borderrouter *router;

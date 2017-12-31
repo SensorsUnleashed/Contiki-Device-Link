@@ -39,8 +39,15 @@
 #include <QTimer>
 #include "cantcoap/cantcoap.h"
 
+struct msgid_s{
+    uint16_t number;
+    uint16_t req;
+};
+typedef struct msgid_s msgid;
+
 struct coapMessageStore_{
     uint16_t token;  //The first messageid, used for finding the right message reply from the gui
+    msgid tokenref;
     CoapPDU* lastPDU;    //The inital message send to the node
     QByteArray rx_payload;  //The payload. Will be assembled as the right messages rolls in
     QByteArray tx_payload;
@@ -57,7 +64,7 @@ class wsn : public QObject
 public:
     explicit wsn(QHostAddress addr);
 
-    void send(CoapPDU *pdu, uint16_t token, QByteArray payload=0);
+    void send(CoapPDU *pdu, msgid cmdref, QByteArray payload=0);
     void send_RST(CoapPDU *recvPDU);
     void send_ACK(CoapPDU *recvPDU);
 
@@ -66,14 +73,14 @@ public:
     void parseData(QByteArray datagram);
     QVariant parseMessage(coapMessageStore_* message, CoapPDU::Code code);
 
-    virtual void nodeNotResponding(uint16_t token){ Q_UNUSED(token); qDebug() << "Implement this";}
-    virtual QVariant parseTextPlainFormat(uint16_t token, QByteArray payload){ qDebug() << "wsn::parseTextPlainFormat " << payload << " token=" << token; return QVariant(0);}
-    virtual QVariant parseAppLinkFormat(uint16_t token, QByteArray payload) { Q_UNUSED(payload); Q_UNUSED(token); qDebug() << "wsn::parseAppLinkFormat Implement this"; return QVariant(0);}
-    virtual QVariant parseAppXmlFormat(uint16_t token, QByteArray payload) { Q_UNUSED(payload); Q_UNUSED(token); qDebug() << "wsn::parseAppXmlFormat Implement this"; return QVariant(0);}
-    virtual QVariant parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU::Code code) { Q_UNUSED(payload); Q_UNUSED(token); Q_UNUSED(code); qDebug() << "wsn::parseAppOctetFormat Implement this"; return QVariant(0);}
-    virtual QVariant parseAppExiFormat(uint16_t token, QByteArray payload) { Q_UNUSED(payload); Q_UNUSED(token); qDebug() << "wsn::parseAppExiFormat Implement this"; return QVariant(0);}
-    virtual QVariant parseAppJSonFormat(uint16_t token, QByteArray payload) { Q_UNUSED(payload); Q_UNUSED(token); qDebug() << "wsn::parseAppJSonFormat Implement this"; return QVariant(0);}
-    virtual void handleReturnCode(uint16_t token, CoapPDU::Code code) { Q_UNUSED(token); Q_UNUSED(code); qDebug() << "wsn::handleReturnCode Implement this"; }
+    virtual void nodeNotResponding(msgid token){ Q_UNUSED(token); qDebug() << "Implement this";}
+    virtual QVariant parseTextPlainFormat(msgid token, QByteArray payload){ qDebug() << "wsn::parseTextPlainFormat " << payload << " token=" << token.number; return QVariant(0);}
+    virtual QVariant parseAppLinkFormat(msgid token, QByteArray payload) { Q_UNUSED(payload); Q_UNUSED(token); qDebug() << "wsn::parseAppLinkFormat Implement this"; return QVariant(0);}
+    virtual QVariant parseAppXmlFormat(msgid token, QByteArray payload) { Q_UNUSED(payload); Q_UNUSED(token); qDebug() << "wsn::parseAppXmlFormat Implement this"; return QVariant(0);}
+    virtual QVariant parseAppOctetFormat(msgid token, QByteArray payload, CoapPDU::Code code) { Q_UNUSED(payload); Q_UNUSED(token); Q_UNUSED(code); qDebug() << "wsn::parseAppOctetFormat Implement this"; return QVariant(0);}
+    virtual QVariant parseAppExiFormat(msgid token, QByteArray payload) { Q_UNUSED(payload); Q_UNUSED(token); qDebug() << "wsn::parseAppExiFormat Implement this"; return QVariant(0);}
+    virtual QVariant parseAppJSonFormat(msgid token, QByteArray payload) { Q_UNUSED(payload); Q_UNUSED(token); qDebug() << "wsn::parseAppJSonFormat Implement this"; return QVariant(0);}
+    virtual void handleReturnCode(msgid token, CoapPDU::Code code) { Q_UNUSED(token); Q_UNUSED(code); qDebug() << "wsn::handleReturnCode Implement this"; }
 
     void disableTokenRemoval(uint16_t token);
     void enableTokenRemoval(uint16_t token);

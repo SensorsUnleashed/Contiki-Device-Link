@@ -5,7 +5,6 @@ CONFIG += c++11
 
 SOURCES += main.cpp \
     cantcoap/cantcoap.cpp \
-    coaphandler.cpp \
     sensorsunleashed.cpp \
     database.cpp \
     ../../sensorsUnleashed/lib/cmp.c \
@@ -20,9 +19,9 @@ SOURCES += main.cpp \
     pulsecounter.cpp \
     pairlist.cpp \
     sensorstore.cpp \
-    sumessage.cpp \
     suinterface.cpp \
-    borderrouter.cpp
+    borderrouter.cpp \
+    nodestore.cpp
 
 RESOURCES += \
     pages.qrc \
@@ -44,7 +43,6 @@ DISTFILES += \
 HEADERS += \
     cantcoap/cantcoap.h \
     cantcoap/dbg.h \
-    coaphandler.h \
     sensorsunleashed.h \
     cantcoap/sysdep.h \
     database.h \
@@ -53,12 +51,11 @@ HEADERS += \
     node.h \
     wsn.h \
     socket.h \
-    coapheaders.h \
     helper.h \
     pairlist.h \
     sensorstore.h \
-    sumessage.h \
-    borderrouter.h
+    borderrouter.h \
+    nodestore.h
 
 copydata.commands = $(COPY_DIR) $$PWD/Database/setup.db $$OUT_PWD/Database/setup.db
 first.depends = $(first) copydata

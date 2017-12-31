@@ -30,7 +30,6 @@
  * This file is part of the Sensors Unleashed project
  *******************************************************************************/
 #include "database.h"
-#include "coaphandler.h"
 #include "sensorsunleashed.h"
 #include <QApplication>
 #include <QQmlApplicationEngine>
@@ -46,12 +45,9 @@ int main(int argc, char *argv[])
     QQmlContext *context = engine.rootContext();
 
     database* db = new database();
-    coaphandler* coap = new coaphandler(db);
-    sensorsunleashed* su = new sensorsunleashed(db, coap, context);
+    sensorsunleashed* su = new sensorsunleashed(db, context);
 
-    context->setContextProperty("coap", coap);
     context->setContextProperty("su", su);
-
     engine.load(QUrl(QLatin1String("qrc:/main.qml")));
 
     return app.exec();

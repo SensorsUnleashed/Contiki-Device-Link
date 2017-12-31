@@ -3,10 +3,7 @@
         <file>Ip6addrwidget.qml</file>
         <file>ResourceDir.qml</file>
         <file>DebugOutput.qml</file>
-        <file>CoapButton.qml</file>
-        <file>CoapCustomUrl.qml</file>
         <file>Overlaybox.qml</file>
-        <file>CoapSetupContent.qml</file>
         <file>SettingSlider.qml</file>
         <file>SUPutValue.qml</file>
         <file>SUButton.qml</file>

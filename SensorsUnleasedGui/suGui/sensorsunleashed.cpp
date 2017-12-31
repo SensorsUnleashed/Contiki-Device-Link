@@ -34,15 +34,14 @@
 
 #include "helper.h"
 
-sensorsunleashed::sensorsunleashed(database *db, coaphandler *coap, QQmlContext *context)
+sensorsunleashed::sensorsunleashed(database *db, QQmlContext *context)
 {
     this->db = db;
     this->context = context;
 
-    //TODO: Dont hard code the border router addr
-    router = new borderrouter(QHostAddress("fd81:3daa:fb4a:f7ae:212:4b00:60d:9aa4"));
-    nodecomm = coap;
     allsensorslist = new sensorstore();
+    allnodeslist = new nodestore();
+    context->setContextProperty("nodesmodel", allnodeslist);
 
     QVariantList result;
     QString querystring = "select * from nodes;";
@@ -51,6 +50,9 @@ sensorsunleashed::sensorsunleashed(database *db, coaphandler *coap, QQmlContext 
         for(int i=0; i<result.count(); i++){
             QVariantMap n = result.at(i).toMap();
             createNode(n);
+
+            QHostAddress a(n["address"].toString());
+            allnodeslist->updateWith(a, n);
         }
     }
 
@@ -69,8 +71,9 @@ sensorsunleashed::sensorsunleashed(database *db, coaphandler *coap, QQmlContext 
 
     /* Start listening for new sensors */
     connect(allsensorslist, SIGNAL(sensorAdded(sensor*)), this, SLOT(updateDB(sensor*)));
-    connect(router, SIGNAL(nodefound(QVariant)), this, SLOT(createNode(QVariant)));
 
+    //TODO: Dont hard code the border router addr
+    router = new borderrouter(QHostAddress("fd81:3daa:fb4a:f7ae:212:4b00:60d:9aa4"), allnodeslist);
     context->setContextProperty("borderrouter", router);
 
 }
@@ -90,9 +93,8 @@ node* sensorsunleashed::findNode(QString nodeid){
     return 0;
 }
 
-void sensorsunleashed::changeActiveNode(QVariant nodeinfo){
-    QVariantMap ninfo = nodeinfo.toMap();
-    node* n = findNode(ninfo["address"].toString());
+void sensorsunleashed::changeActiveNode(QString ip){
+    node* n = findNode(ip);
 
     if(n ==0) return;
     context->setContextProperty("activeNode", n);

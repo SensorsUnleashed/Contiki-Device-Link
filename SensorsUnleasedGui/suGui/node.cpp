@@ -61,7 +61,11 @@ void node::getSensorslist(){
 
 /* Request the list of sensors from the node */
 void node::requestLinks(){
+
+    msgid t;
     token = qrand();
+    t.number = token;
+
     const char* uristring = ".well-known/core";
 
     CoapPDU *pdu = new CoapPDU();
@@ -74,19 +78,18 @@ void node::requestLinks(){
     pdu->setMessageID(token);
     pdu->setURI((char*)uristring, strlen(uristring));
 
-    send(pdu, token);
+    send(pdu, t);
 }
 
 /* Virtual functions */
 
 /* Called if a node is not answering a request */
-void node::nodeNotResponding(uint16_t token){
-    qDebug() << "Node: " << getAddressStr() << " token: " << token;
-    token = 0;
+void node::nodeNotResponding(msgid token){
+    qDebug() << "Node: " << getAddressStr() << " token: " << token.number;
 }
 
 /* Parse the list of published sensors from this node */
-QVariant node::parseAppLinkFormat(uint16_t token, QByteArray payload){
+QVariant node::parseAppLinkFormat(msgid token, QByteArray payload){
     Q_UNUSED(token);
     qDebug() << "node: parseAppLinkFormat";
 
@@ -152,7 +155,7 @@ void node::addSensor(QString uri, QVariantMap attributes){
     }
 }
 
-QVariant node::parseAppOctetFormat(uint16_t token, QByteArray payload){
+QVariant node::parseAppOctetFormat(msgid token, QByteArray payload){
     Q_UNUSED(token);
     Q_UNUSED(payload);
     qDebug() << "node: parseAppOctetFormat";
@@ -205,28 +208,22 @@ QVariant nodeinfo::request_coapstatus(){
     return get_request(pdu, req_coapstatus);
 }
 
-void nodeinfo::handleReturnCode(uint16_t token, CoapPDU::Code code){
+void nodeinfo::handleReturnCode(msgid token, CoapPDU::Code code){
     qDebug() << "Got token again";
 }
 
-void nodeinfo::nodeNotResponding(uint16_t token){
+void nodeinfo::nodeNotResponding(msgid token){
     qDebug() << "Message timed out";
-
-    int index = findToken(token, this->token);
-    if(index != -1)
-        this->token.remove(index);
 }
 
-QVariant nodeinfo::parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU::Code code) {
+QVariant nodeinfo::parseAppOctetFormat(msgid token, QByteArray payload, CoapPDU::Code code) {
     qDebug() << uri << " got message!";
     cmp_object_t obj;
     cmp_ctx_t cmp;
 
     cmp_init(&cmp, payload.data(), buf_reader, 0);
-    int index = findToken(token, this->token);
 
     QVariantList res;
-    if(index != -1){
         while(cmp.buf < payload.data() + payload.length()){
             if(!cmp_read_object(&cmp, &obj)) return QVariant(0);
 
@@ -234,7 +231,7 @@ QVariant nodeinfo::parseAppOctetFormat(uint16_t token, QByteArray payload, CoapP
             res.append(result);
         }
 
-        switch(this->token.at(index).req){
+        switch(token.req){
         case req_versions:
             emit requst_received("req_versions", res);
             break;
@@ -244,9 +241,7 @@ QVariant nodeinfo::parseAppOctetFormat(uint16_t token, QByteArray payload, CoapP
         default:
             break;
         }
-    }
 
-    this->token.remove(index);
     return QVariant(0);
 }
 

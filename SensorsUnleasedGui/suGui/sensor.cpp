@@ -32,21 +32,9 @@
 #include "node.h"
 #include "socket.h"
 #include "helper.h"
-#include "sumessage.h"
 
 int encode(char* buffer, cmp_object_t objTemplate, QVariant value);
 static uint32_t buf_writer(cmp_ctx_t* ctx, const void *data, uint32_t count);
-
-////Return index of the token, -1 if not found
-int findToken(uint16_t token, QVector<msgid> tokenlist){
-    for(int i=0; i<tokenlist.count(); i++){
-        if(tokenlist.at(i).number == token){
-            return i;
-        }
-    }
-    return -1;
-}
-
 
 sensor::sensor(node* parent, QString uri, QVariantMap attributes, sensorstore *p) : suinterface(parent->getAddress())
 {
@@ -351,49 +339,38 @@ void sensor::testEvents(QVariant event, QVariant value){
 }
 
 /******** Sensor reply handlers ************/
-void sensor::handleReturnCode(uint16_t token, CoapPDU::Code code){
+void sensor::handleReturnCode(msgid token, CoapPDU::Code code){
 
-    int index = findToken(token, this->token);
-    if(index < 0) return;
-
-    if(this->token.at(index).req == req_clearparings){
+    if(token.req == req_clearparings){
         if(code == CoapPDU::COAP_CHANGED){
             pairings->clear();
         }
     }
-    else if(this->token.at(index).req == req_removepairingitems){
+    else if(token.req == req_removepairingitems){
         qDebug() << "handleReturnCode req_removepairingitems";
         pairings->removePairingsAck();
     }
-    else if(this->token.at(index).req == req_observe){
+    else if(token.req == req_observe){
         qDebug() << "handleReturnCode req_observe: " << code;
     }
 }
 
-void sensor::nodeNotResponding(uint16_t token){
+void sensor::nodeNotResponding(msgid token){
     qDebug() << "Message timed out";
-
-    int index = findToken(token, this->token);
-    if(index != -1)
-        this->token.remove(index);
 }
 
-QVariant sensor::parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU::Code code) {
+QVariant sensor::parseAppOctetFormat(msgid token, QByteArray payload, CoapPDU::Code code) {
     qDebug() << uri << " got message!";
     int cont = 0;
     cmp_ctx_t cmp;
     cmp_init(&cmp, payload.data(), buf_reader, 0);
-    int index = findToken(token, this->token);
-    int keep = 0;
+
     do{
         cmp_object_t obj;
         if(!cmp_read_object(&cmp, &obj)) return QVariant(0);
         QVariantMap result = cmpobjectToVariant(obj).toMap();
 
-        //qDebug() << result;
-
-        if(index != -1){
-            switch(this->token.at(index).req){
+            switch(token.req){
             case req_RangeMinValue:
                 RangeMin = obj;
                 emit rangeMinValueReceived(result);
@@ -403,20 +380,19 @@ QVariant sensor::parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU
                 emit rangeMaxValueReceived(result);
                 break;
             case observe_monitor:
-                keep = 1;
             case req_currentValue:
                 LastValue = obj;
                 emit currentValueChanged(result);
                 break;
             case req_observe:
                 if(code < 128){
-                    emit observe_started(result, token);
-                    disableTokenRemoval(token);
-                    this->token[index].req = observe_monitor;
-                    keep = 1;
+                    emit observe_started(result, token.number);
+                    disableTokenRemoval(token.number);
+                    //TODO: Set the token to observing
+                    //this->token[index].req = observe_monitor;
                 }
                 else{
-                    emit observe_failed(token);
+                    emit observe_failed(token.number);
                 }
                 break;
             case req_aboveEventValue:
@@ -475,10 +451,8 @@ QVariant sensor::parseAppOctetFormat(uint16_t token, QByteArray payload, CoapPDU
             case req_testevent:
                 break;
             }
-        }
     }while(cmp.buf < payload.data() + payload.length() && cont);
 
-    if(keep == 0) this->token.remove(index);
     return QVariant(0);
 }
 
