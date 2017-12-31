@@ -100,6 +100,10 @@ res_sysinfo_gethandler(void *request, void *response, uint8_t *buffer, uint16_t 
 		}
 		REST.set_response_payload(response, buffer, len);
 	}
+	else{
+		//Ping just respond with ok.
+		REST.set_response_status(response, REST.status.OK);
+	}
 }
 
 
@@ -122,10 +126,20 @@ static void res_sysinfo_puthandler(void *request, void *response, uint8_t *buffe
 			process_post(PROCESS_BROADCAST, systemchange, NULL);
 			REST.set_response_status(response, REST.status.OK);
 		}
+		else if(strncmp(str, "obs", len) == 0){
+			if(missingJustCalled(&UIP_IP_BUF->srcipaddr)){
+				REST.set_response_status(response, REST.status.OK);
+			}
+			else{
+				REST.set_response_status(response, REST.status.DELETED);
+			}
+		}
+#if 0	//Needs reimplementing!
 		else if(strncmp(str, "obsretry", len) == 0){
 			process_post(&susensors_process, susensors_service, NULL);
 			REST.set_response_status(response, REST.status.OK);
 		}
+#endif
 		else{
 			REST.set_response_status(response, REST.status.BAD_REQUEST);
 		}

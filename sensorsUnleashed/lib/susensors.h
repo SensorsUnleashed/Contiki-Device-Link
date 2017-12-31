@@ -140,11 +140,15 @@ susensors_sensor_t* susensors_find(const char *type, unsigned short len);
 susensors_sensor_t* susensors_next(susensors_sensor_t* s);
 susensors_sensor_t* susensors_first(void);
 
+int missingJustCalled(uip_ip6addr_t* srcip);
+
 void susensors_changed(susensors_sensor_t* s, uint8_t event);
 
 extern process_event_t susensors_event;
 extern process_event_t susensors_pair;
 extern process_event_t susensors_service;
+extern process_event_t susensors_presence;
+
 PROCESS_NAME(susensors_process);
 
 #endif /* SENSORS_H_ */

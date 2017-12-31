@@ -64,6 +64,7 @@ struct __attribute__ ((__packed__)) joinpair_s{
 	enum datatype_e devicetype;
 	void* deviceptr;
 	uip_ip6addr_t destip;
+	char nodediscuri[25];
 };
 
 typedef struct joinpair_s joinpair_t;

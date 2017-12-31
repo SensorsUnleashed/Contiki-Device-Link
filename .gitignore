@@ -9,3 +9,14 @@
 /pairs
 /coap-uart-device-handler/symbols.c
 /coap-uart-device-handler/symbols.h
+*.o
+moc_*
+qrc_*
+/SensorsUnleasedGui/build-suGui-Desktop_Qt_5_9_1_GCC_64bit2-Debug/.qmake.stash
+/SensorsUnleasedGui/build-suGui-Desktop_Qt_5_9_1_GCC_64bit2-Debug/Database/setup.db
+/SensorsUnleasedGui/build-suGui-Desktop_Qt_5_9_1_GCC_64bit2-Debug/Makefile
+/SensorsUnleasedGui/build-suGui-Desktop_Qt_5_9_1_GCC_64bit2-Debug/suGui
+/sensorsUnleashed/er-uart-server.minimal-net
+/sensorsUnleashed/er-uart-server.native
+/sensorsUnleashed/er-uart-server.radioone
+/sensorsUnleashed/obj_radioone/cc2538.ld
