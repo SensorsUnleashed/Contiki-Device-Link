@@ -102,14 +102,20 @@ static void writeFile(){
 		return;
 	}
 
-	cmp_init(&cmp, &write, 0, file_writer);
+	if(list_length(revlookup) == 0){
+		cfs_remove(filename);
+	}
+	else{
+		cmp_init(&cmp, &write, 0, file_writer);
 
-	for(revlookup_t* i = list_head(revlookup); i; i = list_item_next(i)){
-		cmp_write_array(&cmp, 8);
-		for(int j=0; j<8; j++){
-			cmp_write_u16(&cmp, i->srcip.u16[j]);
+		for(revlookup_t* i = list_head(revlookup); i; i = list_item_next(i)){
+			cmp_write_array(&cmp, 8);
+			for(int j=0; j<8; j++){
+				cmp_write_u16(&cmp, i->srcip.u16[j]);
+			}
 		}
 	}
+
 	cfs_close(write.fd);
 }
 
