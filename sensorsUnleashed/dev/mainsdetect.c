@@ -33,7 +33,6 @@
 #include "sys/ctimer.h"
 #include "mainsdetect.h"
 
-#include "dev/leds.h"
 #include "dev/gpio.h"
 #include "dev/ioc.h"
 
@@ -101,8 +100,6 @@ static int set(struct susensors_sensor* this, int type, void* data)
 	return ret;
 }
 
-//#include "dev/leds.h"
-
 /**
  * \brief Callback registered with the GPIO module. Gets fired when mains is detected
  * \param port The port number that generated the interrupt
@@ -123,7 +120,6 @@ mainsdetect_isr_callback(uint8_t port, uint8_t pin)
 	if(r->LastValue.as.u8 == 0){
 		r->LastValue.as.u8 = 1;
 		setEventU8(this, 1, 1);
-		leds_on(LEDS_YELLOW);
 	}
 }
 
@@ -136,7 +132,6 @@ mainsgonecallback(void *ptr)
 	if(r->LastValue.as.u8 == 1){
 		r->LastValue.as.u8 = 0;
 		setEventU8(this, -1, 1);
-		leds_off(LEDS_YELLOW);
 	}
 }
 

@@ -76,7 +76,7 @@ struct resourceconf pulseconfig = {
 		},
 		.ChangeEvent = {
 				.type = CMP_TYPE_UINT16,
-				.as.u16 = 500
+				.as.u16 = 20
 		},
 		.RangeMin = {
 				.type = CMP_TYPE_UINT16,
@@ -176,12 +176,10 @@ static int configure(struct susensors_sensor* this, int type, int value)
 		/* 7. Load the event count into the GPTM Timer n Match (GPTIMER_TnMATCHR) register. */
 		REG(GPT_1_BASE + GPTIMER_TAMATCHR) = config->ChangeEvent.as.u16;
 
-//		/* 8. If interrupts are required, set the CnMIM bit in the GPTM Interrupt Mask (GPTIMER_IMR) register. */
-//		REG(GPT_1_BASE + GPTIMER_IMR) |= GPTIMER_IMR_CAMIM;
-//		nvic_interrupt_unpend(NVIC_INT_GPTIMER_1A);	//Clear pending interrupts
-//		nvic_interrupt_enable(NVIC_INT_GPTIMER_1A);
-		process_start(&pulseinput_int_process, NULL);
+		/* 8. If interrupts are required, set the CnMIM bit in the GPTM Interrupt Mask (GPTIMER_IMR) register. */
+		REG(GPT_1_BASE + GPTIMER_IMR) |= GPTIMER_IMR_CAMIM;
 
+		process_start(&pulseinput_int_process, NULL);
 		break;
 	case SUSENSORS_ACTIVE:
 		if(value){	//Activate
