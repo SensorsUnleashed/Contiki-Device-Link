@@ -41,9 +41,9 @@ susensors_sensor_t* addASUMainsDetector(const char* name, struct resourceconf* c
 #ifdef MAINSDETECT_CONF_PIN
 #define MAINSDETECT_PIN        MAINSDETECT_CONF_PIN
 #else
-#define MAINSDETECT_PIN        2
+#define MAINSDETECT_PIN        7
 #endif
-#ifdef RELAY_CONF_PORT
+#ifdef MAINSDETECT_CONF_PORT
 #define MAINSDETECT_PORT       MAINSDETECT_CONF_PORT
 #else
 #define MAINSDETECT_PORT       GPIO_A_NUM

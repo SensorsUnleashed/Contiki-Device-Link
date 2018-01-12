@@ -30,11 +30,16 @@
  * This file is part of the Sensors Unleashed project
  *******************************************************************************/
 #include "contiki.h"
-#include "sys/ctimer.h"
+//#include "sys/ctimer.h"
+#include "sys/timer.h"
 #include "mainsdetect.h"
 
+#include "dev/sys-ctrl.h"
+#include "dev/ioc.h"
+#include "dev/gptimer.h"
 #include "dev/gpio.h"
 #include "dev/ioc.h"
+#include "dev/leds.h"
 
 #define MAINSDETECT_PORT_BASE          GPIO_PORT_TO_BASE(MAINSDETECT_PORT)
 #define MAINSDETECT_PIN_MASK           GPIO_PIN_MASK(MAINSDETECT_PIN)
@@ -44,7 +49,7 @@
 #include "susensorcommon.h"
 
 static struct ctimer mains_gone_timeout;
-
+//static struct timer mains_gone_timeout;
 static struct relayRuntime mainsdetectruntime[1];
 
 struct resourceconf mainsdetectconfig = {
@@ -52,7 +57,7 @@ struct resourceconf mainsdetectconfig = {
 		.version = 1,
 		.flags = METHOD_GET | METHOD_PUT | IS_OBSERVABLE | HAS_SUB_RESOURCES,
 		.max_pollinterval = 2,
-		.eventsActive = AboveEventActive | BelowEventActive,
+		.eventsActive = ChangeEventActive,
 		.AboveEventAt = {
 				.type = CMP_TYPE_UINT8,
 				.as.u8 = 1
@@ -100,71 +105,103 @@ static int set(struct susensors_sensor* this, int type, void* data)
 	return ret;
 }
 
-/**
- * \brief Callback registered with the GPIO module. Gets fired when mains is detected
- * \param port The port number that generated the interrupt
- * \param pin The pin number that generated the interrupt. This is the pin
- * absolute number (i.e. 0, 1, ..., 7), not a mask
- */
-static void
-mainsdetect_isr_callback(uint8_t port, uint8_t pin)
-{
-	/* The mains has been gone for more than 1 second, but is back again.
-	 * Restart the mains gone timeout again
-	*/
-	ctimer_restart(&mains_gone_timeout);
-
-	struct susensors_sensor* this = (struct susensors_sensor*)mains_gone_timeout.ptr;
-	struct relayRuntime* r = (struct relayRuntime*)this->data.runtime;
-
-	if(r->LastValue.as.u8 == 0){
-		r->LastValue.as.u8 = 1;
-		setEventU8(this, 1, 1);
-	}
-}
-
-static void
-mainsgonecallback(void *ptr)
-{
-	struct susensors_sensor* this = (struct susensors_sensor*)ptr;
-	struct relayRuntime* r = (struct relayRuntime*)this->data.runtime;
-
-	if(r->LastValue.as.u8 == 1){
-		r->LastValue.as.u8 = 0;
-		setEventU8(this, -1, 1);
-	}
-}
-
 static int configure(struct susensors_sensor* this, int type, int value)
 {
 	switch(type) {
 	case SUSENSORS_HW_INIT:
-		/* Software controlled */
-		GPIO_SOFTWARE_CONTROL(MAINSDETECT_PORT_BASE, MAINSDETECT_PIN_MASK);
+		/** The first timer, counts pulses */
+		/*
+		 * Remove the clock gate to enable GPT2 and then initialise it
+		 */
+		REG(SYS_CTRL_RCGCGPT) |= SYS_CTRL_RCGCGPT_GPT2;
 
-		/* Set pin to input */
-		GPIO_SET_INPUT(MAINSDETECT_PORT_BASE, MAINSDETECT_PIN_MASK);
+		/* Set PA2 to be pulse counter input */
+		REG(IOC_GPT2OCP1) = (MAINSDETECT_PORT << 3) + MAINSDETECT_PIN;
 
-		/* Enable edge detection */
-		GPIO_DETECT_EDGE(MAINSDETECT_PORT_BASE, MAINSDETECT_PIN_MASK);
+		/* Set pin PA2 (DIO0) to peripheral mode */
+		GPIO_PERIPHERAL_CONTROL(MAINSDETECT_PORT_BASE,MAINSDETECT_PIN_MASK);
 
-		/* Rising Edges */
-		GPIO_DETECT_RISING(MAINSDETECT_PORT_BASE, MAINSDETECT_PIN_MASK);
+		/* From user manual p. 329 */
+		/* 1. Ensure the timer is disabled (the TAEN bit is cleared) before making any changes. */
+		REG(GPT_2_BASE + GPTIMER_CTL) = 0;
 
-		ioc_set_over(MAINSDETECT_PORT, MAINSDETECT_PIN, IOC_OVERRIDE_PUE);
+		/* 2. Write the GPTM Configuration (GPTIMER_CFG) register with a value of 0x0000.0004. */
+		/* 16-bit timer configuration */
+		REG(GPT_2_BASE + GPTIMER_CFG) = 0x04;
 
-		gpio_register_callback(mainsdetect_isr_callback, MAINSDETECT_PORT, MAINSDETECT_PIN);
+		/* 3. In the GPTM Timer Mode (GPTIMER_TnMR) register, write the TnCMR field to 0x0 and the TnMR field to 0x3.*/
+		/* Capture mode, Edge-count mode*/
+		REG(GPT_2_BASE + GPTIMER_TAMR) |= GPTIMER_TAMR_TAMR;		//Capture mode
+		REG(GPT_2_BASE + GPTIMER_TAMR) &= ~(GPTIMER_TAMR_TACMR);	//Edge count mode
+		REG(GPT_2_BASE + GPTIMER_TAMR) |= GPTIMER_TAMR_TACDIR;		//Count up
+
+		/* 4. Configure the type of event(s) that the timer captures by writing the TnEVENT field of the G Control (GPTIMER_CTL) register. */
+		/* Positive edges */
+		REG(GPT_2_BASE + GPTIMER_CTL) &= ~GPTIMER_CTL_TAEVENT;	//0=Postive Edge, 1=Negative Edge, 3=Both
+
+		/* 5. If a prescaler is to be used, write the prescale value to the GPTM Timer n Prescale Regist (GPTIMER_TnPR). */
+		/* No prescaler */
+		REG(GPT_2_BASE + GPTIMER_TAPR) = 0;
+
+		/* 6. Load the timer start value into the GPTM Timer n Interval Load (GPTIMER_TnILR) registe */
+		REG(GPT_2_BASE + GPTIMER_TAILR) = 4;	//When reached, its starts over from 0
+
+		/* 7. Load the event count into the GPTM Timer n Match (GPTIMER_TnMATCHR) register. */
+		REG(GPT_2_BASE + GPTIMER_TAMATCHR) = 4;	//To generate event on start?
+
+		/* 8. If interrupts are required, set the CnMIM bit in the GPTM Interrupt Mask (GPTIMER_IMR) register. */
+		REG(GPT_2_BASE + GPTIMER_IMR) |= GPTIMER_IMR_CAMIM;
+
+		/** Now setup the second timer - when this one times out, we know the mains has gone */
+		/* 1. Ensure the timer is disabled (the TnEN bit in the GPTIMER_CTL register is cleared) before making any changes. */
+		REG(GPT_2_BASE + GPTIMER_CTL) &= ~GPTIMER_CTL_TBEN;
+
+		/* 2. Write the GPTM Configuration Register (GPTIMER_CFG) with a value of 0x0000 0000. */
+		//?????
+		//REG(GPT_2_BASE + GPTIMER_TBMR) |= GPTIMER_TBMR_TBWOT;	//Wait on trigger
+
+		/* 3. Configure the TnMR field in the GPTM Timer n Mode Register (GPTIMER_TnMR):
+		 * (a) Write a value of 0x1 for one-shot mode.
+		 * (b) Write a value of 0x2 for periodic mode.
+		 * */
+		//REG(GPT_2_BASE + GPTIMER_TBMR) |= GPTIMER_TBMR_TBMR_PERIODIC;
+		REG(GPT_2_BASE + GPTIMER_TBMR) |= GPTIMER_TBMR_TBMR_ONE_SHOT;
+		REG(GPT_2_BASE + GPTIMER_TBMR) |= GPTIMER_TBMR_TBMRSU;	//Update the match on every timer start
+		//REG(GPT_2_BASE + GPTIMER_TBMR) |= GPTIMER_TBMR_TBCDIR;			//Count up
+
+		/* 4. Optionally, configure the TnSNAPS, TnWOT, TnMTE, and TnCDIR bits in the GPTIMER_TnMR register to select whether to
+		 * capture the value of the free-running timer at time-out, use an external trigger to start counting, configure an additional
+		 * trigger or interrupt, and count up or down.
+		*/
+
+		/* Prescale - TICK is 16MHz - we need a timeout of 100ms, and register of 16bit */
+		REG(GPT_2_BASE + GPTIMER_TBPR) = 200;// 25-1;
+
+		/* 5. Load the end value into the GPTM Timer n Interval Load Register (GPTIMER_TnILR). */
+		REG(GPT_2_BASE + GPTIMER_TBILR) = 32000;	//100ms
+
+		/* 6. If interrupts are required, set the appropriate bits in the GPTM Interrupt Mask Register (GPTIMER_IMR). */
+		REG(GPT_2_BASE + GPTIMER_IMR) |= GPTIMER_IMR_TBTOIM;	//Timeout
+
 		break;
 	case SUSENSORS_ACTIVE:
 		if(value) {
-			ctimer_set(&mains_gone_timeout, CLOCK_SECOND/5, mainsgonecallback, this);
-			GPIO_ENABLE_INTERRUPT(MAINSDETECT_PORT_BASE, MAINSDETECT_PIN_MASK);
-			NVIC_EnableIRQ(MAINSDETECT_VECTOR);
+			leds_on(LEDS_GREEN);
+			if(!REG(GPT_2_BASE + GPTIMER_CTL) & GPTIMER_CTL_TAEN){
+				/* Enable interrupts */
+				NVIC_ClearPendingIRQ(GPT2A_IRQn);
+				NVIC_ClearPendingIRQ(GPT2B_IRQn);
+				NVIC_EnableIRQ(GPT2A_IRQn);
+				NVIC_EnableIRQ(GPT2B_IRQn);
+				REG(GPT_2_BASE + GPTIMER_CTL) |= GPTIMER_CTL_TAEN;	//Enable pulse counter
 
+				while(1) {
+					//PROCESS_YIELD();
+				}
+			}
 		} else {
-			ctimer_stop(&mains_gone_timeout);
-			GPIO_DISABLE_INTERRUPT(MAINSDETECT_PORT_BASE, MAINSDETECT_PIN_MASK);
-			NVIC_DisableIRQ(MAINSDETECT_VECTOR);
+			NVIC_DisableIRQ(GPT2A_IRQn);
+			NVIC_DisableIRQ(GPT2B_IRQn);
 		}
 		return value;
 	default:
@@ -172,6 +209,42 @@ static int configure(struct susensors_sensor* this, int type, int value)
 	}
 	return 0;
 }
+
+/**
+ * ISR handler
+ */
+void mainsdetect_pulsecnt_isr(){
+
+	leds_on(LEDS_GREEN);
+
+//	if(r->LastValue.as.u8 == 0){
+//		r->LastValue.as.u8 = 1;
+//		leds_on(LEDS_GREEN);
+//		setEventU8(this, 1, 1);
+//	}
+
+	REG(GPT_2_BASE + GPTIMER_TBV) = 32000;
+
+	//Clear the interrupts
+	REG(GPT_2_BASE + GPTIMER_ICR) |= GPTIMER_ICR_CAMCINT;
+
+	//Enable TimerB (For mains gone detection)
+	REG(GPT_2_BASE + GPTIMER_CTL) |= GPTIMER_CTL_TBEN;
+}
+
+void mainsdetect_mainsgone_isr(){
+	leds_toggle(LEDS_GREEN);
+
+//	if(r->LastValue.as.u8 == 1){
+//		leds_off(LEDS_GREEN);
+//		r->LastValue.as.u8 = 0;
+//		setEventU8(this, -1, 1);
+//	}
+
+	//Clear the interrupts
+	REG(GPT_2_BASE + GPTIMER_ICR) |= GPTIMER_ICR_TBTOCINT;
+}
+
 
 /* An event was received from another device - now act on it */
 static int eventHandler(struct susensors_sensor* this, int len, uint8_t* payload){
@@ -195,7 +268,7 @@ susensors_sensor_t* addASUMainsDetector(const char* name, struct resourceconf* c
 
 	mainsdetectruntime[0].enabled = 0;
 	mainsdetectruntime[0].hasEvent = 0,
-	mainsdetectruntime[0].LastEventValue.type = CMP_TYPE_UINT8;
+			mainsdetectruntime[0].LastEventValue.type = CMP_TYPE_UINT8;
 	mainsdetectruntime[0].LastEventValue.as.u8 = 0;
 	mainsdetectruntime[0].ChangeEventAcc.as.u8 = 0;
 	d.data.runtime = (void*) &mainsdetectruntime[0];
