@@ -76,7 +76,7 @@ struct resourceconf pulseconfig = {
 		},
 		.ChangeEvent = {
 				.type = CMP_TYPE_UINT16,
-				.as.u16 = 20
+				.as.u16 = 500
 		},
 		.RangeMin = {
 				.type = CMP_TYPE_UINT16,

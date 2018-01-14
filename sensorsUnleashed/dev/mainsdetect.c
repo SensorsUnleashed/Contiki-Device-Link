@@ -30,7 +30,6 @@
  * This file is part of the Sensors Unleashed project
  *******************************************************************************/
 #include "contiki.h"
-//#include "sys/ctimer.h"
 #include "sys/timer.h"
 #include "mainsdetect.h"
 
@@ -45,12 +44,16 @@
 #define MAINSDETECT_PIN_MASK           GPIO_PIN_MASK(MAINSDETECT_PIN)
 #define MAINSDETECT_VECTOR			   GPIO_A_IRQn //NVIC_INT_GPIO_PORT_A
 
+//Timeout = 1/16Mhz * 28 * 60000 = 105ms	//5 periods + prell margin
+#define PRESCALER	28-1
+#define TICKTIMEOUT	60000
+
 #include "rest-engine.h"
 #include "susensorcommon.h"
 
-static struct ctimer mains_gone_timeout;
-//static struct timer mains_gone_timeout;
 static struct relayRuntime mainsdetectruntime[1];
+
+static susensors_sensor_t* mainsdetect;
 
 struct resourceconf mainsdetectconfig = {
 		.resolution = 1,
@@ -91,7 +94,6 @@ static int get(struct susensors_sensor* this, int type, void* data)
 	int ret = 1;
 	cmp_object_t* obj = (cmp_object_t*)data;
 	if((enum up_parameter) type == ActualValue){
-		struct susensors_sensor* this = (struct susensors_sensor*)mains_gone_timeout.ptr;
 		struct relayRuntime* r = (struct relayRuntime*)this->data.runtime;
 		*obj = r->LastValue;
 		ret = 0;
@@ -157,17 +159,12 @@ static int configure(struct susensors_sensor* this, int type, int value)
 		REG(GPT_2_BASE + GPTIMER_CTL) &= ~GPTIMER_CTL_TBEN;
 
 		/* 2. Write the GPTM Configuration Register (GPTIMER_CFG) with a value of 0x0000 0000. */
-		//?????
-		//REG(GPT_2_BASE + GPTIMER_TBMR) |= GPTIMER_TBMR_TBWOT;	//Wait on trigger
 
 		/* 3. Configure the TnMR field in the GPTM Timer n Mode Register (GPTIMER_TnMR):
 		 * (a) Write a value of 0x1 for one-shot mode.
 		 * (b) Write a value of 0x2 for periodic mode.
 		 * */
-		//REG(GPT_2_BASE + GPTIMER_TBMR) |= GPTIMER_TBMR_TBMR_PERIODIC;
 		REG(GPT_2_BASE + GPTIMER_TBMR) |= GPTIMER_TBMR_TBMR_ONE_SHOT;
-		REG(GPT_2_BASE + GPTIMER_TBMR) |= GPTIMER_TBMR_TBMRSU;	//Update the match on every timer start
-		//REG(GPT_2_BASE + GPTIMER_TBMR) |= GPTIMER_TBMR_TBCDIR;			//Count up
 
 		/* 4. Optionally, configure the TnSNAPS, TnWOT, TnMTE, and TnCDIR bits in the GPTIMER_TnMR register to select whether to
 		 * capture the value of the free-running timer at time-out, use an external trigger to start counting, configure an additional
@@ -175,14 +172,15 @@ static int configure(struct susensors_sensor* this, int type, int value)
 		*/
 
 		/* Prescale - TICK is 16MHz - we need a timeout of 100ms, and register of 16bit */
-		REG(GPT_2_BASE + GPTIMER_TBPR) = 200;// 25-1;
+		REG(GPT_2_BASE + GPTIMER_TBPR) = PRESCALER;
 
 		/* 5. Load the end value into the GPTM Timer n Interval Load Register (GPTIMER_TnILR). */
-		REG(GPT_2_BASE + GPTIMER_TBILR) = 32000;	//100ms
+		REG(GPT_2_BASE + GPTIMER_TBILR) = TICKTIMEOUT;
 
 		/* 6. If interrupts are required, set the appropriate bits in the GPTM Interrupt Mask Register (GPTIMER_IMR). */
 		REG(GPT_2_BASE + GPTIMER_IMR) |= GPTIMER_IMR_TBTOIM;	//Timeout
 
+		mainsdetect = this;
 		break;
 	case SUSENSORS_ACTIVE:
 		if(value) {
@@ -193,11 +191,7 @@ static int configure(struct susensors_sensor* this, int type, int value)
 				NVIC_ClearPendingIRQ(GPT2B_IRQn);
 				NVIC_EnableIRQ(GPT2A_IRQn);
 				NVIC_EnableIRQ(GPT2B_IRQn);
-				REG(GPT_2_BASE + GPTIMER_CTL) |= GPTIMER_CTL_TAEN;	//Enable pulse counter
-
-				while(1) {
-					//PROCESS_YIELD();
-				}
+				REG(GPT_2_BASE + GPTIMER_CTL) |= GPTIMER_CTL_TBEN;	//Start with the timeout
 			}
 		} else {
 			NVIC_DisableIRQ(GPT2A_IRQn);
@@ -217,13 +211,14 @@ void mainsdetect_pulsecnt_isr(){
 
 	leds_on(LEDS_GREEN);
 
-//	if(r->LastValue.as.u8 == 0){
-//		r->LastValue.as.u8 = 1;
-//		leds_on(LEDS_GREEN);
-//		setEventU8(this, 1, 1);
-//	}
+	struct relayRuntime* r = (struct relayRuntime*)mainsdetect->data.runtime;
+	if(r->LastValue.as.u8 == 0){
+		r->LastValue.as.u8 = 1;
+		leds_on(LEDS_GREEN);
+		setEventU8(mainsdetect, 1, 1);
+	}
 
-	REG(GPT_2_BASE + GPTIMER_TBV) = 32000;
+	REG(GPT_2_BASE + GPTIMER_TBV) = TICKTIMEOUT;
 
 	//Clear the interrupts
 	REG(GPT_2_BASE + GPTIMER_ICR) |= GPTIMER_ICR_CAMCINT;
@@ -233,16 +228,28 @@ void mainsdetect_pulsecnt_isr(){
 }
 
 void mainsdetect_mainsgone_isr(){
-	leds_toggle(LEDS_GREEN);
+	leds_off(LEDS_GREEN);
 
-//	if(r->LastValue.as.u8 == 1){
-//		leds_off(LEDS_GREEN);
-//		r->LastValue.as.u8 = 0;
-//		setEventU8(this, -1, 1);
-//	}
+	/* To avoid prell use disable the input timer for one oneshot more */
+	if(REG(GPT_2_BASE + GPTIMER_CTL) & GPTIMER_CTL_TAEN){
+		REG(GPT_2_BASE + GPTIMER_CTL) &= ~GPTIMER_CTL_TAEN;
+		REG(GPT_2_BASE + GPTIMER_CTL) |= GPTIMER_CTL_TBEN;
+	}
+	else{
+		REG(GPT_2_BASE + GPTIMER_CTL) |= GPTIMER_CTL_TAEN;
+	}
+
+	struct relayRuntime* r = (struct relayRuntime*)mainsdetect->data.runtime;
+	if(r->LastValue.as.u8 == 1){
+		leds_off(LEDS_GREEN);
+		r->LastValue.as.u8 = 0;
+		setEventU8(mainsdetect, -1, 1);
+	}
 
 	//Clear the interrupts
 	REG(GPT_2_BASE + GPTIMER_ICR) |= GPTIMER_ICR_TBTOCINT;
+	REG(GPT_2_BASE + GPTIMER_ICR) |= GPTIMER_ICR_CAMCINT;
+	REG(GPT_2_BASE + GPTIMER_TAV) = 0;
 }
 
 

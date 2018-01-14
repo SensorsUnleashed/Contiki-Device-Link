@@ -51,6 +51,10 @@
 /*---------------------------------------------------------------------------*/
 #include "dev/gpio.h"
 #include "dev/nvic.h"
+
+#define MAINSDETECT_CONF_PIN	2
+#define MAINSDETECT_CONF_PORT	GPIO_A_NUM
+
 /*---------------------------------------------------------------------------*/
 /** \name OpenMote-CC2538 LED configuration
  *

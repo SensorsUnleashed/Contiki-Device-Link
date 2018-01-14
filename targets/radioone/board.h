@@ -70,6 +70,10 @@
  * LED1 shares the same pin with the USB pullup
  * @{
  */
+
+#define MAINSDETECT_CONF_PIN	7
+#define MAINSDETECT_CONF_PORT	GPIO_A_NUM
+
 /*---------------------------------------------------------------------------*/
 /* Some files include leds.h before us, so we need to get rid of defaults in
  * leds.h before we provide correct definitions */

@@ -69,6 +69,8 @@ void pka_isr(void);
 
 /* Sensors Unleashed ISR functions */
 void pulscounter_isr(void);
+void mainsdetect_pulsecnt_isr();
+void mainsdetect_mainsgone_isr();
 
 /* Link in the USB ISR only if USB is enabled */
 #if USB_SERIAL_CONF_ENABLE
@@ -152,8 +154,8 @@ void(*const vectors[])(void) =
   default_handler,            /* 36 Timer 0 subtimer B */
   pulscounter_isr,            /* 37 Timer 1 subtimer A */
   default_handler,            /* 38 Timer 1 subtimer B */
-  default_handler,            /* 39 Timer 2 subtimer A */
-  default_handler,            /* 40 Timer 2 subtimer B */
+  mainsdetect_pulsecnt_isr,            /* 39 Timer 2 subtimer A */
+  mainsdetect_mainsgone_isr,            /* 40 Timer 2 subtimer B */
   default_handler,            /* 41 Analog Comparator 0 */
   default_handler,            /* 42 RFCore Rx/Tx (Alternate) */
   default_handler,            /* 43 RFCore Error (Alternate) */
